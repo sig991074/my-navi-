@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_1c6d381fe5d0de23cdd88929cb8984a3 {
+                #map_45bc9a40da3dcdf2877aef086c072a6a {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -54,14 +54,14 @@
 <body>
     
     
-            <div class="folium-map" id="map_1c6d381fe5d0de23cdd88929cb8984a3" ></div>
+            <div class="folium-map" id="map_45bc9a40da3dcdf2877aef086c072a6a" ></div>
         
 </body>
 <script>
     
     
-            var map_1c6d381fe5d0de23cdd88929cb8984a3 = L.map(
-                "map_1c6d381fe5d0de23cdd88929cb8984a3",
+            var map_45bc9a40da3dcdf2877aef086c072a6a = L.map(
+                "map_45bc9a40da3dcdf2877aef086c072a6a",
                 {
                     center: [35.6812, 139.7671],
                     crs: L.CRS.EPSG3857,
@@ -78,14 +78,14 @@
 
         
     
-            var tile_layer_7e661209d48574c282f818a7a90f0d8d = L.tileLayer(
-                "https://cartocdn.com{z}/{x}/{y}{r}.png",
+            var tile_layer_3e4cbf2e0c2ac48774ccf96b416724fc = L.tileLayer(
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
-  "maxZoom": 18,
-  "maxNativeZoom": 18,
+  "maxZoom": 19,
+  "maxNativeZoom": 19,
   "noWrap": false,
-  "attribution": "\u00a9 OpenStreetMap contributors \u00a9 CARTO",
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors",
   "subdomains": "abc",
   "detectRetina": false,
   "tms": false,
@@ -95,19 +95,19 @@
             );
         
     
-            tile_layer_7e661209d48574c282f818a7a90f0d8d.addTo(map_1c6d381fe5d0de23cdd88929cb8984a3);
+            tile_layer_3e4cbf2e0c2ac48774ccf96b416724fc.addTo(map_45bc9a40da3dcdf2877aef086c072a6a);
         
     
-            var poly_line_a0321582f1661d3002825f912d9c3366 = L.polyline(
+            var poly_line_85378870bc6fab8acfdb9ebbcca6388b = L.polyline(
                 [[35.6812, 139.7671], [35.6667, 139.757], [35.655, 139.745], [35.6284, 139.7387]],
                 {"bubblingMouseEvents": true, "color": "#FF3366", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "#FF3366", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 8}
-            ).addTo(map_1c6d381fe5d0de23cdd88929cb8984a3);
+            ).addTo(map_45bc9a40da3dcdf2877aef086c072a6a);
         
     
         (function(){
-            var map_object = map_1c6d381fe5d0de23cdd88929cb8984a3;
+            var map_object = map_45bc9a40da3dcdf2877aef086c072a6a;
             
-            // 初期のピン（現在地用の青い丸）
+            // 現在地用の青い丸（初期位置）
             var currentPosMarker = L.circleMarker([35.6812, 139.7671], {
                 radius: 10,
                 fillColor: '#3388ff',
@@ -116,7 +116,7 @@
                 fillOpacity: 0.8
             }).addTo(map_object);
 
-            // スマホのGPSを追従する命令
+            // スマホのGPSと連動して画面中央に固定する命令
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition(
                     function(position) {
@@ -128,7 +128,7 @@
                         map_object.setView(newPos, map_object.getZoom());
                     },
                     function(error) {
-                        console.log("GPS待機中またはPC環境です...");
+                        console.log("GPS信号を探しています...");
                     },
                     { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
                 );

@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_71cfa4c3a302cf9a55f87b6e5a444542 {
+                #map_d950831cb8ccd0cd29deca3cb2162e7d {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -51,30 +51,20 @@
 
         
     
-<style>
-    html, body { height: 100%; margin: 0; padding: 0; }
-    #map { position: absolute; top: 0; bottom: 0; right: 0; left: 0; }
-    .distance-info {
-        background-color: white;
-        padding: 8px;
-        font-size: 18px;
-        font-weight: bold;
-        border-radius: 5px;
-        box-shadow: 0 0 5px rgba(0,0,0,0.3);
-    }
-</style>
+html, body { height: 100%; margin: 0; padding: 0; }
+#map { position: absolute; top: 0; bottom: 0; right: 0; left: 0; }
 </head>
 <body>
     
     
-            <div class="folium-map" id="map_71cfa4c3a302cf9a55f87b6e5a444542" ></div>
+            <div class="folium-map" id="map_d950831cb8ccd0cd29deca3cb2162e7d" ></div>
         
 </body>
 <script>
     
     
-            var map_71cfa4c3a302cf9a55f87b6e5a444542 = L.map(
-                "map_71cfa4c3a302cf9a55f87b6e5a444542",
+            var map_d950831cb8ccd0cd29deca3cb2162e7d = L.map(
+                "map_d950831cb8ccd0cd29deca3cb2162e7d",
                 {
                     center: [35.6812, 139.7671],
                     crs: L.CRS.EPSG3857,
@@ -91,7 +81,7 @@
 
         
     
-            var tile_layer_333d51fd54fbb90af5af6db007cdf07a = L.tileLayer(
+            var tile_layer_ecc66f51961e569089570a26c3f14d68 = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
@@ -108,54 +98,56 @@
             );
         
     
-            tile_layer_333d51fd54fbb90af5af6db007cdf07a.addTo(map_71cfa4c3a302cf9a55f87b6e5a444542);
+            tile_layer_ecc66f51961e569089570a26c3f14d68.addTo(map_d950831cb8ccd0cd29deca3cb2162e7d);
         
     
-var map_object = figure_84e7a8233c202e79f118b77383aba4fa;
+var map_object = figure_73c8e38e1fbc6c238092e72e9098faf5;
 
-// ルート線をグローバル変数に保持
+// ルート線
 window.routeGeneral = L.polyline([[35.6812, 139.7671], [35.6667, 139.757], [35.655, 139.745], [35.6284, 139.7387]], {color: 'blue', weight: 8});
 window.routeFreeHW = L.polyline([[35.6812, 139.7671], [35.67, 139.75], [35.64, 139.74], [35.6284, 139.7387]], {color: 'green', weight: 8});
 window.routePaidHW = L.polyline([[35.6812, 139.7671], [35.675, 139.76], [35.65, 139.745], [35.6284, 139.7387]], {color: 'red', weight: 8});
 
+// レイヤーグループ
 var generalLayer = L.layerGroup([window.routeGeneral]);
 var freeHWLayer = L.layerGroup([window.routeFreeHW]);
 var paidHWLayer = L.layerGroup([window.routePaidHW]);
 
-generalLayer.addTo(map_object);
+// 初期表示ルート設定
 window.activeRouteLine = window.routeGeneral;
+generalLayer.addTo(map_object);
 
+// レイヤー切替コントロール
 var overlayMaps = {
     "一般道ルート": generalLayer,
     "無料高速ルート": freeHWLayer,
     "有料高速ルート": paidHWLayer
 };
-window.activeRouteLine = window.routeGeneral;
+L.control.layers(null, overlayMaps).addTo(map_object);
 
+// 切り替え時に activeRouteLine を更新
 map_object.on('overlayadd', function(e) {
     if (e.name === "一般道ルート") window.activeRouteLine = window.routeGeneral;
     if (e.name === "無料高速ルート") window.activeRouteLine = window.routeFreeHW;
     if (e.name === "有料高速ルート") window.activeRouteLine = window.routePaidHW;
 });
 
-L.control.layers(null, overlayMaps).addTo(map_object);
-
 // 現在地マーカー
 window.currentMarker = null;
 
-// 音声案内関数（室内強化）
+// 音声案内
 function speak(text) {
     if ('speechSynthesis' in window) {
         var utter = new SpeechSynthesisUtterance(text);
         utter.lang = 'ja-JP';
-        utter.volume = 1.0; // 最大音量
-        utter.rate = 0.9;   // 少しゆっくり
-        utter.pitch = 1.0;  // 標準高さ
+        utter.volume = 1.0;
+        utter.rate = 0.9;
+        utter.pitch = 1.0;
         speechSynthesis.speak(utter);
     }
 }
 
-// GPS更新時にルート再描画 + 音声案内
+// GPS更新
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition(
         function(pos) {

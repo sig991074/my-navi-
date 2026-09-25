@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_d950831cb8ccd0cd29deca3cb2162e7d {
+                #map_88296e7a4cfa578dd24209eafd18ddd6 {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -50,21 +50,18 @@
             </script>
 
         
-    
-html, body { height: 100%; margin: 0; padding: 0; }
-#map { position: absolute; top: 0; bottom: 0; right: 0; left: 0; }
 </head>
 <body>
     
     
-            <div class="folium-map" id="map_d950831cb8ccd0cd29deca3cb2162e7d" ></div>
+            <div class="folium-map" id="map_88296e7a4cfa578dd24209eafd18ddd6" ></div>
         
 </body>
 <script>
     
     
-            var map_d950831cb8ccd0cd29deca3cb2162e7d = L.map(
-                "map_d950831cb8ccd0cd29deca3cb2162e7d",
+            var map_88296e7a4cfa578dd24209eafd18ddd6 = L.map(
+                "map_88296e7a4cfa578dd24209eafd18ddd6",
                 {
                     center: [35.6812, 139.7671],
                     crs: L.CRS.EPSG3857,
@@ -81,7 +78,7 @@ html, body { height: 100%; margin: 0; padding: 0; }
 
         
     
-            var tile_layer_ecc66f51961e569089570a26c3f14d68 = L.tileLayer(
+            var tile_layer_683bb6244216a7111808e590281ba6ef = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
@@ -98,10 +95,10 @@ html, body { height: 100%; margin: 0; padding: 0; }
             );
         
     
-            tile_layer_ecc66f51961e569089570a26c3f14d68.addTo(map_d950831cb8ccd0cd29deca3cb2162e7d);
+            tile_layer_683bb6244216a7111808e590281ba6ef.addTo(map_88296e7a4cfa578dd24209eafd18ddd6);
         
     
-var map_object = figure_73c8e38e1fbc6c238092e72e9098faf5;
+var map_object = figure_7e527096443db9a6434d2438e9678361;
 
 // ルート線
 window.routeGeneral = L.polyline([[35.6812, 139.7671], [35.6667, 139.757], [35.655, 139.745], [35.6284, 139.7387]], {color: 'blue', weight: 8});
@@ -113,7 +110,7 @@ var generalLayer = L.layerGroup([window.routeGeneral]);
 var freeHWLayer = L.layerGroup([window.routeFreeHW]);
 var paidHWLayer = L.layerGroup([window.routePaidHW]);
 
-// 初期表示ルート設定
+// 初期ルート設定＆追加
 window.activeRouteLine = window.routeGeneral;
 generalLayer.addTo(map_object);
 
@@ -158,7 +155,6 @@ if (navigator.geolocation) {
                 speak("ナビを開始します。ルートに沿って進んでください。");
             } else {
                 window.currentMarker.setLatLng([lat, lng]);
-                speak("現在地を更新しました。ルートを進んでください。");
             }
             if (window.activeRouteLine) {
                 window.activeRouteLine.addTo(map_object);
@@ -179,7 +175,6 @@ if (navigator.geolocation) {
 map_object.on('moveend', function() {
     if (window.activeRouteLine) {
         window.activeRouteLine.addTo(map_object);
-        speak("地図を移動しました。ルートを再表示します。");
     }
 });
 </script>

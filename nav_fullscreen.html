@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_a026311df55a1b57b9aef3d54f5c99fa {
+                #map_d88ad103275e74b321a82704dbc38f15 {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -51,31 +51,30 @@
 
         
     
-        <style>
-            html, body { height: 100%; margin: 0; padding: 0; }
-            #map { position: absolute; top: 0; bottom: 0; right: 0; left: 0; }
-            .distance-info {
-                background-color: white;
-                padding: 8px;
-                font-size: 18px;
-                font-weight: bold;
-                border-radius: 5px;
-                box-shadow: 0 0 5px rgba(0,0,0,0.3);
-            }
-        </style>
-        
+<style>
+    html, body { height: 100%; margin: 0; padding: 0; }
+    #map { position: absolute; top: 0; bottom: 0; right: 0; left: 0; }
+    .distance-info {
+        background-color: white;
+        padding: 8px;
+        font-size: 18px;
+        font-weight: bold;
+        border-radius: 5px;
+        box-shadow: 0 0 5px rgba(0,0,0,0.3);
+    }
+</style>
 </head>
 <body>
     
     
-            <div class="folium-map" id="map_a026311df55a1b57b9aef3d54f5c99fa" ></div>
+            <div class="folium-map" id="map_d88ad103275e74b321a82704dbc38f15" ></div>
         
 </body>
 <script>
     
     
-            var map_a026311df55a1b57b9aef3d54f5c99fa = L.map(
-                "map_a026311df55a1b57b9aef3d54f5c99fa",
+            var map_d88ad103275e74b321a82704dbc38f15 = L.map(
+                "map_d88ad103275e74b321a82704dbc38f15",
                 {
                     center: [35.6812, 139.7671],
                     crs: L.CRS.EPSG3857,
@@ -92,7 +91,7 @@
 
         
     
-            var tile_layer_588cfa6b4be64565e3e76d591bd493fd = L.tileLayer(
+            var tile_layer_4666f10c5046067685f8aa2ea6e233fc = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
@@ -109,78 +108,79 @@
             );
         
     
-            tile_layer_588cfa6b4be64565e3e76d591bd493fd.addTo(map_a026311df55a1b57b9aef3d54f5c99fa);
+            tile_layer_4666f10c5046067685f8aa2ea6e233fc.addTo(map_d88ad103275e74b321a82704dbc38f15);
         
     
-        var map_object = map_a026311df55a1b57b9aef3d54f5c99fa;
-        window.routeGeneral = L.polyline([[35.6812, 139.7671], [35.6667, 139.757], [35.655, 139.745], [35.6284, 139.7387]], {color: 'blue', weight: 8});
-        window.routeFreeHW = L.polyline([[35.6812, 139.7671], [35.67, 139.75], [35.64, 139.74], [35.6284, 139.7387]], {color: 'green', weight: 8});
-        window.routePaidHW = L.polyline([[35.6812, 139.7671], [35.675, 139.76], [35.65, 139.745], [35.6284, 139.7387]], {color: 'red', weight: 8});
-        var generalLayer = L.layerGroup([window.routeGeneral]);
-        var freeHWLayer = L.layerGroup([window.routeFreeHW]);
-        var paidHWLayer = L.layerGroup([window.routePaidHW]);
-        generalLayer.addTo(map_object);
-        window.activeRouteLine = window.routeGeneral;
-        var overlayMaps = {
-            "一般道ルート": generalLayer,
-            "無料高速ルート": freeHWLayer,
-            "有料高速ルート": paidHWLayer
-        };
-        L.control.layers(null, overlayMaps, {collapsed:false}).addTo(map_object);
-        map_object.on('overlayadd', function(e) {
-            if (e.name === "一般道ルート") window.activeRouteLine = window.routeGeneral;
-            else if (e.name === "無料高速ルート") window.activeRouteLine = window.routeFreeHW;
-            else if (e.name === "有料高速ルート") window.activeRouteLine = window.routePaidHW;
-        });
-        
-    
-        (function(){
-            var map_object = map_a026311df55a1b57b9aef3d54f5c99fa;
-            var infoDiv = L.control({position: 'topleft'});
-            infoDiv.onAdd = function(map) {
-                var div = L.DomUtil.create('div', 'distance-info');
-                div.innerHTML = '距離: -- m<br>ETA: -- 分';
-                return div;
-            };
-            infoDiv.addTo(map_object);
-            var arrowIcon = L.icon({
-                iconUrl: 'https://cdn-icons-png.flaticon.com/512/60/60758.png',
-                iconSize: [32, 32],
-                iconAnchor: [16, 16]
-            });
-            var currentPosMarker = L.marker([35.6812, 139.7671], {icon: arrowIcon}).addTo(map_object);
-            var lastSpeechDist = null;
-            function speak(text) {
-                if ('speechSynthesis' in window) {
-                    var utter = new SpeechSynthesisUtterance(text);
-                    utter.lang = 'ja-JP';
-                    speechSynthesis.speak(utter);
-                }
+var map_object = figure_b6c6dae3099b265e76d2ce3453f19ab2;
+
+// ルート線をグローバル変数に保持
+window.routeGeneral = L.polyline([[35.6812, 139.7671], [35.6667, 139.757], [35.655, 139.745], [35.6284, 139.7387]], {color: 'blue', weight: 8});
+window.routeFreeHW = L.polyline([[35.6812, 139.7671], [35.67, 139.75], [35.64, 139.74], [35.6284, 139.7387]], {color: 'green', weight: 8});
+window.routePaidHW = L.polyline([[35.6812, 139.7671], [35.675, 139.76], [35.65, 139.745], [35.6284, 139.7387]], {color: 'red', weight: 8});
+
+var generalLayer = L.layerGroup([window.routeGeneral]);
+var freeHWLayer = L.layerGroup([window.routeFreeHW]);
+var paidHWLayer = L.layerGroup([window.routePaidHW]);
+
+generalLayer.addTo(map_object);
+window.activeRouteLine = window.routeGeneral;
+
+var overlayMaps = {
+    "一般道ルート": generalLayer,
+    "無料高速ルート": freeHWLayer,
+    "有料高速ルート": paidHWLayer
+};
+L.control.layers(null, overlayMaps).addTo(map_object);
+
+// 現在地マーカー
+window.currentMarker = null;
+
+// 音声案内関数（室内強化）
+function speak(text) {
+    if ('speechSynthesis' in window) {
+        var utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'ja-JP';
+        utter.volume = 1.0; // 最大音量
+        utter.rate = 0.9;   // 少しゆっくり
+        utter.pitch = 1.0;  // 標準高さ
+        speechSynthesis.speak(utter);
+    }
+}
+
+// GPS更新時にルート再描画 + 音声案内
+if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(
+        function(pos) {
+            var lat = pos.coords.latitude;
+            var lng = pos.coords.longitude;
+            if (!window.currentMarker) {
+                window.currentMarker = L.marker([lat, lng]).addTo(map_object);
+                speak("ナビを開始します。ルートに沿って進んでください。");
+            } else {
+                window.currentMarker.setLatLng([lat, lng]);
+                speak("現在地を更新しました。ルートを進んでください。");
             }
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(function(position) {
-                    var lat = position.coords.latitude;
-                    var lng = position.coords.longitude;
-                    var newPos = [lat, lng];
-                    map_object.panTo(newPos);
-                    currentPosMarker.setLatLng(newPos);
-                    if (window.activeRouteLine) {
-                        var closest = L.GeometryUtil.closest(map_object, window.activeRouteLine, newPos);
-                        var dist = L.GeometryUtil.distance(map_object, newPos, closest);
-                        var speed_mps = 40 * 1000 / 3600;
-                        var eta_min = dist / speed_mps / 60;
-                        infoDiv.getContainer().innerHTML =
-                            '距離: ' + dist.toFixed(0) + ' m<br>ETA: ' + eta_min.toFixed(1) + ' 分';
-                        var roundedDist = Math.round(dist / 50) * 50;
-                        if (roundedDist != lastSpeechDist) {
-                            if (dist > 50) speak('目的地まで約 ' + roundedDist + ' メートルです');
-                            else speak('目的地に到着しました');
-                            lastSpeechDist = roundedDist;
-                        }
-                    }
-                }, function(err){console.log(err);}, {enableHighAccuracy:true});
+            if (window.activeRouteLine) {
+                window.activeRouteLine.addTo(map_object);
             }
-        })();
-        
+        },
+        function(err) {
+            console.error("位置情報取得エラー:", err);
+            speak("位置情報が取得できません。設定を確認してください。");
+        },
+        { enableHighAccuracy: true }
+    );
+} else {
+    alert("このブラウザは位置情報取得に対応していません。");
+    speak("このブラウザは位置情報取得に対応していません。");
+}
+
+// 地図移動後にもルート再描画
+map_object.on('moveend', function() {
+    if (window.activeRouteLine) {
+        window.activeRouteLine.addTo(map_object);
+        speak("地図を移動しました。ルートを再表示します。");
+    }
+});
 </script>
 </html>

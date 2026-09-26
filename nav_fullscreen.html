@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_12c501e9fb401011893723d799d98aaf {
+                #map_692ee17794512aaad607451a82148615 {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -54,14 +54,14 @@
 <body>
     
     
-            <div class="folium-map" id="map_12c501e9fb401011893723d799d98aaf" ></div>
+            <div class="folium-map" id="map_692ee17794512aaad607451a82148615" ></div>
         
 </body>
 <script>
     
     
-            var map_12c501e9fb401011893723d799d98aaf = L.map(
-                "map_12c501e9fb401011893723d799d98aaf",
+            var map_692ee17794512aaad607451a82148615 = L.map(
+                "map_692ee17794512aaad607451a82148615",
                 {
                     center: [35.6812, 139.7671],
                     crs: L.CRS.EPSG3857,
@@ -78,7 +78,7 @@
 
         
     
-            var tile_layer_9c2bcccdf1766d0f36e90be680fbb4c3 = L.tileLayer(
+            var tile_layer_d88dfe808e98a3321e9a4b4fd1ecaa37 = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
@@ -95,10 +95,10 @@
             );
         
     
-            tile_layer_9c2bcccdf1766d0f36e90be680fbb4c3.addTo(map_12c501e9fb401011893723d799d98aaf);
+            tile_layer_d88dfe808e98a3321e9a4b4fd1ecaa37.addTo(map_692ee17794512aaad607451a82148615);
         
     
-var map_object = figure_75d6e51372787241ee70309c97727232;
+var map_object = figure_b3f31c013b56b896aef9ad54180619be;
 
 // ルート線（常に保持）
 window.routeGeneral = L.polyline([[35.6812, 139.7671], [35.6667, 139.757], [35.655, 139.745], [35.6284, 139.7387]], {color: 'blue', weight: 8});
@@ -113,6 +113,7 @@ var paidHWLayer = L.layerGroup([window.routePaidHW]);
 // 初期ルート設定＆追加
 window.activeRouteLine = window.routeGeneral;
 generalLayer.addTo(map_object);
+window.routeGeneral.addTo(map_object);
 
 // レイヤー切替コントロール
 var overlayMaps = {
@@ -123,6 +124,7 @@ var overlayMaps = {
 L.control.layers(null, overlayMaps).addTo(map_object);
 
 // 切り替え時に activeRouteLine を更新＆再追加
+/*
 map_object.on('overlayadd', function(e) {
     if (e.name === "一般道ルート") window.activeRouteLine = window.routeGeneral;
     if (e.name === "無料高速ルート") window.activeRouteLine = window.routeFreeHW;
@@ -132,6 +134,7 @@ map_object.on('overlayadd', function(e) {
         window.activeRouteLine.addTo(map_object);
     }
 });
+/*
 map_object.on('overlayremove', function(e) {
     if (window.activeRouteLine) {
         map_object.removeLayer(window.activeRouteLine);
@@ -166,7 +169,7 @@ if (navigator.geolocation) {
                 window.currentMarker.setLatLng([lat, lng]);
             }
 
-            // ★ GPS許可後も必ずルート再追加 ★
+            // GPS許可後も必ずルート再追加
             if (!window.activeRouteLine) {
                 window.activeRouteLine = window.routeGeneral;
             }

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_93fad37e6b1d423e165b90fb3dd76a89 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+</head>
+<body>
+    
+    
+            <div class="folium-map" id="map_93fad37e6b1d423e165b90fb3dd76a89" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_93fad37e6b1d423e165b90fb3dd76a89 = L.map(
+                "map_93fad37e6b1d423e165b90fb3dd76a89",
+                {
+                    center: [35.6812, 139.7671],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 14,
+  "zoomControl": false,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_b279595dc29caf6bf0cf21d05e861b53 = L.tileLayer(
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 19,
+  "maxNativeZoom": 19,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors",
+  "subdomains": "abc",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_b279595dc29caf6bf0cf21d05e861b53.addTo(map_93fad37e6b1d423e165b90fb3dd76a89);
+        
+    
+var map_object = figure_fc7f0bad4baacc945938809a95fcbd03;
+
+// ルート線（常に保持）
+window.routeGeneral = L.polyline([[35.6812, 139.7671], [35.6667, 139.757], [35.655, 139.745], [35.6284, 139.7387]], {color: 'blue', weight: 8});
+window.routeFreeHW = L.polyline([[35.6812, 139.7671], [35.67, 139.75], [35.64, 139.74], [35.6284, 139.7387]], {color: 'green', weight: 8});
+window.routePaidHW = L.polyline([[35.6812, 139.7671], [35.675, 139.76], [35.65, 139.745], [35.6284, 139.7387]], {color: 'red', weight: 8});
+
+// レイヤーグループ
+var generalLayer = L.layerGroup([window.routeGeneral]);
+var freeHWLayer = L.layerGroup([window.routeFreeHW]);
+var paidHWLayer = L.layerGroup([window.routePaidHW]);
+
+// 初期ルート設定＆追加
+window.activeRouteLine = window.routeGeneral;
+generalLayer.addTo(map_object);
+
+// レイヤー切替コントロール
+var overlayMaps = {
+    "一般道ルート": generalLayer,
+    "無料高速ルート": freeHWLayer,
+    "有料高速ルート": paidHWLayer
+};
+L.control.layers(null, overlayMaps).addTo(map_object);
+
+// 切り替え時に activeRouteLine を更新＆再追加
+map_object.on('overlayadd', function(e) {
+    if (e.name === "一般道ルート") window.activeRouteLine = window.routeGeneral;
+    if (e.name === "無料高速ルート") window.activeRouteLine = window.routeFreeHW;
+    if (e.name === "有料高速ルート") window.activeRouteLine = window.routePaidHW;
+    window.activeRouteLine.addTo(map_object);
+});
+map_object.on('overlayremove', function(e) {
+    // 切り替え時に消えた場合も再追加
+    if (window.activeRouteLine) {
+        window.activeRouteLine.addTo(map_object);
+    }
+});
+
+// 音声案内
+function speak(text) {
+    if ('speechSynthesis' in window) {
+        var utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'ja-JP';
+        utter.volume = 1.0;
+        utter.rate = 0.9;
+        utter.pitch = 1.0;
+        speechSynthesis.speak(utter);
+    }
+}
+
+// GPS更新
+if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(
+        function(pos) {
+            var lat = pos.coords.latitude;
+            var lng = pos.coords.longitude;
+            if (!window.currentMarker) {
+                window.currentMarker = L.marker([lat, lng]).addTo(map_object);
+                speak("ナビを開始します。ルートに沿って進んでください。");
+            } else {
+                window.currentMarker.setLatLng([lat, lng]);
+            }
+            if (window.activeRouteLine) {
+                window.activeRouteLine.addTo(map_object);
+            }
+        },
+        function(err) {
+            console.error("位置情報取得エラー:", err);
+            speak("位置情報が取得できません。設定を確認してください。");
+        },
+        { enableHighAccuracy: true }
+    );
+} else {
+    alert("このブラウザは位置情報取得に対応していません。");
+    speak("このブラウザは位置情報取得に対応していません。");
+}
+
+// 地図移動後にもルート再描画
+map_object.on('moveend', function() {
+    if (window.activeRouteLine) {
+        window.activeRouteLine.addTo(map_object);
+    }
+});
+</script>
+</html>

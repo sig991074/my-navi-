@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_93fad37e6b1d423e165b90fb3dd76a89 {
+                #map_12c501e9fb401011893723d799d98aaf {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -54,14 +54,14 @@
 <body>
     
     
-            <div class="folium-map" id="map_93fad37e6b1d423e165b90fb3dd76a89" ></div>
+            <div class="folium-map" id="map_12c501e9fb401011893723d799d98aaf" ></div>
         
 </body>
 <script>
     
     
-            var map_93fad37e6b1d423e165b90fb3dd76a89 = L.map(
-                "map_93fad37e6b1d423e165b90fb3dd76a89",
+            var map_12c501e9fb401011893723d799d98aaf = L.map(
+                "map_12c501e9fb401011893723d799d98aaf",
                 {
                     center: [35.6812, 139.7671],
                     crs: L.CRS.EPSG3857,
@@ -78,7 +78,7 @@
 
         
     
-            var tile_layer_b279595dc29caf6bf0cf21d05e861b53 = L.tileLayer(
+            var tile_layer_9c2bcccdf1766d0f36e90be680fbb4c3 = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
@@ -95,10 +95,10 @@
             );
         
     
-            tile_layer_b279595dc29caf6bf0cf21d05e861b53.addTo(map_93fad37e6b1d423e165b90fb3dd76a89);
+            tile_layer_9c2bcccdf1766d0f36e90be680fbb4c3.addTo(map_12c501e9fb401011893723d799d98aaf);
         
     
-var map_object = figure_fc7f0bad4baacc945938809a95fcbd03;
+var map_object = figure_75d6e51372787241ee70309c97727232;
 
 // ルート線（常に保持）
 window.routeGeneral = L.polyline([[35.6812, 139.7671], [35.6667, 139.757], [35.655, 139.745], [35.6284, 139.7387]], {color: 'blue', weight: 8});
@@ -127,11 +127,14 @@ map_object.on('overlayadd', function(e) {
     if (e.name === "一般道ルート") window.activeRouteLine = window.routeGeneral;
     if (e.name === "無料高速ルート") window.activeRouteLine = window.routeFreeHW;
     if (e.name === "有料高速ルート") window.activeRouteLine = window.routePaidHW;
-    window.activeRouteLine.addTo(map_object);
+    if (window.activeRouteLine) {
+        map_object.removeLayer(window.activeRouteLine);
+        window.activeRouteLine.addTo(map_object);
+    }
 });
 map_object.on('overlayremove', function(e) {
-    // 切り替え時に消えた場合も再追加
     if (window.activeRouteLine) {
+        map_object.removeLayer(window.activeRouteLine);
         window.activeRouteLine.addTo(map_object);
     }
 });
@@ -154,30 +157,44 @@ if (navigator.geolocation) {
         function(pos) {
             var lat = pos.coords.latitude;
             var lng = pos.coords.longitude;
+
+            // 現在地マーカー
             if (!window.currentMarker) {
                 window.currentMarker = L.marker([lat, lng]).addTo(map_object);
                 speak("ナビを開始します。ルートに沿って進んでください。");
             } else {
                 window.currentMarker.setLatLng([lat, lng]);
             }
+
+            // ★ GPS許可後も必ずルート再追加 ★
+            if (!window.activeRouteLine) {
+                window.activeRouteLine = window.routeGeneral;
+            }
             if (window.activeRouteLine) {
+                map_object.removeLayer(window.activeRouteLine);
                 window.activeRouteLine.addTo(map_object);
             }
         },
-        function(err) {
-            console.error("位置情報取得エラー:", err);
+        function(error) {
+            console.error("位置情報取得エラー:", error);
             speak("位置情報が取得できません。設定を確認してください。");
+            if (!window.activeRouteLine) {
+                window.activeRouteLine = window.routeGeneral;
+            }
+            window.activeRouteLine.addTo(map_object);
         },
         { enableHighAccuracy: true }
     );
 } else {
     alert("このブラウザは位置情報取得に対応していません。");
     speak("このブラウザは位置情報取得に対応していません。");
+    window.routeGeneral.addTo(map_object);
 }
 
 // 地図移動後にもルート再描画
 map_object.on('moveend', function() {
     if (window.activeRouteLine) {
+        map_object.removeLayer(window.activeRouteLine);
         window.activeRouteLine.addTo(map_object);
     }
 });

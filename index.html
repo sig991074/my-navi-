@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_45bc9a40da3dcdf2877aef086c072a6a {
+                #map_6aa48f95dcce1be6a3067e89b2796861 {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -54,14 +54,89 @@
 <body>
     
     
-            <div class="folium-map" id="map_45bc9a40da3dcdf2877aef086c072a6a" ></div>
+<script>
+
+document.addEventListener("DOMContentLoaded", function() {
+
+var map_object = null;
+
+for (var key in window) {
+
+if (
+key.startsWith("map_")
+&&
+window[key] instanceof L.Map
+) {
+
+map_object = window[key];
+break;
+
+}
+
+}
+
+if (!map_object) {
+
+alert("地図取得失敗");
+return;
+
+}
+
+var currentPosMarker = L.circleMarker(
+[35.6812,139.7671],
+{
+radius:10,
+fillColor:"#3388ff",
+color:"#ffffff",
+weight:3,
+fillOpacity:0.8
+}
+).addTo(map_object);
+
+navigator.geolocation.watchPosition(
+
+function(position){
+
+var lat = position.coords.latitude;
+var lng = position.coords.longitude;
+
+var newPos = [lat,lng];
+
+currentPosMarker.setLatLng(newPos);
+
+map_object.setView(
+newPos,
+map_object.getZoom()
+);
+
+},
+
+function(error){
+
+console.log(error);
+
+},
+
+{
+enableHighAccuracy:true,
+maximumAge:1000,
+timeout:10000
+}
+
+);
+
+});
+
+</script>
+    
+            <div class="folium-map" id="map_6aa48f95dcce1be6a3067e89b2796861" ></div>
         
 </body>
 <script>
     
     
-            var map_45bc9a40da3dcdf2877aef086c072a6a = L.map(
-                "map_45bc9a40da3dcdf2877aef086c072a6a",
+            var map_6aa48f95dcce1be6a3067e89b2796861 = L.map(
+                "map_6aa48f95dcce1be6a3067e89b2796861",
                 {
                     center: [35.6812, 139.7671],
                     crs: L.CRS.EPSG3857,
@@ -78,7 +153,7 @@
 
         
     
-            var tile_layer_3e4cbf2e0c2ac48774ccf96b416724fc = L.tileLayer(
+            var tile_layer_3caa141f13f4cf0b4823f5a6c296315a = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
@@ -95,45 +170,13 @@
             );
         
     
-            tile_layer_3e4cbf2e0c2ac48774ccf96b416724fc.addTo(map_45bc9a40da3dcdf2877aef086c072a6a);
+            tile_layer_3caa141f13f4cf0b4823f5a6c296315a.addTo(map_6aa48f95dcce1be6a3067e89b2796861);
         
     
-            var poly_line_85378870bc6fab8acfdb9ebbcca6388b = L.polyline(
+            var poly_line_1378646eb96087a9fb12655fad68ceca = L.polyline(
                 [[35.6812, 139.7671], [35.6667, 139.757], [35.655, 139.745], [35.6284, 139.7387]],
                 {"bubblingMouseEvents": true, "color": "#FF3366", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "#FF3366", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 8}
-            ).addTo(map_45bc9a40da3dcdf2877aef086c072a6a);
-        
-    
-        (function(){
-            var map_object = map_45bc9a40da3dcdf2877aef086c072a6a;
-            
-            // 現在地用の青い丸（初期位置）
-            var currentPosMarker = L.circleMarker([35.6812, 139.7671], {
-                radius: 10,
-                fillColor: '#3388ff',
-                color: '#fff',
-                weight: 3,
-                fillOpacity: 0.8
-            }).addTo(map_object);
-
-            // スマホのGPSと連動して画面中央に固定する命令
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(
-                    function(position) {
-                        var lat = position.coords.latitude;
-                        var lng = position.coords.longitude;
-                        var newPos = [lat, lng];
-
-                        currentPosMarker.setLatLng(newPos);
-                        map_object.setView(newPos, map_object.getZoom());
-                    },
-                    function(error) {
-                        console.log("GPS信号を探しています...");
-                    },
-                    { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
-                );
-            }
-        })();
+            ).addTo(map_6aa48f95dcce1be6a3067e89b2796861);
         
 </script>
 </html>

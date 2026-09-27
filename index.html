@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_022abc752767a0f38bb1ea204cddad4a {
+                #map_dee009d45bd5d672b682698621068466 {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -63,13 +63,13 @@ function(){
 
 var map_object = null;
 
-for (var key in window){
+for (var key in window) {
 
-if(
+if (
 key.startsWith("map_")
 &&
 window[key] instanceof L.Map
-){
+) {
 
 map_object = window[key];
 break;
@@ -78,12 +78,66 @@ break;
 
 }
 
-if (!map_object){
+if (!map_object) {
 
 alert("地図取得失敗");
 return;
 
 }
+
+//
+// 情報表示BOX
+//
+
+var infoBox =
+document.createElement("div");
+
+infoBox.style.position = "fixed";
+infoBox.style.top = "10px";
+infoBox.style.left = "10px";
+infoBox.style.zIndex = "9999";
+infoBox.style.background = "white";
+infoBox.style.padding = "10px";
+infoBox.style.border = "1px solid black";
+infoBox.style.fontWeight = "bold";
+infoBox.style.fontSize = "14px";
+
+infoBox.innerHTML =
+"残距離: --- km<br>ETA: --- 分";
+
+document.body.appendChild(
+infoBox
+);
+
+//
+// 音声
+//
+
+function speak(text) {
+
+if(
+'speechSynthesis'
+in window
+) {
+
+var utter =
+new SpeechSynthesisUtterance(
+text
+);
+
+utter.lang = 'ja-JP';
+
+speechSynthesis.speak(
+utter
+);
+
+}
+
+}
+
+//
+// GPS
+//
 
 var currentMarker = null;
 
@@ -123,10 +177,99 @@ currentPos
 
 }
 
+//
+// 現在地追従
+//
+
 map_object.setView(
 currentPos,
 map_object.getZoom()
 );
+
+//
+// 残距離計算
+//
+
+var R = 6371;
+
+var dLat =
+(35.6284 - lat)
+*
+Math.PI
+/
+180;
+
+var dLon =
+(139.7387 - lon)
+*
+Math.PI
+/
+180;
+
+var a =
+
+Math.sin(dLat/2)
+*
+Math.sin(dLat/2)
+
++
+
+Math.cos(
+lat*Math.PI/180
+)
+
+*
+
+Math.cos(
+35.6284*Math.PI/180
+)
+
+*
+
+Math.sin(dLon/2)
+*
+Math.sin(dLon/2);
+
+var c =
+
+2 *
+Math.atan2(
+Math.sqrt(a),
+Math.sqrt(1-a)
+);
+
+var distanceKm =
+R * c;
+
+//
+// ETA
+// 平均50km/h
+//
+
+var etaMin =
+(distanceKm / 50)
+*
+60;
+
+infoBox.innerHTML =
+
+"残距離: "
+
++
+
+distanceKm.toFixed(1)
+
++
+
+" km<br>ETA: "
+
++
+
+etaMin.toFixed(0)
+
++
+
+" 分";
 
 },
 
@@ -149,14 +292,14 @@ timeout:10000
 </script>
 
     
-            <div class="folium-map" id="map_022abc752767a0f38bb1ea204cddad4a" ></div>
+            <div class="folium-map" id="map_dee009d45bd5d672b682698621068466" ></div>
         
 </body>
 <script>
     
     
-            var map_022abc752767a0f38bb1ea204cddad4a = L.map(
-                "map_022abc752767a0f38bb1ea204cddad4a",
+            var map_dee009d45bd5d672b682698621068466 = L.map(
+                "map_dee009d45bd5d672b682698621068466",
                 {
                     center: [35.6812, 139.7671],
                     crs: L.CRS.EPSG3857,
@@ -173,7 +316,7 @@ timeout:10000
 
         
     
-            var tile_layer_7ae3dacfe9c1563b0b8e11a1490a8eac = L.tileLayer(
+            var tile_layer_39df4b0d7796fe5e0edbe5bc6dcb1f6f = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
@@ -190,40 +333,40 @@ timeout:10000
             );
         
     
-            tile_layer_7ae3dacfe9c1563b0b8e11a1490a8eac.addTo(map_022abc752767a0f38bb1ea204cddad4a);
+            tile_layer_39df4b0d7796fe5e0edbe5bc6dcb1f6f.addTo(map_dee009d45bd5d672b682698621068466);
         
     
-            var poly_line_b9e652140ce6b5788458e3628986bac4 = L.polyline(
+            var poly_line_e14eb2d20f259496806d1ad4a6594546 = L.polyline(
                 [[35.6812, 139.7671], [35.6667, 139.757], [35.655, 139.745], [35.6284, 139.7387]],
                 {"bubblingMouseEvents": true, "color": "#FF3366", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "#FF3366", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.9, "smoothFactor": 1.0, "stroke": true, "weight": 8}
-            ).addTo(map_022abc752767a0f38bb1ea204cddad4a);
+            ).addTo(map_dee009d45bd5d672b682698621068466);
         
     
-            var marker_53b9c626f6c5bd231910479015dc507f = L.marker(
+            var marker_030fb9aa8844127a66346cd8ceb599ae = L.marker(
                 [35.6812, 139.7671],
                 {
 }
-            ).addTo(map_022abc752767a0f38bb1ea204cddad4a);
+            ).addTo(map_dee009d45bd5d672b682698621068466);
         
     
-        var popup_1e2b0805f4f542b395a2a011e35a56c1 = L.popup({
+        var popup_711cf4d233317913fb5b65c4a0c1d908 = L.popup({
   "maxWidth": "100%",
 });
 
         
             
-                var html_a4fb97d321646e9d96a445c6e68c4720 = $(`<div id="html_a4fb97d321646e9d96a445c6e68c4720" style="width: 100.0%; height: 100.0%;">出発地</div>`)[0];
-                popup_1e2b0805f4f542b395a2a011e35a56c1.setContent(html_a4fb97d321646e9d96a445c6e68c4720);
+                var html_aeee3f8ad123a74a70f9c082e2928d8e = $(`<div id="html_aeee3f8ad123a74a70f9c082e2928d8e" style="width: 100.0%; height: 100.0%;">出発地</div>`)[0];
+                popup_711cf4d233317913fb5b65c4a0c1d908.setContent(html_aeee3f8ad123a74a70f9c082e2928d8e);
             
         
 
-        marker_53b9c626f6c5bd231910479015dc507f.bindPopup(popup_1e2b0805f4f542b395a2a011e35a56c1)
+        marker_030fb9aa8844127a66346cd8ceb599ae.bindPopup(popup_711cf4d233317913fb5b65c4a0c1d908)
         ;
 
         
     
     
-            marker_53b9c626f6c5bd231910479015dc507f.bindTooltip(
+            marker_030fb9aa8844127a66346cd8ceb599ae.bindTooltip(
                 `<div>
                      出発地
                  </div>`,
@@ -233,31 +376,31 @@ timeout:10000
             );
         
     
-            var marker_fc383119d6a7a1683fcea50e75f896e1 = L.marker(
+            var marker_440c815305360690dc80e6076cc5b2c7 = L.marker(
                 [35.6284, 139.7387],
                 {
 }
-            ).addTo(map_022abc752767a0f38bb1ea204cddad4a);
+            ).addTo(map_dee009d45bd5d672b682698621068466);
         
     
-        var popup_21f273cd6a0da7cc285928777de3cb9a = L.popup({
+        var popup_80561e50a9054b9db3606f0c78b49d19 = L.popup({
   "maxWidth": "100%",
 });
 
         
             
-                var html_0542a23c2fb36e23a5d854071149fd53 = $(`<div id="html_0542a23c2fb36e23a5d854071149fd53" style="width: 100.0%; height: 100.0%;">目的地</div>`)[0];
-                popup_21f273cd6a0da7cc285928777de3cb9a.setContent(html_0542a23c2fb36e23a5d854071149fd53);
+                var html_9327881accad3114e884802964f7e30b = $(`<div id="html_9327881accad3114e884802964f7e30b" style="width: 100.0%; height: 100.0%;">目的地</div>`)[0];
+                popup_80561e50a9054b9db3606f0c78b49d19.setContent(html_9327881accad3114e884802964f7e30b);
             
         
 
-        marker_fc383119d6a7a1683fcea50e75f896e1.bindPopup(popup_21f273cd6a0da7cc285928777de3cb9a)
+        marker_440c815305360690dc80e6076cc5b2c7.bindPopup(popup_80561e50a9054b9db3606f0c78b49d19)
         ;
 
         
     
     
-            marker_fc383119d6a7a1683fcea50e75f896e1.bindTooltip(
+            marker_440c815305360690dc80e6076cc5b2c7.bindTooltip(
                 `<div>
                      目的地
                  </div>`,

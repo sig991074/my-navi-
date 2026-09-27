@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_4b229ce841d8c6fe3303a2881c70f298 {
+                #map_022abc752767a0f38bb1ea204cddad4a {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -54,19 +54,22 @@
 <body>
     
     
+
 <script>
 
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener(
+"DOMContentLoaded",
+function(){
 
 var map_object = null;
 
-for (var key in window) {
+for (var key in window){
 
-if (
+if(
 key.startsWith("map_")
 &&
 window[key] instanceof L.Map
-) {
+){
 
 map_object = window[key];
 break;
@@ -75,22 +78,18 @@ break;
 
 }
 
-if (!map_object) {
+if (!map_object){
+
 alert("地図取得失敗");
 return;
+
 }
 
 var currentMarker = null;
 
-var destinationMarker = L.marker(
-[34.9855,135.7586]
-).addTo(map_object);
-
-var routeLine = null;
-
 navigator.geolocation.watchPosition(
 
-function(position) {
+function(position){
 
 var lat =
 position.coords.latitude;
@@ -101,7 +100,7 @@ position.coords.longitude;
 var currentPos =
 [lat,lon];
 
-if(currentMarker == null) {
+if(currentMarker == null){
 
 currentMarker =
 L.circleMarker(
@@ -111,12 +110,12 @@ radius:10,
 fillColor:"#3388ff",
 color:"#ffffff",
 weight:3,
-fillOpacity:0.9
+fillOpacity:1.0
 }
 ).addTo(map_object);
 
 }
-else {
+else{
 
 currentMarker.setLatLng(
 currentPos
@@ -124,67 +123,17 @@ currentPos
 
 }
 
-var osrmUrl =
-"https://router.project-osrm.org/route/v1/driving/"
-+
-lon + "," + lat
-+
-";"
-+
-135.7586 + "," + 34.9855
-+
-"?overview=full&geometries=geojson";
-
-fetch(osrmUrl)
-
-.then(response => response.json())
-
-.then(data => {
-
-if(
-data.routes &&
-data.routes.length > 0
-) {
-
-var coords =
-data.routes[0]
-.geometry
-.coordinates;
-
-var leafletCoords =
-coords.map(function(c){
-return [c[1],c[0]];
-});
-
-if(routeLine){
-map_object.removeLayer(routeLine);
-}
-
-routeLine =
-L.polyline(
-leafletCoords,
-{
-color:"red",
-weight:8
-}
-).addTo(map_object);
-
-}
-
-});
-
-//
-// 現在地追従
-//
 map_object.setView(
 currentPos,
-15
+map_object.getZoom()
 );
 
 },
 
 function(error){
+
 console.log(error);
+
 },
 
 {
@@ -198,17 +147,18 @@ timeout:10000
 });
 
 </script>
+
     
-            <div class="folium-map" id="map_4b229ce841d8c6fe3303a2881c70f298" ></div>
+            <div class="folium-map" id="map_022abc752767a0f38bb1ea204cddad4a" ></div>
         
 </body>
 <script>
     
     
-            var map_4b229ce841d8c6fe3303a2881c70f298 = L.map(
-                "map_4b229ce841d8c6fe3303a2881c70f298",
+            var map_022abc752767a0f38bb1ea204cddad4a = L.map(
+                "map_022abc752767a0f38bb1ea204cddad4a",
                 {
-                    center: [34.9855, 135.7586],
+                    center: [35.6812, 139.7671],
                     crs: L.CRS.EPSG3857,
                     ...{
   "zoom": 13,
@@ -223,7 +173,7 @@ timeout:10000
 
         
     
-            var tile_layer_eb4559b02095e27eb78023986c15dd4b = L.tileLayer(
+            var tile_layer_7ae3dacfe9c1563b0b8e11a1490a8eac = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
@@ -240,31 +190,81 @@ timeout:10000
             );
         
     
-            tile_layer_eb4559b02095e27eb78023986c15dd4b.addTo(map_4b229ce841d8c6fe3303a2881c70f298);
+            tile_layer_7ae3dacfe9c1563b0b8e11a1490a8eac.addTo(map_022abc752767a0f38bb1ea204cddad4a);
         
     
-            var marker_06db40d8944f1f6b5eee7211f4b0c6e5 = L.marker(
-                [34.9855, 135.7586],
+            var poly_line_b9e652140ce6b5788458e3628986bac4 = L.polyline(
+                [[35.6812, 139.7671], [35.6667, 139.757], [35.655, 139.745], [35.6284, 139.7387]],
+                {"bubblingMouseEvents": true, "color": "#FF3366", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "#FF3366", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.9, "smoothFactor": 1.0, "stroke": true, "weight": 8}
+            ).addTo(map_022abc752767a0f38bb1ea204cddad4a);
+        
+    
+            var marker_53b9c626f6c5bd231910479015dc507f = L.marker(
+                [35.6812, 139.7671],
                 {
 }
-            ).addTo(map_4b229ce841d8c6fe3303a2881c70f298);
+            ).addTo(map_022abc752767a0f38bb1ea204cddad4a);
         
     
-        var popup_16a6c55058c6d0ce6ec4075c11265b4b = L.popup({
+        var popup_1e2b0805f4f542b395a2a011e35a56c1 = L.popup({
   "maxWidth": "100%",
 });
 
         
             
-                var html_8312979c33aa51c6ad47bf662e51d9d0 = $(`<div id="html_8312979c33aa51c6ad47bf662e51d9d0" style="width: 100.0%; height: 100.0%;">目的地</div>`)[0];
-                popup_16a6c55058c6d0ce6ec4075c11265b4b.setContent(html_8312979c33aa51c6ad47bf662e51d9d0);
+                var html_a4fb97d321646e9d96a445c6e68c4720 = $(`<div id="html_a4fb97d321646e9d96a445c6e68c4720" style="width: 100.0%; height: 100.0%;">出発地</div>`)[0];
+                popup_1e2b0805f4f542b395a2a011e35a56c1.setContent(html_a4fb97d321646e9d96a445c6e68c4720);
             
         
 
-        marker_06db40d8944f1f6b5eee7211f4b0c6e5.bindPopup(popup_16a6c55058c6d0ce6ec4075c11265b4b)
+        marker_53b9c626f6c5bd231910479015dc507f.bindPopup(popup_1e2b0805f4f542b395a2a011e35a56c1)
         ;
 
         
     
+    
+            marker_53b9c626f6c5bd231910479015dc507f.bindTooltip(
+                `<div>
+                     出発地
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_fc383119d6a7a1683fcea50e75f896e1 = L.marker(
+                [35.6284, 139.7387],
+                {
+}
+            ).addTo(map_022abc752767a0f38bb1ea204cddad4a);
+        
+    
+        var popup_21f273cd6a0da7cc285928777de3cb9a = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_0542a23c2fb36e23a5d854071149fd53 = $(`<div id="html_0542a23c2fb36e23a5d854071149fd53" style="width: 100.0%; height: 100.0%;">目的地</div>`)[0];
+                popup_21f273cd6a0da7cc285928777de3cb9a.setContent(html_0542a23c2fb36e23a5d854071149fd53);
+            
+        
+
+        marker_fc383119d6a7a1683fcea50e75f896e1.bindPopup(popup_21f273cd6a0da7cc285928777de3cb9a)
+        ;
+
+        
+    
+    
+            marker_fc383119d6a7a1683fcea50e75f896e1.bindTooltip(
+                `<div>
+                     目的地
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
 </script>
 </html>

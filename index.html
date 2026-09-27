@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_62e5744ed6673c6b8fa89e2fd1ede90a {
+                #map_4b229ce841d8c6fe3303a2881c70f298 {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -76,45 +76,115 @@ break;
 }
 
 if (!map_object) {
-
 alert("地図取得失敗");
 return;
-
 }
 
-var currentPosMarker = L.circleMarker(
-[35.6812,139.7671],
+var currentMarker = null;
+
+var destinationMarker = L.marker(
+[34.9855,135.7586]
+).addTo(map_object);
+
+var routeLine = null;
+
+navigator.geolocation.watchPosition(
+
+function(position) {
+
+var lat =
+position.coords.latitude;
+
+var lon =
+position.coords.longitude;
+
+var currentPos =
+[lat,lon];
+
+if(currentMarker == null) {
+
+currentMarker =
+L.circleMarker(
+currentPos,
 {
 radius:10,
 fillColor:"#3388ff",
 color:"#ffffff",
 weight:3,
-fillOpacity:0.8
+fillOpacity:0.9
 }
 ).addTo(map_object);
 
-navigator.geolocation.watchPosition(
+}
+else {
 
-function(position){
+currentMarker.setLatLng(
+currentPos
+);
 
-var lat = position.coords.latitude;
-var lng = position.coords.longitude;
+}
 
-var newPos = [lat,lng];
+var osrmUrl =
+"https://router.project-osrm.org/route/v1/driving/"
++
+lon + "," + lat
++
+";"
++
+135.7586 + "," + 34.9855
++
+"?overview=full&geometries=geojson";
 
-currentPosMarker.setLatLng(newPos);
+fetch(osrmUrl)
 
-// map_object.setView(
-// newPos,
-// map_object.getZoom()
-// );
+.then(response => response.json())
+
+.then(data => {
+
+if(
+data.routes &&
+data.routes.length > 0
+) {
+
+var coords =
+data.routes[0]
+.geometry
+.coordinates;
+
+var leafletCoords =
+coords.map(function(c){
+return [c[1],c[0]];
+});
+
+if(routeLine){
+map_object.removeLayer(routeLine);
+}
+
+routeLine =
+L.polyline(
+leafletCoords,
+{
+color:"red",
+weight:8
+}
+).addTo(map_object);
+
+}
+
+});
+
+//
+// 現在地追従
+//
+map_object.setView(
+currentPos,
+15
+);
 
 },
 
 function(error){
-
 console.log(error);
-
 },
 
 {
@@ -129,19 +199,19 @@ timeout:10000
 
 </script>
     
-            <div class="folium-map" id="map_62e5744ed6673c6b8fa89e2fd1ede90a" ></div>
+            <div class="folium-map" id="map_4b229ce841d8c6fe3303a2881c70f298" ></div>
         
 </body>
 <script>
     
     
-            var map_62e5744ed6673c6b8fa89e2fd1ede90a = L.map(
-                "map_62e5744ed6673c6b8fa89e2fd1ede90a",
+            var map_4b229ce841d8c6fe3303a2881c70f298 = L.map(
+                "map_4b229ce841d8c6fe3303a2881c70f298",
                 {
-                    center: [35.6812, 139.7671],
+                    center: [34.9855, 135.7586],
                     crs: L.CRS.EPSG3857,
                     ...{
-  "zoom": 14,
+  "zoom": 13,
   "zoomControl": true,
   "preferCanvas": false,
 }
@@ -153,7 +223,7 @@ timeout:10000
 
         
     
-            var tile_layer_62b493007584ed7e5fb4254a6b5b8804 = L.tileLayer(
+            var tile_layer_eb4559b02095e27eb78023986c15dd4b = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
@@ -170,13 +240,31 @@ timeout:10000
             );
         
     
-            tile_layer_62b493007584ed7e5fb4254a6b5b8804.addTo(map_62e5744ed6673c6b8fa89e2fd1ede90a);
+            tile_layer_eb4559b02095e27eb78023986c15dd4b.addTo(map_4b229ce841d8c6fe3303a2881c70f298);
         
     
-            var poly_line_79fa28ceb08918feeb98b1b7a0c22057 = L.polyline(
-                [[35.6812, 139.7671], [35.6667, 139.757], [35.655, 139.745], [35.6284, 139.7387]],
-                {"bubblingMouseEvents": true, "color": "#FF3366", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "#FF3366", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 8}
-            ).addTo(map_62e5744ed6673c6b8fa89e2fd1ede90a);
+            var marker_06db40d8944f1f6b5eee7211f4b0c6e5 = L.marker(
+                [34.9855, 135.7586],
+                {
+}
+            ).addTo(map_4b229ce841d8c6fe3303a2881c70f298);
         
+    
+        var popup_16a6c55058c6d0ce6ec4075c11265b4b = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_8312979c33aa51c6ad47bf662e51d9d0 = $(`<div id="html_8312979c33aa51c6ad47bf662e51d9d0" style="width: 100.0%; height: 100.0%;">目的地</div>`)[0];
+                popup_16a6c55058c6d0ce6ec4075c11265b4b.setContent(html_8312979c33aa51c6ad47bf662e51d9d0);
+            
+        
+
+        marker_06db40d8944f1f6b5eee7211f4b0c6e5.bindPopup(popup_16a6c55058c6d0ce6ec4075c11265b4b)
+        ;
+
+        
+    
 </script>
 </html>

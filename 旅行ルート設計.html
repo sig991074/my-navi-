@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>EV旅行プランナー</title>
+ 
+<style>
+ 
+body{
+margin:0;
+font-family:"Meiryo",sans-serif;
+background:#f0f0f0;
+}
+ 
+header{
+background:#0066cc;
+color:white;
+padding:10px;
+font-size:24px;
+font-weight:bold;
+}
+ 
+.main{
+display:flex;
+height:600px;
+}
+ 
+.left{
+width:220px;
+background:#ffffff;
+padding:10px;
+border-right:1px solid #ccc;
+}
+ 
+.left button{
+width:100%;
+margin-bottom:8px;
+padding:10px;
+font-size:16px;
+}
+ 
+.center{
+flex:1;
+background:#dfefff;
+display:flex;
+justify-content:center;
+align-items:center;
+border-right:1px solid #ccc;
+font-size:28px;
+font-weight:bold;
+}
+ 
+.right{
+width:320px;
+background:white;
+padding:10px;
+}
+ 
+.route-item{
+border:1px solid #ccc;
+margin-bottom:5px;
+padding:6px;
+background:#fafafa;
+}
+ 
+.info{
+background:#003366;
+color:white;
+padding:10px;
+font-size:18px;
+}
+ 
+.ev{
+background:white;
+padding:15px;
+}
+ 
+.ev-grid{
+display:grid;
+grid-template-columns:150px 150px;
+gap:8px;
+}
+ 
+.ev-box{
+border:1px solid #ccc;
+padding:8px;
+}
+ 
+.cmd{
+margin-top:15px;
+}
+ 
+.cmd button{
+margin:5px;
+padding:10px;
+font-size:16px;
+}
+ 
+</style>
+</head>
+ 
+<body>
+ 
+<header>
+EV旅行プランナー
+</header>
+ 
+<div class="main">
+ 
+<div class="left">
+ 
+<button>車両▼</button>
+ 
+<button>寄り道▼</button>
+ 
+<button>走行条件▼</button>
+ 
+<button>ルート選定▼</button>
+ 
+<hr>
+ 
+<button>高速優先</button>
+ 
+<button>無料高速優先</button>
+ 
+<button>バイパス優先</button>
+ 
+<button>一般道優先</button>
+ 
+<button>2車線優先</button>
+ 
+<button>狭路回避</button>
+ 
+</div>
+ 
+<div class="center">
+ 
+地図表示エリア
+ 
+</div>
+ 
+<div class="right">
+ 
+<h3>旅行プランDB</h3>
+ 
+<div class="route-item">
+010 自宅
+</div>
+ 
+<div class="route-item">
+020 道の駅かつらぎ西<br>
+10:20着 / 10:40発
+</div>
+ 
+<div class="route-item">
+030 印南SA<br>
+12:10着 / 12:45発
+</div>
+ 
+<div class="route-item">
+040 道の駅すさみ<br>
+15:30着
+</div>
+ 
+</div>
+ 
+</div>
+ 
+<div class="info">
+ 
+第二京阪経由　24.4km　30分　600円　SOC61%
+ 
+</div>
+ 
+<div class="ev">
+ 
+<h3>EV制御パネル</h3>
+ 
+<div class="ev-grid">
+ 
+<div class="ev-box">
+SOC<br><b>85%</b>
+</div>
+ 
+<div class="ev-box">
+到着SOC<br><b>61%</b>
+</div>
+ 
+<div class="ev-box">
+警告SOC<br><b>15%</b>
+</div>
+ 
+<div class="ev-box">
+危険SOC<br><b>10%</b>
+</div>
+ 
+<div class="ev-box">
+一般道<br><b>6.0</b>
+</div>
+ 
+<div class="ev-box">
+高速道<br><b>5.5</b>
+</div>
+ 
+<div class="ev-box">
+充電開始<br><b>20%</b>
+</div>
+ 
+<div class="ev-box">
+充電終了<br><b>80%</b>
+</div>
+ 
+</div>
+ 
+<div class="cmd">
+ 
+<button>ルート検索</button>
+ 
+<button>SOC再計算</button>
+ 
+<button>充電検索</button>
+ 
+<button>工程表作成</button>
+ 
+<button>復路作成</button>
+ 
+</div>
+ 
+</div>
+ 
+</body>
+</html>

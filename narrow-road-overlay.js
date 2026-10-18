@@ -170,19 +170,11 @@
         const score = projection.distance + angularDifference(bearing, routeBearing) * 6;
         if (score >= bestScore) continue;
         const center = [point[0] + (projection.ax + projection.t * projection.dx) / metersPerLon(point[1]), point[1] + (projection.ay + projection.t * projection.dy) / 111320];
-        best = { distance: projection.distance, bearing, center, feature };
+        best = { distance: projection.distance, bearing, center };
         bestScore = score;
       }
     }
     return best;
-  };
-  const widthRank = text => {
-    const value = String(text || '').replace(/\s/g, '');
-    if (/^3m未満/.test(value)) return 0;
-    if (/^3m.*5\.5m/.test(value)) return 1;
-    if (/^5\.5m.*13m/.test(value)) return 2;
-    if (/^13m.*19\.5m/.test(value) || /19\.5m以上/.test(value)) return 3;
-    return null;
   };
   const routeBearing = (a, b) => {
     const east = (b[0] - a[0]) * metersPerLon((a[1] + b[1]) / 2);
@@ -332,7 +324,7 @@
     if (!stats) return previous;
     if (!stats.samples && !stats.intersectionSkipped) stats.unknown = true;
     let status = stats.fail ? 'fail' : stats.unknown || !stats.samples ? 'unchecked' : 'pass';
-    const reason = status === 'fail' ? (stats.widthClass ? 'road-width-class' : 'vector-footprint-collision') :
+    const reason = status === 'fail' ? 'vector-footprint-collision' :
       status === 'unchecked' ? (stats.intersectionSkipped && !stats.samples ? 'intersection-turn-only' : 'road-edge-not-detected') : 'vector-footprint-fit';
     return { status, reason, name, samples: stats.samples || 0, intersectionSkipped: stats.intersectionSkipped || 0,
       source: '地理院RdCL・基盤地図情報RdEdg画像照合' };
@@ -389,20 +381,8 @@
       }
       const edges = lineSegmentsNear(origin, bearing);
       if (!edges.length) {
-        // 道路縁がない場所は、地理院道路中心線の幅員区分で判定する（5.5m未満は不可、5.5m以上は急カーブのみ要確認）
-        const rank = widthRank(matchedCenter?.feature?.properties?.rnkWidth);
-        if (rank === null) {
-          stat.unknown = true;
-          if (bounds.contains([origin[1], origin[0]])) marks.push(footprint(front, rear, bearing, dimensions.width, 0, '#687782'));
-          continue;
-        }
-        stat.widthClass = true;
-        const status = rank <= 1 ? 'fail' : sample.turn > 45 ? 'unknown' : 'pass';
-        if (status === 'fail') stat.fail = true;
-        else if (status === 'unknown') stat.unknown = true;
-        if (bounds.contains([origin[1], origin[0]])) {
-          marks.push(footprint(front, rear, bearing, dimensions.width, 0, status === 'pass' ? '#16843b' : status === 'fail' ? '#d00000' : '#687782'));
-        }
+        stat.unknown = true;
+        if (bounds.contains([origin[1], origin[0]])) marks.push(footprint(front, rear, bearing, dimensions.width, 0, '#687782'));
         continue;
       }
       const fit = imageFit(edges, dimensions.width, dimensions.length, keepLeft);

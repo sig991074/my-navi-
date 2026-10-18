@@ -256,7 +256,7 @@
     return [point[0] + east / metersPerLon(point[1]), point[1] + north / 111320];
   };
   const mapTiles = new Map();
-  const MAP_FAIL_RUN = 5;
+  const mapFailRun = () => { const v = Number(document.getElementById('trolleyFailLength')?.value); return Math.max(1, Math.ceil((Number.isFinite(v) && v > 0 ? v : 50) / 10)); };
   const MAP_Z = 18;
   const loadMapTile = async (x, y) => {
     const key = `${x}/${y}`;
@@ -472,7 +472,7 @@
         stat.mapFailRun = fit.status === 'fail' ? (stat.mapFailRun || 0) + 1 : 0;
         stat.mapMaxRun = Math.max(stat.mapMaxRun || 0, stat.mapFailRun);
         stat.mapFailCount = (stat.mapFailCount || 0) + (fit.status === 'fail' ? 1 : 0);
-        if (fit.status === 'fail' && stat.mapFailRun < MAP_FAIL_RUN) fit.status = 'pass';
+        if (fit.status === 'fail' && stat.mapFailRun < mapFailRun()) fit.status = 'pass';
       }
       if (fit.status === 'unknown') stat.unknown = true;
       else if (fit.status === 'fail') stat.fail = true;

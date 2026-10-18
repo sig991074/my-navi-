@@ -81,7 +81,7 @@
     const n = 2 ** zoom;
     return { x: Math.floor((lon + 180) / 360 * n), y: Math.floor((1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * n) };
   };
-  const fetchCenterlines = async points => {
+  const fetchCenterlines = async (points, onProgress = () => {}) => {
     const tileMap = new Map();
     for (const point of points) {
       const tile = tilePosition(point[1], point[0], 16);
@@ -93,13 +93,24 @@
     const tiles = [...tileMap.values()];
     if (tiles.length > 1200) throw new Error('ルートが広範囲のため道路中心線タイルが上限を超えました。区間を分けて照合してください');
     const features = [];
-    for (let i = 0; i < tiles.length; i += 8) {
-      const batch = tiles.slice(i, i + 8);
+    onProgress(0, tiles.length);
+    for (let i = 0; i < tiles.length; i += 16) {
+      const batch = tiles.slice(i, i + 16);
       const results = await Promise.all(batch.map(async tile => {
         const key = `${tile.z}/${tile.x}/${tile.y}`;
         if (state.centerlineTiles.has(key)) return state.centerlineTiles.get(key);
         const url = `https://cyberjapandata.gsi.go.jp/xyz/experimental_rdcl/${key}.geojson`;
-        const response = await fetch(url);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        let response;
+        try {
+          response = await fetch(url, { signal: controller.signal });
+        } catch (error) {
+          if (error.name === 'AbortError') throw new Error('地理院の道路中心線取得が15秒でタイムアウトしました');
+          throw error;
+        } finally {
+          clearTimeout(timer);
+        }
         if (response.status === 404) {
           const empty = { features: [] };
           state.centerlineTiles.set(key, empty);
@@ -112,6 +123,7 @@
         return data;
       }));
       results.forEach(result => features.push(...(result.features || [])));
+      onProgress(Math.min(i + batch.length, tiles.length), tiles.length);
     }
     return [...new Map(features.map(feature => [JSON.stringify(feature.geometry?.coordinates), feature])).values()]
       .filter(feature => feature.geometry?.type === 'LineString');
@@ -306,7 +318,14 @@
   const checkRoute = async (route, dimensions, options = {}) => {
     if (!state.features.length) return { active: false };
     const samples = vectorSamples(route, dimensions);
-    const centerlines = await fetchCenterlines(samples.map(sample => sample.point));
+    const report = text => {
+      const routeStatus = document.getElementById('status');
+      if (routeStatus) routeStatus.textContent = text;
+    };
+    report(`道路中心線を取得しています（0/${samples.length}地点）…`);
+    const centerlines = await fetchCenterlines(samples.map(sample => sample.point), (loaded, total) => {
+      report(`道路中心線タイルを取得しています（${loaded}/${total}）…`);
+    });
     const intersections = [...(route._trolleyIntersections || []), ...gsiIntersectionPoints(centerlines)];
     const stepStats = new Map();
     for (const step of route.steps || []) {
@@ -315,7 +334,8 @@
       }
     }
     const map = bridge.getMap(), bounds = map.getBounds(), marks = [];
-    for (const sample of samples) {
+    for (let i = 0; i < samples.length; i++) {
+      const sample = samples[i];
       const stat = stepStats.get(sample.step) || { samples: 0, fail: false, unknown: false, intersectionSkipped: 0 };
       stepStats.set(sample.step, stat);
       if (sample.turn > 30 && intersections.some(point => distanceBetween(sample.point, point) <= sample.intersectionRadius)) {
@@ -358,6 +378,10 @@
         marks.push(footprint(front, rear, bearing, dimensions.width, fit.lateralShift,
           fit.status === 'pass' ? '#16843b' : fit.status === 'fail' ? '#d00000' : '#687782'));
       }
+      if ((i + 1) % 250 === 0) {
+        report(`10m間隔で車両形状を照合しています（${i + 1}/${samples.length}地点）…`);
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
     }
     const stepResults = new Map();
     for (const step of route.steps || []) {
@@ -377,6 +401,7 @@
     return { active: true, stepResults, sampleCount: samples.length };
   };
   bridge.checkRoute = checkRoute;
+  bridge.hasRoadEdges = () => state.features.length > 0;
   let zipLibraryPromise;
   const loadZipLibrary = () => {
     if (window.JSZip) return Promise.resolve(window.JSZip);

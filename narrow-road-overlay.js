@@ -18,9 +18,15 @@
   panel.querySelector('#narrowVectorStatus').textContent =
     'ZIPを選ぶと、このブラウザー内で解凍・読み込みます。データは外部サーバーへ送信しません。';
   document.body.append(panel);
+  const panelToggle = document.createElement('button');
+  panelToggle.id = 'narrowPanelToggle';
+  panelToggle.type = 'button';
+  panelToggle.textContent = '道路データ・判定を表示';
+  panelToggle.addEventListener('click', () => document.body.classList.remove('route-view-clean'));
+  document.body.append(panelToggle);
 
   const style = document.createElement('style');
-  style.textContent = '#narrowVectorPanel{position:absolute;z-index:1200;left:10px;bottom:42px;width:min(420px,calc(100vw - 24px));max-height:55vh;overflow:auto;padding:9px;background:#fffffff2;border:1px solid #35566a;border-radius:6px;box-shadow:0 2px 8px #0005;font:12px/1.4 sans-serif;color:#183746}#narrowVectorPanel label{display:block;margin:6px 0}#narrowVectorPanel input{display:block;width:100%;margin-top:3px;font-size:11px}#narrowVectorPanel button{padding:5px 8px}#narrowVectorStatus{margin-top:6px;font-size:11px}.narrow-gsi-link{display:block;margin:6px 0;padding:6px;background:#176fa7;color:white;text-decoration:none;text-align:center;font-weight:bold;border-radius:4px}.narrow-gsi-help{margin:5px 0;font-size:11px}.narrow-gsi-help ol{padding-left:20px}.narrow-gsi-help li{margin:3px 0}.narrow-gsi-help small{display:block;color:#586d78}';
+  style.textContent = '#narrowVectorPanel{position:absolute;z-index:1200;left:10px;bottom:42px;width:min(420px,calc(100vw - 24px));max-height:55vh;overflow:auto;padding:9px;background:#fffffff2;border:1px solid #35566a;border-radius:6px;box-shadow:0 2px 8px #0005;font:12px/1.4 sans-serif;color:#183746}#narrowVectorPanel label{display:block;margin:6px 0}#narrowVectorPanel input{display:block;width:100%;margin-top:3px;font-size:11px}#narrowVectorPanel button{padding:5px 8px}#narrowVectorStatus{margin-top:6px;font-size:11px}.narrow-gsi-link{display:block;margin:6px 0;padding:6px;background:#176fa7;color:white;text-decoration:none;text-align:center;font-weight:bold;border-radius:4px}.narrow-gsi-help{margin:5px 0;font-size:11px}.narrow-gsi-help ol{padding-left:20px}.narrow-gsi-help li{margin:3px 0}.narrow-gsi-help small{display:block;color:#586d78}#narrowPanelToggle{display:none;position:absolute;z-index:1201;left:10px;bottom:42px;padding:8px;background:#176fa7;color:white;border:0;border-radius:5px;font-weight:bold}body.route-view-clean #narrowVectorPanel,body.route-view-clean #status{display:none}body.route-view-clean #narrowPanelToggle{display:block}';
   document.head.append(style);
   const positionRouteStatus = () => {
     const routeStatus = document.getElementById('status');
@@ -328,7 +334,8 @@
     const samples = vectorSamples(route, dimensions);
     const report = text => {
       const routeStatus = document.getElementById('status');
-      if (routeStatus) routeStatus.textContent = text;
+      const checkLabel = route._trolleyCheckLabel ? `${route._trolleyCheckLabel}：` : '';
+      if (routeStatus) routeStatus.textContent = checkLabel + text;
     };
     report(`道路中心線を取得しています（0/${samples.length}地点）…`);
     const centerlines = await fetchCenterlines(samples.map(sample => sample.point), (loaded, total) => {
@@ -344,6 +351,10 @@
     const map = bridge.getMap(), bounds = map.getBounds(), marks = [];
     for (let i = 0; i < samples.length; i++) {
       const sample = samples[i];
+      if (i % 100 === 0 || i === samples.length - 1) {
+        bridge.moveRouteCheckProgress?.(sample.point);
+        report(`車両形状を照合中（${i + 1}/${samples.length}地点、道路：${sample.step.name || sample.step.ref || '名称なし'}）…`);
+      }
       const stat = stepStats.get(sample.step) || { samples: 0, fail: false, unknown: false, intersectionSkipped: 0 };
       stepStats.set(sample.step, stat);
       if (sample.turn > 30 && intersections.some(point => distanceBetween(sample.point, point) <= sample.intersectionRadius)) {
@@ -410,6 +421,14 @@
   };
   bridge.checkRoute = checkRoute;
   bridge.hasRoadEdges = () => state.features.length > 0;
+  bridge.moveRouteCheckProgress = point => window.moveRouteCheckProgress?.(point);
+  bridge.hideCheckLayers = () => {
+    const map = bridge.getMap();
+    for (const key of ['edgeLayer', 'routeLayer', 'footprints']) {
+      if (state[key] && map.hasLayer(state[key])) map.removeLayer(state[key]);
+      state[key] = null;
+    }
+  };
   let zipLibraryPromise;
   const loadZipLibrary = () => {
     if (window.JSZip) return Promise.resolve(window.JSZip);

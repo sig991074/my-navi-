@@ -240,15 +240,16 @@
     };
     const leftBoundary = boundary(1), rightBoundary = boundary(-1);
     const edgesFound = leftBoundary !== null && rightBoundary !== null;
-    if (keepLeft && leftBoundary === null) return { status: 'unknown', collision: false, edgesFound, lateralShift: 0 };
+    const roadWidth = edgesFound ? Math.abs(leftBoundary - rightBoundary) / scale : null;
+    if (keepLeft && leftBoundary === null) return { status: 'unknown', collision: false, edgesFound, lateralShift: 0, roadWidth };
     const lateralShift = keepLeft ? (leftBoundary - center) / scale - halfW - 1 / scale : 0;
     const shiftPx = Math.round(lateralShift * scale);
     const bodyHalfWidth = Math.round(halfW * scale), bodyHalfLength = Math.round(halfL * scale);
     collision = countRedPixels(center + shiftPx - bodyHalfWidth, center + shiftPx + bodyHalfWidth,
       center - bodyHalfLength, center + bodyHalfLength) > 0;
-    if (collision) return { status: 'fail', collision, edgesFound, lateralShift };
-    if (!edgesFound) return { status: 'unknown', collision: false, edgesFound, lateralShift };
-    return { status: 'pass', collision: false, edgesFound, lateralShift };
+    if (collision) return { status: 'fail', collision, edgesFound, lateralShift, roadWidth };
+    if (!edgesFound) return { status: 'unknown', collision: false, edgesFound, lateralShift, roadWidth };
+    return { status: 'pass', collision: false, edgesFound, lateralShift, roadWidth };
   };
   const offset = (point, bearing, along, lateral) => {
     const east = along * Math.sin(bearing) - lateral * Math.cos(bearing);
@@ -403,7 +404,7 @@
     const reason = status === 'fail' ? 'vector-footprint-collision' :
       status === 'unchecked' ? (stats.intersectionSkipped && !stats.samples ? 'intersection-turn-only' : 'road-edge-not-detected') : 'vector-footprint-fit';
     return { status, reason, name, samples: stats.samples || 0, intersectionSkipped: stats.intersectionSkipped || 0,
-      mapMaxRun: stats.mapMaxRun || 0, mapFailCount: stats.mapFailCount || 0,
+      mapMaxRun: stats.mapMaxRun || 0, mapFailCount: stats.mapFailCount || 0, minWidth: Number.isFinite(stats.minWidth) ? stats.minWidth : null,
       source: '地理院RdCL・基盤地図情報RdEdg画像照合' };
   };
   const checkRoute = async (route, dimensions, options = {}) => {
@@ -468,6 +469,7 @@
         continue;
       }
       const fit = imageFit(edges, dimensions.width, dimensions.length, keepLeft);
+      if (fit.roadWidth != null) stat.minWidth = Math.min(stat.minWidth ?? Infinity, fit.roadWidth);
       if (stat.mapDrawn && edges === drawnEdges) {
         stat.mapFailRun = fit.status === 'fail' ? (stat.mapFailRun || 0) + 1 : 0;
         stat.mapMaxRun = Math.max(stat.mapMaxRun || 0, stat.mapFailRun);

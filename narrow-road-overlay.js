@@ -22,6 +22,14 @@
   const style = document.createElement('style');
   style.textContent = '#narrowVectorPanel{position:absolute;z-index:1200;left:10px;bottom:42px;width:min(420px,calc(100vw - 24px));max-height:55vh;overflow:auto;padding:9px;background:#fffffff2;border:1px solid #35566a;border-radius:6px;box-shadow:0 2px 8px #0005;font:12px/1.4 sans-serif;color:#183746}#narrowVectorPanel label{display:block;margin:6px 0}#narrowVectorPanel input{display:block;width:100%;margin-top:3px;font-size:11px}#narrowVectorPanel button{padding:5px 8px}#narrowVectorStatus{margin-top:6px;font-size:11px}.narrow-gsi-link{display:block;margin:6px 0;padding:6px;background:#176fa7;color:white;text-decoration:none;text-align:center;font-weight:bold;border-radius:4px}.narrow-gsi-help{margin:5px 0;font-size:11px}.narrow-gsi-help ol{padding-left:20px}.narrow-gsi-help li{margin:3px 0}.narrow-gsi-help small{display:block;color:#586d78}';
   document.head.append(style);
+  const positionRouteStatus = () => {
+    const routeStatus = document.getElementById('status');
+    if (!routeStatus) return;
+    routeStatus.style.bottom = `${Math.max(10, window.innerHeight - panel.getBoundingClientRect().top + 8)}px`;
+  };
+  positionRouteStatus();
+  window.addEventListener('resize', positionRouteStatus);
+  new ResizeObserver(positionRouteStatus).observe(panel);
 
   const status = text => { document.getElementById('narrowVectorStatus').textContent = text; };
   const flatten = coordinates => {

@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" style="max-width:100%;height:auto" role="img" aria-labelledby="title desc">
+  <title id="title">狭隘道路チェックの仕組み</title>
+  <desc id="desc">道路に沿って10メートルごとに横断面を測定し、地図画像の縮尺から幅を推定します。走行条件Fに応じて警告表示または迂回検索します。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#31566d"/>
+    </marker>
+    <marker id="dim" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto-start-reverse">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#b42318"/>
+    </marker>
+    <style>
+      text{font-family:"Meiryo","Yu Gothic",sans-serif;fill:#17384b}
+      .title{font-size:30px;font-weight:700}
+      .head{font-size:20px;font-weight:700}
+      .body{font-size:16px}
+      .small{font-size:14px}
+      .muted{fill:#526c7b}
+      .panel{fill:#fff;stroke:#b8c8d1;stroke-width:2}
+      .road{fill:none;stroke:#edc982;stroke-width:82;stroke-linecap:round;stroke-linejoin:round}
+      .edge{fill:none;stroke:#a9874e;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+      .center{fill:none;stroke:#fff;stroke-width:4;stroke-dasharray:13 10}
+      .measure{stroke:#b42318;stroke-width:3;marker-start:url(#dim);marker-end:url(#dim)}
+    </style>
+  </defs>
+  <rect width="1200" height="900" fill="#f3f7f9"/>
+  <text x="44" y="52" class="title">狭隘道路チェックの仕組み（現在の方式）</text>
+  <text x="46" y="82" class="body muted">道路に沿って10m以内ごとに断面を確認し、幅不足の有無を判定します。</text>
+
+  <rect x="38" y="108" width="1124" height="330" rx="14" class="panel"/>
+  <text x="66" y="145" class="head">1　道路に沿って測定点を配置</text>
+  <text x="66" y="174" class="body">ルート形状に沿って測定点を置き、各点で進行方向に直角な断面を調べます。</text>
+  <path d="M110 352 C250 330 285 226 430 231 S660 355 803 307 S980 212 1090 239" class="road"/>
+  <path d="M110 352 C250 330 285 226 430 231 S660 355 803 307 S980 212 1090 239" class="edge"/>
+  <path d="M110 352 C250 330 285 226 430 231 S660 355 803 307 S980 212 1090 239" class="center"/>
+  <g fill="#176fa7" stroke="#fff" stroke-width="3">
+    <circle cx="170" cy="341" r="12"/><circle cx="270" cy="307" r="12"/>
+    <circle cx="370" cy="239" r="12"/><circle cx="470" cy="239" r="12"/>
+    <circle cx="570" cy="278" r="12"/><circle cx="670" cy="331" r="12"/>
+    <circle cx="770" cy="318" r="12"/><circle cx="870" cy="283" r="12"/>
+    <circle cx="970" cy="231" r="12"/>
+  </g>
+  <g transform="rotate(-64 570 278)">
+    <rect x="550" y="241" width="40" height="74" rx="7" fill="#5599d0" stroke="#174e78" stroke-width="4"/>
+    <line x1="553" y1="278" x2="587" y2="278" stroke="#fff" stroke-width="3"/>
+    <circle cx="570" cy="248" r="9" fill="#fff" stroke="#b42318" stroke-width="4"/>
+    <circle cx="570" cy="308" r="9" fill="#fff" stroke="#b42318" stroke-width="4"/>
+  </g>
+  <text x="604" y="252" class="small" fill="#b42318">前端</text>
+  <text x="604" y="310" class="small" fill="#b42318">後端</text>
+  <text x="604" y="275" class="small" font-weight="700">トロッコ</text>
+  <g stroke="#31566d" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)">
+    <line x1="178" y1="390" x2="262" y2="390"/>
+    <line x1="278" y1="345" x2="362" y2="280"/>
+    <line x1="478" y1="195" x2="562" y2="226"/>
+    <line x1="678" y1="374" x2="762" y2="344"/>
+    <line x1="878" y1="246" x2="962" y2="201"/>
+  </g>
+  <g class="small" text-anchor="middle">
+    <text x="220" y="414">約10m以内</text><text x="320" y="327">約10m以内</text>
+    <text x="520" y="204">約10m以内</text><text x="720" y="389">約10m以内</text>
+    <text x="920" y="218">約10m以内</text>
+  </g>
+  <text x="1010" y="406" class="small muted">青丸＝10m測定位置</text>
+  <text x="1010" y="426" class="small muted">赤丸＝前後の向き測定</text>
+
+  <rect x="38" y="458" width="548" height="250" rx="14" class="panel"/>
+  <text x="66" y="495" class="head">2　トロッコの前後中央を道路の中央線に合わせる</text>
+  <text x="66" y="525" class="body">前後の中央（○）を中央線上に置き、傾きによる補正はしません。</text>
+  <path d="M91 666 C155 651 131 589 318 577" fill="none" stroke="#edc982" stroke-width="66" stroke-linecap="round"/>
+  <path d="M91 666 C155 651 131 589 318 577" fill="none" stroke="#a9874e" stroke-width="3"/>
+  <path d="M91 666 C155 651 131 589 318 577" fill="none" stroke="#fff" stroke-width="4" stroke-dasharray="13 10"/>
+  <path d="M139 637 C153 629 170 612 186 604" fill="none" stroke="#5599d0" stroke-width="24" stroke-linecap="round"/>
+  <path d="M139 637 C153 629 170 612 186 604" fill="none" stroke="#174e78" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="139" cy="637" r="8" fill="#fff" stroke="#b42318" stroke-width="4"/>
+  <circle cx="186" cy="604" r="8" fill="#fff" stroke="#b42318" stroke-width="4"/>
+  <text x="94" y="625" class="small">後端中央</text>
+  <text x="195" y="593" class="small">前端中央</text>
+  <line x1="147" y1="611" x2="169" y2="629" stroke="#b42318" stroke-width="3" marker-start="url(#dim)" marker-end="url(#dim)"/>
+  <text x="174" y="650" class="small" fill="#b42318">車幅</text>
+  <text x="344" y="570" class="small">前後の中央点を</text>
+  <text x="344" y="591" class="small">中央線に沿わせて</text>
+  <text x="344" y="612" class="small">置きます。</text>
+  <text x="344" y="642" class="small" font-weight="700">必要幅 ＝ 車幅</text>
+  <text x="70" y="681" class="small muted">道路幅は画像の縮尺から推定。トロッコの傾きによる幅の上乗せはしません。</text>
+
+  <rect x="606" y="458" width="556" height="250" rx="14" class="panel"/>
+  <text x="634" y="495" class="head">3　中央線と幅で判定</text>
+  <rect x="634" y="519" width="226" height="104" rx="9" fill="#e7f1f7" stroke="#8faebf" stroke-width="2"/>
+  <text x="648" y="546" class="body" font-weight="700">中央線なし</text>
+  <text x="648" y="567" class="small">左に寄せて仮置き</text>
+  <rect x="648" y="577" width="198" height="42" fill="#edc982" stroke="none"/>
+  <line x1="648" y1="577" x2="648" y2="619" stroke="#a9874e" stroke-width="5"/>
+  <line x1="846" y1="577" x2="846" y2="619" stroke="#a9874e" stroke-width="5"/>
+  <rect x="659" y="586" width="87" height="24" rx="4" fill="#5599d0" stroke="#174e78" stroke-width="2"/>
+  <line x1="748" y1="598" x2="837" y2="598" stroke="#b42318" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <text x="778" y="591" class="small">右側余裕</text>
+  <rect x="884" y="519" width="246" height="104" rx="9" fill="#fff4df" stroke="#d6aa57" stroke-width="2"/>
+  <text x="898" y="546" class="body" font-weight="700">中央線あり</text>
+  <text x="898" y="567" class="small">中央線上に仮置き</text>
+  <rect x="898" y="577" width="218" height="42" fill="#edc982" stroke="none"/>
+  <line x1="898" y1="577" x2="898" y2="619" stroke="#a9874e" stroke-width="5"/>
+  <line x1="1116" y1="577" x2="1116" y2="619" stroke="#a9874e" stroke-width="5"/>
+  <line x1="1007" y1="574" x2="1007" y2="622" stroke="#b42318" stroke-width="3" stroke-dasharray="5 4"/>
+  <rect x="967" y="586" width="80" height="24" rx="4" fill="#5599d0" stroke="#174e78" stroke-width="2"/>
+  <line x1="908" y1="582" x2="956" y2="582" stroke="#31566d" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <line x1="1058" y1="582" x2="1106" y2="582" stroke="#31566d" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <text x="642" y="650" class="body">左右の車体線が道路の左右線に触れずに収まるか確認。</text>
+  <text x="642" y="676" class="small muted">交差点で旋回するときはパス。道なりの直進は測定を続けます。</text>
+  <text x="642" y="698" class="small muted">道路端は地図画像の描画境界で、測量線ではありません。</text>
+
+  <rect x="38" y="728" width="1124" height="134" rx="14" class="panel"/>
+  <text x="66" y="765" class="head">4　走行条件「F：狭隘道路」の有無で動作が変わります</text>
+  <rect x="68" y="784" width="472" height="54" rx="9" fill="#fff5bf" stroke="#c6a500" stroke-width="2"/>
+  <text x="88" y="808" class="body" font-weight="700">Fを除外（条件に入れない）</text>
+  <text x="88" y="830" class="small">幅不足区間は黄色で警告。ルートは変更しません。</text>
+  <rect x="568" y="784" width="564" height="54" rx="9" fill="#e6f4e9" stroke="#65a875" stroke-width="2"/>
+  <text x="588" y="808" class="body" font-weight="700">Fを条件に入れる</text>
+  <text x="588" y="830" class="small">迂回ルートを検索。回避を確認できなければ未回避と警告します。</text>
+  <text x="44" y="888" class="small muted">※交差点で旋回する場合は測定をパス。直進は測定します。道路端は地図画像の推定です。</text>
+</svg>

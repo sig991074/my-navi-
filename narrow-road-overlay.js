@@ -8,10 +8,19 @@
   const panel = document.createElement('div');
   panel.id = 'narrowVectorPanel';
   panel.innerHTML = '<b>道路ベクトル照合</b><label>道路縁 RdEdg GeoJSON（WGS84/EPSG:4326）<input id="narrowEdgeFile" type="file" accept=".json,.geojson,application/geo+json"></label><button id="narrowVectorCheck" type="button">10m間隔で全ルート照合</button><div id="narrowVectorStatus">基盤地図情報のRdEdg GeoJSONを読み込んでください。F（狭隘道路除外）を使う場合、データ未読込・未判定は通過可にしません。</div>';
+  panel.querySelector('b').insertAdjacentHTML('afterend',
+    '<a class="narrow-gsi-link" href="https://service.gsi.go.jp/kiban/app/map/?search=base#9/34.6851/135.8048" target="_blank" rel="noopener">① 国土地理院で奈良県の道路縁を取得</a>' +
+    '<details class="narrow-gsi-help"><summary>取得手順（奈良県）</summary><ol><li>「基本項目を探す」→「項目指定」→「道路縁」にチェック</li><li>「都道府県・市区町村でメッシュを選択」を選び、奈良県とルート周辺の市町村を指定</li><li>「検索」→「選択をダウンロードリストに追加」→ダウンロード（ログインが必要です）</li><li>保存したZIPを下の②で選択</li></ol><small>全県一括ではなく、ルート周辺の市町村を選ぶとファイルを小さくできます。</small></details>');
+  const edgeInput = panel.querySelector('#narrowEdgeFile');
+  edgeInput.setAttribute('accept', '.zip,.xml,.json,.geojson,application/zip,application/xml,application/geo+json');
+  edgeInput.setAttribute('multiple', '');
+  edgeInput.parentElement.firstChild.textContent = '② ダウンロードしたZIP（またはGeoJSON）を選択';
+  panel.querySelector('#narrowVectorStatus').textContent =
+    'ZIPを選ぶと、このブラウザー内で解凍・読み込みます。データは外部サーバーへ送信しません。';
   document.body.append(panel);
 
   const style = document.createElement('style');
-  style.textContent = '#narrowVectorPanel{position:absolute;z-index:1200;left:10px;bottom:42px;width:min(340px,calc(100vw - 24px));padding:9px;background:#fffffff2;border:1px solid #35566a;border-radius:6px;box-shadow:0 2px 8px #0005;font:12px/1.4 sans-serif;color:#183746}#narrowVectorPanel label{display:block;margin:6px 0}#narrowVectorPanel input{display:block;width:100%;margin-top:3px;font-size:11px}#narrowVectorPanel button{padding:5px 8px}#narrowVectorStatus{margin-top:6px;font-size:11px}';
+  style.textContent = '#narrowVectorPanel{position:absolute;z-index:1200;left:10px;bottom:42px;width:min(420px,calc(100vw - 24px));max-height:55vh;overflow:auto;padding:9px;background:#fffffff2;border:1px solid #35566a;border-radius:6px;box-shadow:0 2px 8px #0005;font:12px/1.4 sans-serif;color:#183746}#narrowVectorPanel label{display:block;margin:6px 0}#narrowVectorPanel input{display:block;width:100%;margin-top:3px;font-size:11px}#narrowVectorPanel button{padding:5px 8px}#narrowVectorStatus{margin-top:6px;font-size:11px}.narrow-gsi-link{display:block;margin:6px 0;padding:6px;background:#176fa7;color:white;text-decoration:none;text-align:center;font-weight:bold;border-radius:4px}.narrow-gsi-help{margin:5px 0;font-size:11px}.narrow-gsi-help ol{padding-left:20px}.narrow-gsi-help li{margin:3px 0}.narrow-gsi-help small{display:block;color:#586d78}';
   document.head.append(style);
 
   const status = text => { document.getElementById('narrowVectorStatus').textContent = text; };
@@ -368,20 +377,99 @@
     return { active: true, stepResults, sampleCount: samples.length };
   };
   bridge.checkRoute = checkRoute;
-  const loadEdges = async file => {
-    if (file.size > 100 * 1024 * 1024) throw new Error('GeoJSONが大きすぎます（100MB以下に分割してください）');
+  let zipLibraryPromise;
+  const loadZipLibrary = () => {
+    if (window.JSZip) return Promise.resolve(window.JSZip);
+    if (zipLibraryPromise) return zipLibraryPromise;
+    zipLibraryPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      script.onload = () => window.JSZip ? resolve(window.JSZip) : reject(new Error('ZIP解凍ライブラリを利用できません'));
+      script.onerror = () => reject(new Error('ZIP解凍ライブラリを読み込めません。インターネット接続を確認してください'));
+      document.head.append(script);
+    });
+    return zipLibraryPromise;
+  };
+  const parseGmlRoadEdges = text => {
+    const xml = new DOMParser().parseFromString(text, 'application/xml');
+    if (xml.querySelector('parsererror')) throw new Error('GML/XMLを読み取れません');
+    const roads = [...xml.getElementsByTagNameNS('*', 'RdEdg')];
+    const features = [];
+    for (const road of roads) {
+      const location = [...road.children].find(child => child.localName === 'loc');
+      if (!location) continue;
+      const lists = [...location.getElementsByTagNameNS('*', 'posList')];
+      const coordinateLists = lists.length
+        ? lists.map(node => {
+          const values = node.textContent.trim().split(/\s+/).map(Number);
+          const dimension = Number(node.getAttribute('srsDimension') || node.getAttribute('dimension') || 2);
+          if (dimension !== 2 || values.length < 4 || values.length % 2) return [];
+          const points = [];
+          for (let i = 0; i < values.length; i += 2) {
+            const first = values[i], second = values[i + 1];
+            if (first >= 20 && first <= 47 && second >= 120 && second <= 155) points.push([second, first]);
+            else points.push([first, second]);
+          }
+          return points;
+        })
+        : [...location.getElementsByTagNameNS('*', 'pos')].map(node => {
+          const values = node.textContent.trim().split(/\s+/).map(Number);
+          if (values.length !== 2) return [];
+          const [first, second] = values;
+          return first >= 20 && first <= 47 && second >= 120 && second <= 155
+            ? [[second, first]]
+            : [[first, second]];
+        });
+      for (const coordinates of coordinateLists) {
+        if (coordinates.length >= 2) features.push({
+          type: 'Feature',
+          properties: { class: 'RdEdg' },
+          geometry: { type: 'LineString', coordinates }
+        });
+      }
+    }
+    return features;
+  };
+  const readRoadEdges = async file => {
+    if (/\.zip$/i.test(file.name)) {
+      const JSZip = await loadZipLibrary();
+      const archive = await JSZip.loadAsync(file);
+      const xmlFiles = Object.values(archive.files).filter(entry => !entry.dir && /\.xml$/i.test(entry.name));
+      if (!xmlFiles.length) throw new Error('ZIP内にGML/XMLファイルがありません');
+      const features = [];
+      for (const entry of xmlFiles) features.push(...parseGmlRoadEdges(await entry.async('string')));
+      if (!features.length) throw new Error('ZIP内に道路縁（RdEdg）の線データがありません');
+      return features;
+    }
+    if (/\.xml$/i.test(file.name)) {
+      const features = parseGmlRoadEdges(await file.text());
+      if (!features.length) throw new Error('XML内に道路縁（RdEdg）の線データがありません');
+      return features;
+    }
     const geojson = JSON.parse(await file.text());
-    state.features = lineFeatures(geojson);
+    return lineFeatures(geojson);
+  };
+  const loadEdges = async files => {
+    if (!files.length) throw new Error('ダウンロードした道路縁ZIPまたはGeoJSONを選択してください');
+    if (files.reduce((total, file) => total + file.size, 0) > 100 * 1024 * 1024) {
+      throw new Error('選択ファイルの合計が100MBを超えています。ルート周辺の市町村だけ選んでください');
+    }
+    const features = [];
+    for (const file of files) {
+      if (file.size > 100 * 1024 * 1024) throw new Error(`${file.name} が大きすぎます（1ファイル100MB以下にしてください）`);
+      features.push(...await readRoadEdges(file));
+    }
+    state.features = features;
     state.edges = state.features;
     indexEdges(state.features);
-    return geojson;
+    return features;
   };
   const runCheck = async () => {
     const map = bridge.getMap();
-    const file = document.getElementById('narrowEdgeFile').files[0];
-    if (!file) throw new Error('RdEdg GeoJSONファイルを選択してください');
+    const files = [...document.getElementById('narrowEdgeFile').files];
+    if (!files.length) throw new Error('先に奈良県の道路縁ZIPまたはGeoJSONを選択してください');
     const dimensions = bridge.getDimensions();
-    await loadEdges(file);
+    await loadEdges(files);
     const routes = bridge.getRouteLayers().map(item => item.route).filter(Boolean);
     if (!routes.length) throw new Error('先にルートを計算してください');
     let totals = { pass: 0, fail: 0, unchecked: 0, skipped: 0, samples: 0 };
@@ -410,8 +498,8 @@
     }
     status('RdEdgデータを読み込んでいます。完了までは未判定です。');
     try {
-      await loadEdges(file);
-      status(`RdEdgを読み込みました（線データ ${state.features.length}件）。ルート選定時にベクトル照合を使用します。`);
+      await loadEdges([...event.target.files]);
+      status(`道路縁を読み込みました（線データ ${state.features.length}件）。ZIPはこのブラウザー内で解凍しました。`);
     } catch (error) {
       state.features = [];
       state.edgeGrid.clear();

@@ -7,16 +7,16 @@
   const state = { edges: [], edgeLayer: null, routeLayer: null, footprints: null, features: [], edgeGrid: new Map(), centerlineTiles: new Map() };
   const panel = document.createElement('div');
   panel.id = 'narrowVectorPanel';
-  panel.innerHTML = '<b>道路ベクトル照合</b><label>道路縁 RdEdg GeoJSON（WGS84/EPSG:4326）<input id="narrowEdgeFile" type="file" accept=".json,.geojson,application/geo+json"></label><button id="narrowVectorCheck" type="button">10m間隔で全ルート照合</button><div id="narrowVectorStatus">基盤地図情報のRdEdg GeoJSONを読み込んでください。F（狭隘道路除外）を使う場合、データ未読込・未判定は通過可にしません。</div>';
+  panel.innerHTML = '<b>道路ベクトル照合</b><label>道路縁 RdEdg GeoJSON（WGS84/EPSG:4326）<input id="narrowEdgeFile" type="file" accept=".json,.geojson,application/geo+json"></label><button id="narrowVectorCheck" type="button">全区間照合</button><div id="narrowVectorStatus">基盤地図情報のRdEdg GeoJSONを読み込んでください。F（狭隘道路除外）を使う場合、データ未読込・未判定は通過可にしません。</div>';
   panel.querySelector('b').insertAdjacentHTML('afterend',
-    '<a class="narrow-gsi-link" href="https://service.gsi.go.jp/kiban/app/map/?search=base#9/34.6851/135.8048" target="_blank" rel="noopener">① 国土地理院で奈良県の道路縁を取得</a>' +
+    '<a class="narrow-gsi-link" href="https://service.gsi.go.jp/kiban/app/map/?search=base#9/34.6851/135.8048" target="_blank" rel="noopener">① 国土地理院道路情報のダウンロード</a>' +
     '<details class="narrow-gsi-help"><summary>取得手順（奈良県）</summary><ol><li>「基本項目を探す」→「項目指定」→「道路縁」にチェック</li><li>「都道府県・市区町村でメッシュを選択」を選び、奈良県とルート周辺の市町村を指定</li><li>「検索」→「選択をダウンロードリストに追加」→ダウンロード（ログインが必要です）</li><li>保存したZIPを下の②で選択</li></ol><small>全県一括ではなく、ルート周辺の市町村を選ぶとファイルを小さくできます。</small></details>');
   const edgeInput = panel.querySelector('#narrowEdgeFile');
   edgeInput.setAttribute('accept', '.zip,.xml,.json,.geojson,application/zip,application/xml,application/geo+json');
   edgeInput.setAttribute('multiple', '');
-  edgeInput.parentElement.firstChild.textContent = '② ダウンロードしたZIP（またはGeoJSON）を選択';
+  edgeInput.parentElement.firstChild.textContent = '② ファイル選択 ';
   panel.querySelector('#narrowVectorStatus').textContent =
-    'ZIPを選ぶと、このブラウザー内で解凍・読み込みます。データは外部サーバーへ送信しません。';
+    '選択後アップロードします。10m間隔で全区間照合します。';
   document.body.append(panel);
   const panelToggle = document.createElement('button');
   panelToggle.id = 'narrowPanelToggle';
@@ -26,7 +26,7 @@
   document.body.append(panelToggle);
 
   const style = document.createElement('style');
-  style.textContent = '#narrowVectorPanel{position:absolute;z-index:1200;left:10px;bottom:42px;width:min(420px,calc(100vw - 24px));max-height:55vh;overflow:auto;padding:9px;background:#fffffff2;border:1px solid #35566a;border-radius:6px;box-shadow:0 2px 8px #0005;font:12px/1.4 sans-serif;color:#183746}#narrowVectorPanel label{display:block;margin:6px 0}#narrowVectorPanel input{display:block;width:100%;margin-top:3px;font-size:11px}#narrowVectorPanel button{padding:5px 8px}#narrowVectorStatus{margin-top:6px;font-size:11px}.narrow-gsi-link{display:block;margin:6px 0;padding:6px;background:#176fa7;color:white;text-decoration:none;text-align:center;font-weight:bold;border-radius:4px}.narrow-gsi-help{margin:5px 0;font-size:11px}.narrow-gsi-help ol{padding-left:20px}.narrow-gsi-help li{margin:3px 0}.narrow-gsi-help small{display:block;color:#586d78}#narrowPanelToggle{display:none;position:absolute;z-index:1201;left:10px;bottom:42px;padding:8px;background:#176fa7;color:white;border:0;border-radius:5px;font-weight:bold}body.route-view-clean #narrowVectorPanel,body.route-view-clean #status{display:none}body.route-view-clean #narrowPanelToggle{display:block}';
+  style.textContent = '#narrowVectorPanel{position:absolute;z-index:1200;left:10px;bottom:42px;width:min(270px,calc(100vw - 24px));max-height:40vh;overflow:auto;padding:5px 7px;font-size:11px;background:#fffffff2;border:1px solid #35566a;border-radius:6px;box-shadow:0 2px 8px #0005;font:12px/1.4 sans-serif;color:#183746}#narrowVectorPanel label{display:block;margin:6px 0}#narrowVectorPanel input{display:block;width:100%;margin-top:3px;font-size:11px}#narrowVectorPanel button{padding:5px 8px}#narrowVectorStatus{margin-top:6px;font-size:11px}.narrow-gsi-link{display:block;margin:6px 0;padding:6px;background:#176fa7;color:white;text-decoration:none;text-align:center;font-weight:bold;border-radius:4px}.narrow-gsi-help{margin:5px 0;font-size:11px}.narrow-gsi-help ol{padding-left:20px}.narrow-gsi-help li{margin:3px 0}.narrow-gsi-help small{display:block;color:#586d78}#narrowPanelToggle{display:none;position:absolute;z-index:1201;left:10px;bottom:42px;padding:8px;background:#176fa7;color:white;border:0;border-radius:5px;font-weight:bold}body.route-view-clean #narrowVectorPanel,body.route-view-clean #status,body.menu-popup-open #narrowVectorPanel,body.menu-popup-open #status{display:none}body.route-view-clean #narrowPanelToggle{display:block}';
   document.head.append(style);
   const positionRouteStatus = () => {
     const routeStatus = document.getElementById('status');

@@ -197,7 +197,7 @@
     }
     return segments;
   };
-  const imageFit = (edges, width, length, keepLeft = false) => {
+  const imageFit = (edges, width, length, keepLeft = false, tolerance = 0) => {
     const scale = 5, size = 301, center = (size - 1) / 2;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
@@ -243,7 +243,7 @@
     if (keepLeft && leftBoundary === null) return { status: 'unknown', collision: false, edgesFound, lateralShift: 0 };
     const lateralShift = keepLeft ? (leftBoundary - center) / scale - halfW - 1 / scale : 0;
     const shiftPx = Math.round(lateralShift * scale);
-    const bodyHalfWidth = Math.round(halfW * scale), bodyHalfLength = Math.round(halfL * scale);
+    const bodyHalfWidth = Math.round((halfW - tolerance) * scale), bodyHalfLength = Math.round(halfL * scale);
     collision = countRedPixels(center + shiftPx - bodyHalfWidth, center + shiftPx + bodyHalfWidth,
       center - bodyHalfLength, center + bodyHalfLength) > 0;
     if (collision) return { status: 'fail', collision, edgesFound, lateralShift };
@@ -254,6 +254,83 @@
     const east = along * Math.sin(bearing) - lateral * Math.cos(bearing);
     const north = along * Math.cos(bearing) + lateral * Math.sin(bearing);
     return [point[0] + east / metersPerLon(point[1]), point[1] + north / 111320];
+  };
+  const mapTiles = new Map();
+  const MAP_FAIL_RUN = 5;
+  const MAP_TOLERANCE = 0.8;
+  const MAP_Z = 18;
+  const loadMapTile = async (x, y) => {
+    const key = `${x}/${y}`;
+    if (mapTiles.has(key)) return mapTiles.get(key);
+    const promise = new Promise(resolve => {
+      const image = new Image();
+      image.crossOrigin = 'anonymous';
+      const timer = setTimeout(() => resolve(null), 8000);
+      image.onload = () => {
+        clearTimeout(timer);
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = canvas.height = 256;
+          const context = canvas.getContext('2d', { willReadFrequently: true });
+          context.drawImage(image, 0, 0);
+          resolve(context.getImageData(0, 0, 256, 256).data);
+        } catch (error) { resolve(null); }
+      };
+      image.onerror = () => { clearTimeout(timer); resolve(null); };
+      image.src = `https://cyberjapandata.gsi.go.jp/xyz/std/${MAP_Z}/${x}/${y}.png`;
+    });
+    mapTiles.set(key, promise);
+    if (mapTiles.size > 300) mapTiles.delete(mapTiles.keys().next().value);
+    return promise;
+  };
+  const worldPixel = point => {
+    const n = 2 ** MAP_Z;
+    return { x: (point[0] + 180) / 360 * n * 256, y: (1 - Math.asinh(Math.tan(point[1] * Math.PI / 180)) / Math.PI) / 2 * n * 256 };
+  };
+  const mapDrawnEdges = async (origin, bearing, length) => {
+    const reach = 14, extent = length / 2 + 2, meterPerPixel = 156543.03 * Math.cos(origin[1] * Math.PI / 180) / 2 ** MAP_Z;
+    const corners = [offset(origin, bearing, extent, reach), offset(origin, bearing, -extent, -reach), offset(origin, bearing, extent, -reach), offset(origin, bearing, -extent, reach)].map(worldPixel);
+    const minX = Math.floor(Math.min(...corners.map(c => c.x)) / 256), maxX = Math.floor(Math.max(...corners.map(c => c.x)) / 256);
+    const minY = Math.floor(Math.min(...corners.map(c => c.y)) / 256), maxY = Math.floor(Math.max(...corners.map(c => c.y)) / 256);
+    const data = new Map();
+    for (let x = minX; x <= maxX; x++) for (let y = minY; y <= maxY; y++) data.set(`${x}/${y}`, await loadMapTile(x, y));
+    const isLine = point => {
+      const pixel = worldPixel(point), tx = Math.floor(pixel.x / 256), ty = Math.floor(pixel.y / 256), tile = data.get(`${tx}/${ty}`);
+      if (!tile) return null;
+      const index = (Math.floor(pixel.y - ty * 256) * 256 + Math.floor(pixel.x - tx * 256)) * 4;
+      const r = tile[index], g = tile[index + 1], b = tile[index + 2];
+      return 0.3 * r + 0.59 * g + 0.11 * b < 190;
+    };
+    const left = [], right = [];
+    for (let along = -extent; along <= extent; along += 1) {
+      const center = offset(origin, bearing, along, 0);
+      const scan = sign => {
+        for (let d = 0.5; d <= reach; d += meterPerPixel) {
+          const hit = isLine(offset(center, bearing, 0, sign * d));
+          if (hit === null) return null;
+          if (hit) return d;
+        }
+        return null;
+      };
+      left.push({ along, lateral: scan(1) });
+      right.push({ along, lateral: scan(-1) === null ? null : -scan(-1) });
+    }
+    const smooth = side => side.map((item, i) => {
+      if (item.lateral === null) return item;
+      const near = side.slice(Math.max(0, i - 2), i + 3).map(x => x.lateral).filter(v => v !== null).sort((a, b) => a - b);
+      return { along: item.along, lateral: near[Math.floor(near.length / 2)] };
+    });
+    const leftLine = smooth(left), rightLine = smooth(right);
+    const segments = [];
+    for (const side of [leftLine, rightLine]) {
+      for (let i = 1; i < side.length; i++) {
+        const a = side[i - 1], b = side[i];
+        if (a.lateral !== null && b.lateral !== null && Math.abs(a.lateral - b.lateral) < 3) segments.push([a, b]);
+      }
+    }
+    const rows = left.length;
+    const haveLeft = left.filter(item => item.lateral !== null).length, haveRight = right.filter(item => item.lateral !== null).length;
+    return haveLeft >= rows * 0.5 && haveRight >= rows * 0.5 ? segments : [];
   };
   const footprint = (front, rear, bearing, width, lateralShift, color) => {
     const frontCenter = offset(front, bearing, 0, lateralShift), rearCenter = offset(rear, bearing, 0, lateralShift);
@@ -327,10 +404,10 @@
     const reason = status === 'fail' ? 'vector-footprint-collision' :
       status === 'unchecked' ? (stats.intersectionSkipped && !stats.samples ? 'intersection-turn-only' : 'road-edge-not-detected') : 'vector-footprint-fit';
     return { status, reason, name, samples: stats.samples || 0, intersectionSkipped: stats.intersectionSkipped || 0,
+      mapMaxRun: stats.mapMaxRun || 0, mapFailCount: stats.mapFailCount || 0,
       source: '地理院RdCL・基盤地図情報RdEdg画像照合' };
   };
   const checkRoute = async (route, dimensions, options = {}) => {
-    if (!state.features.length) return { active: false };
     const samples = vectorSamples(route, dimensions);
     const report = text => {
       const routeStatus = document.getElementById('status');
@@ -379,13 +456,25 @@
         bearing = routeBearing(rear, front);
         keepLeft = true;
       }
-      const edges = lineSegmentsNear(origin, bearing);
+      let edges = lineSegmentsNear(origin, bearing), drawnEdges = null;
+      if (!edges.length) {
+        // 道路縁データがない場所は、地理院地図に描かれた道路の左右の線を「中央線なし」と同じ方法で照合する
+        drawnEdges = edges = await mapDrawnEdges(origin, bearing, dimensions.length);
+        keepLeft = true;
+        if (edges.length) stat.mapDrawn = true;
+      }
       if (!edges.length) {
         stat.unknown = true;
         if (bounds.contains([origin[1], origin[0]])) marks.push(footprint(front, rear, bearing, dimensions.width, 0, '#687782'));
         continue;
       }
-      const fit = imageFit(edges, dimensions.width, dimensions.length, keepLeft);
+      const fit = imageFit(edges, dimensions.width, dimensions.length, keepLeft, drawnEdges && edges === drawnEdges ? MAP_TOLERANCE : 0);
+      if (stat.mapDrawn && edges === drawnEdges) {
+        stat.mapFailRun = fit.status === 'fail' ? (stat.mapFailRun || 0) + 1 : 0;
+        stat.mapMaxRun = Math.max(stat.mapMaxRun || 0, stat.mapFailRun);
+        stat.mapFailCount = (stat.mapFailCount || 0) + (fit.status === 'fail' ? 1 : 0);
+        if (fit.status === 'fail' && stat.mapFailRun < MAP_FAIL_RUN) fit.status = 'pass';
+      }
       if (fit.status === 'unknown') stat.unknown = true;
       else if (fit.status === 'fail') stat.fail = true;
       if (bounds.contains([origin[1], origin[0]])) {

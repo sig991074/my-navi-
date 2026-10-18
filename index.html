@@ -113,7 +113,7 @@ async function findTrolleySafeRoute(points,routes,routeNo){
     showRouteCheckPreview(candidate,checkLabel);
     await prepareRoute(candidate,ways,warning,checkLabel);
     if(!excludesNarrow)return{route:candidates[i],detoured:false};
-    if(!candidates[i].trolleyFailures.length&&!candidates[i].trolleyUnchecked)return{route:candidates[i],detoured:false};
+    if(!candidates[i].trolleyFailures.length&&(!candidates[i].trolleyUnchecked||candidates[i].trolleyVectorUsed))return{route:candidates[i],detoured:false};
   }
   let effectivePoints=points,route=preferredRoute(routes,routeNo),detoured=false;
   const score=item=>(item.trolleyFailures?.length||0)*1000000+(item.trolleyUnchecked||0)*100000+(item.trolleyFailures||[]).reduce((sum,step)=>sum+(step.distance||0),0)+(item.distance||0)*.1;

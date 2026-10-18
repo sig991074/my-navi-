@@ -354,6 +354,7 @@
       if (i % 100 === 0 || i === samples.length - 1) {
         bridge.moveRouteCheckProgress?.(sample.point);
         report(`車両形状を照合中（${i + 1}/${samples.length}地点、道路：${sample.step.name || sample.step.ref || '名称なし'}）…`);
+        await new Promise(resolve => setTimeout(resolve, 0));
       }
       const stat = stepStats.get(sample.step) || { samples: 0, fail: false, unknown: false, intersectionSkipped: 0 };
       stepStats.set(sample.step, stat);
@@ -371,12 +372,6 @@
         front = frontMatch.center;
         origin = [(rear[0] + front[0]) / 2, (rear[1] + front[1]) / 2];
         bearing = routeBearing(rear, front);
-      } else if (matchedCenter) {
-        stat.unknown = true;
-        if (bounds.contains([sample.point[1], sample.point[0]])) {
-          marks.push(footprint(sample.front, sample.rear, sample.bearing, dimensions.width, 0, '#687782'));
-        }
-        continue;
       } else {
         rear = sample.rear;
         front = sample.front;

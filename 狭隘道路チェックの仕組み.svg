@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" style="max-width:100%;height:auto" role="img" aria-labelledby="title desc">
   <title id="title">狭隘道路チェックの仕組み</title>
-  <desc id="desc">道路に沿って10メートルごとに横断面を測定し、地図画像の縮尺から幅を推定します。走行条件Fに応じて警告表示または迂回検索します。</desc>
+  <desc id="desc">国土地理院の道路中心線RdCLと基盤地図情報の道路縁RdEdgを画像化し、約10メートルごとに車両形状を重ねて照合します。幅員の数値計算はせず、交差点旋回はパス、直進は測定します。</desc>
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
       <path d="M0,0 L10,5 L0,10 Z" fill="#31566d"/>
@@ -23,8 +23,8 @@
     </style>
   </defs>
   <rect width="1200" height="900" fill="#f3f7f9"/>
-  <text x="44" y="52" class="title">狭隘道路チェックの仕組み（現在の方式）</text>
-  <text x="46" y="82" class="body muted">道路に沿って10m以内ごとに断面を確認し、幅不足の有無を判定します。</text>
+  <text x="44" y="52" class="title">狭隘道路チェック（道路ベクトル画像照合）</text>
+  <text x="46" y="82" class="body muted">RdCL・RdEdgを画像化し、約10mごとに車両形状と重ねます。道路幅の数値計算はしません。</text>
 
   <rect x="38" y="108" width="1124" height="330" rx="14" class="panel"/>
   <text x="66" y="145" class="head">1　道路に沿って測定点を配置</text>
@@ -64,8 +64,8 @@
   <text x="1010" y="426" class="small muted">赤丸＝前後の向き測定</text>
 
   <rect x="38" y="458" width="548" height="250" rx="14" class="panel"/>
-  <text x="66" y="495" class="head">2　トロッコの前後中央を道路の中央線に合わせる</text>
-  <text x="66" y="525" class="body">前後の中央（○）を中央線上に置き、傾きによる補正はしません。</text>
+  <text x="66" y="495" class="head">2　RdCLがある区間は前後中央を中心線に合わせる</text>
+  <text x="66" y="525" class="body">前後の中央（○）をRdCL上に置き、傾きによる幅補正はしません。</text>
   <path d="M91 666 C155 651 131 589 318 577" fill="none" stroke="#edc982" stroke-width="66" stroke-linecap="round"/>
   <path d="M91 666 C155 651 131 589 318 577" fill="none" stroke="#a9874e" stroke-width="3"/>
   <path d="M91 666 C155 651 131 589 318 577" fill="none" stroke="#fff" stroke-width="4" stroke-dasharray="13 10"/>
@@ -78,16 +78,16 @@
   <line x1="147" y1="611" x2="169" y2="629" stroke="#b42318" stroke-width="3" marker-start="url(#dim)" marker-end="url(#dim)"/>
   <text x="174" y="650" class="small" fill="#b42318">車幅</text>
   <text x="344" y="570" class="small">前後の中央点を</text>
-  <text x="344" y="591" class="small">中央線に沿わせて</text>
+  <text x="344" y="591" class="small">RdCLに沿わせて</text>
   <text x="344" y="612" class="small">置きます。</text>
   <text x="344" y="642" class="small" font-weight="700">必要幅 ＝ 車幅</text>
-  <text x="70" y="681" class="small muted">道路幅は画像の縮尺から推定。トロッコの傾きによる幅の上乗せはしません。</text>
+  <text x="70" y="681" class="small muted">幅員値は計算しません。車幅の画像を重ね、傾きによる幅の上乗せもしません。</text>
 
   <rect x="606" y="458" width="556" height="250" rx="14" class="panel"/>
-  <text x="634" y="495" class="head">3　中央線と幅で判定</text>
+  <text x="634" y="495" class="head">3　道路縁画像に車両形状を重ねて判定</text>
   <rect x="634" y="519" width="226" height="104" rx="9" fill="#e7f1f7" stroke="#8faebf" stroke-width="2"/>
-  <text x="648" y="546" class="body" font-weight="700">中央線なし</text>
-  <text x="648" y="567" class="small">左に寄せて仮置き</text>
+  <text x="648" y="546" class="body" font-weight="700">RdCLなし</text>
+  <text x="648" y="567" class="small">キープレフトで仮置き</text>
   <rect x="648" y="577" width="198" height="42" fill="#edc982" stroke="none"/>
   <line x1="648" y1="577" x2="648" y2="619" stroke="#a9874e" stroke-width="5"/>
   <line x1="846" y1="577" x2="846" y2="619" stroke="#a9874e" stroke-width="5"/>
@@ -95,8 +95,8 @@
   <line x1="748" y1="598" x2="837" y2="598" stroke="#b42318" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
   <text x="778" y="591" class="small">右側余裕</text>
   <rect x="884" y="519" width="246" height="104" rx="9" fill="#fff4df" stroke="#d6aa57" stroke-width="2"/>
-  <text x="898" y="546" class="body" font-weight="700">中央線あり</text>
-  <text x="898" y="567" class="small">中央線上に仮置き</text>
+  <text x="898" y="546" class="body" font-weight="700">RdCLあり</text>
+  <text x="898" y="567" class="small">前後中央をRdCL上へ</text>
   <rect x="898" y="577" width="218" height="42" fill="#edc982" stroke="none"/>
   <line x1="898" y1="577" x2="898" y2="619" stroke="#a9874e" stroke-width="5"/>
   <line x1="1116" y1="577" x2="1116" y2="619" stroke="#a9874e" stroke-width="5"/>
@@ -104,17 +104,17 @@
   <rect x="967" y="586" width="80" height="24" rx="4" fill="#5599d0" stroke="#174e78" stroke-width="2"/>
   <line x1="908" y1="582" x2="956" y2="582" stroke="#31566d" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
   <line x1="1058" y1="582" x2="1106" y2="582" stroke="#31566d" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
-  <text x="642" y="650" class="body">左右の車体線が道路の左右線に触れずに収まるか確認。</text>
+  <text x="642" y="650" class="body">赤いRdEdg線が車両形状に入るかを画像で照合。</text>
   <text x="642" y="676" class="small muted">交差点で旋回するときはパス。道なりの直進は測定を続けます。</text>
-  <text x="642" y="698" class="small muted">道路端は地図画像の描画境界で、測量線ではありません。</text>
+  <text x="642" y="698" class="small muted">RdCLは塗装中央線ではありません。道路データ不足は未判定です。</text>
 
   <rect x="38" y="728" width="1124" height="134" rx="14" class="panel"/>
   <text x="66" y="765" class="head">4　走行条件「F：狭隘道路」の有無で動作が変わります</text>
   <rect x="68" y="784" width="472" height="54" rx="9" fill="#fff5bf" stroke="#c6a500" stroke-width="2"/>
   <text x="88" y="808" class="body" font-weight="700">Fを除外（条件に入れない）</text>
-  <text x="88" y="830" class="small">幅不足区間は黄色で警告。ルートは変更しません。</text>
+  <text x="88" y="830" class="small">通行幅不足は警告表示。ルートは変更しません。</text>
   <rect x="568" y="784" width="564" height="54" rx="9" fill="#e6f4e9" stroke="#65a875" stroke-width="2"/>
   <text x="588" y="808" class="body" font-weight="700">Fを条件に入れる</text>
-  <text x="588" y="830" class="small">迂回ルートを検索。回避を確認できなければ未回避と警告します。</text>
-  <text x="44" y="888" class="small muted">※交差点で旋回する場合は測定をパス。直進は測定します。道路端は地図画像の推定です。</text>
+  <text x="588" y="830" class="small">幅不足区間を迂回検索。未判定が残れば安全確認未了と表示します。</text>
+  <text x="44" y="888" class="small muted">※交差点旋回はパス、直進は測定。RdEdgの整備範囲・精度に依存し、通行安全を保証するものではありません。</text>
 </svg>

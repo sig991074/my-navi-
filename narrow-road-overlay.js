@@ -7,7 +7,7 @@
   const state = { edges: [], edgeLayer: null, routeLayer: null, footprints: null, features: [], edgeGrid: new Map(), centerlineTiles: new Map() };
   const panel = document.createElement('div');
   panel.id = 'narrowVectorPanel';
-  panel.innerHTML = '<b>道路ベクトル照合</b><label>道路縁 RdEdg GeoJSON <input id="narrowEdgeFile" type="file" accept=".json,.geojson,application/geo+json"></label><button id="narrowVectorCheck" type="button">10m間隔で全ルート照合</button><div id="narrowVectorStatus">基盤地図情報のRdEdg GeoJSONを読み込んでください。F（狭隘道路除外）を使う場合、データ未読込・未判定は通過可にしません。</div>';
+  panel.innerHTML = '<b>道路ベクトル照合</b><label>道路縁 RdEdg GeoJSON（WGS84/EPSG:4326）<input id="narrowEdgeFile" type="file" accept=".json,.geojson,application/geo+json"></label><button id="narrowVectorCheck" type="button">10m間隔で全ルート照合</button><div id="narrowVectorStatus">基盤地図情報のRdEdg GeoJSONを読み込んでください。F（狭隘道路除外）を使う場合、データ未読込・未判定は通過可にしません。</div>';
   document.body.append(panel);
 
   const style = document.createElement('style');
@@ -30,8 +30,22 @@
       return ['LineString', 'MultiLineString'].includes(feature.geometry.type);
     });
     if (!features.length) throw new Error('RdEdgの線データが見つかりません');
+    for (const feature of features) for (const line of flatten(feature.geometry.coordinates)) {
+      if (line.length < 2 || line.some(point => !Array.isArray(point) || !Number.isFinite(point[0]) ||
+          !Number.isFinite(point[1]) || Math.abs(point[0]) > 180 || Math.abs(point[1]) > 90)) {
+        throw new Error('道路縁データは経度・緯度（WGS84 / EPSG:4326）のGeoJSONで指定してください');
+      }
+    }
     return features;
   };
+  const featuresInBounds = (features, bounds) => features.filter(feature => {
+    let west = Infinity, east = -Infinity, south = Infinity, north = -Infinity;
+    for (const line of flatten(feature.geometry.coordinates)) for (const point of line) {
+      west = Math.min(west, point[0]); east = Math.max(east, point[0]);
+      south = Math.min(south, point[1]); north = Math.max(north, point[1]);
+    }
+    return east >= bounds.getWest() && west <= bounds.getEast() && north >= bounds.getSouth() && south <= bounds.getNorth();
+  });
   const indexEdges = features => {
     const grid = new Map(), global = [], cellSize = 0.005;
     for (const feature of features) for (const line of flatten(feature.geometry.coordinates)) {
@@ -77,15 +91,20 @@
         if (state.centerlineTiles.has(key)) return state.centerlineTiles.get(key);
         const url = `https://cyberjapandata.gsi.go.jp/xyz/experimental_rdcl/${key}.geojson`;
         const response = await fetch(url);
-        if (response.status === 404) return { features: [] };
+        if (response.status === 404) {
+          const empty = { features: [] };
+          state.centerlineTiles.set(key, empty);
+          return empty;
+        }
         if (!response.ok) throw new Error(`道路中心線タイルを取得できません（HTTP ${response.status}）`);
         const data = await response.json();
         state.centerlineTiles.set(key, data);
+        if (state.centerlineTiles.size > 1500) state.centerlineTiles.delete(state.centerlineTiles.keys().next().value);
         return data;
       }));
       results.forEach(result => features.push(...(result.features || [])));
     }
-    return [...new Map(features.map(feature => [feature.properties?.rID || JSON.stringify(feature.geometry?.coordinates), feature])).values()]
+    return [...new Map(features.map(feature => [JSON.stringify(feature.geometry?.coordinates), feature])).values()]
       .filter(feature => feature.geometry?.type === 'LineString');
   };
   const metersPerLon = lat => 111320 * Math.max(0.1, Math.cos(lat * Math.PI / 180));
@@ -104,17 +123,20 @@
     return { distance: Math.hypot(ax + t * dx, ay + t * dy), t, ax, ay, dx, dy };
   };
   const nearestCenterline = (point, features, routeBearing) => {
-    let best = null;
+    let best = null, bestScore = Infinity;
     for (const feature of features) {
       const coordinates = feature.geometry.coordinates;
       for (let i = 1; i < coordinates.length; i++) {
         const a = coordinates[i - 1], b = coordinates[i];
         const projection = distancePointSegment(point, a, b);
-        if (projection.distance > 18 || (best && projection.distance >= best.distance)) continue;
+        if (projection.distance > 18) continue;
         let bearing = Math.atan2(projection.dx, projection.dy);
         if (Math.cos(bearing - routeBearing) < 0) bearing += Math.PI;
+        const score = projection.distance + angularDifference(bearing, routeBearing) * 6;
+        if (score >= bestScore) continue;
         const center = [point[0] + (projection.ax + projection.t * projection.dx) / metersPerLon(point[1]), point[1] + (projection.ay + projection.t * projection.dy) / 111320];
         best = { distance: projection.distance, bearing, center };
+        bestScore = score;
       }
     }
     return best;
@@ -135,6 +157,7 @@
       const a = toLocal(aPoint, origin, bearing), b = toLocal(bPoint, origin, bearing);
       if (Math.min(a.along, b.along) > radius || Math.max(a.along, b.along) < -radius ||
           Math.min(a.lateral, b.lateral) > radius || Math.max(a.lateral, b.lateral) < -radius) continue;
+      if (Math.abs(b.along - a.along) < Math.abs(b.lateral - a.lateral) * 0.5) continue;
       segments.push([a, b]);
     }
     return segments;
@@ -171,7 +194,7 @@
     for (let x = 0; x < size; x++) edgeCounts[x] = countRedPixels(x, x, center - roadHalfLength, center + roadHalfLength);
     const threshold = Math.max(2, Math.floor(roadHalfLength * 0.08));
     const boundary = direction => {
-      const start = direction > 0 ? center + Math.round(halfW * scale) : center - Math.round(halfW * scale);
+      const start = center + direction;
       const end = direction > 0 ? size - 1 : 0, candidates = [];
       for (let x = start; direction > 0 ? x <= end : x >= end; x += direction) {
         if (edgeCounts[x] >= threshold) candidates.push(x);
@@ -182,13 +205,15 @@
     };
     const leftBoundary = boundary(1), rightBoundary = boundary(-1);
     const edgesFound = leftBoundary !== null && rightBoundary !== null;
-    if (!edgesFound) return { status: 'unknown', collision: false, edgesFound: false, lateralShift: 0 };
+    if (keepLeft && leftBoundary === null) return { status: 'unknown', collision: false, edgesFound, lateralShift: 0 };
     const lateralShift = keepLeft ? (leftBoundary - center) / scale - halfW - 1 / scale : 0;
     const shiftPx = Math.round(lateralShift * scale);
     const bodyHalfWidth = Math.round(halfW * scale), bodyHalfLength = Math.round(halfL * scale);
     collision = countRedPixels(center + shiftPx - bodyHalfWidth, center + shiftPx + bodyHalfWidth,
       center - bodyHalfLength, center + bodyHalfLength) > 0;
-    return { status: collision ? 'fail' : 'pass', collision, edgesFound, lateralShift };
+    if (collision) return { status: 'fail', collision, edgesFound, lateralShift };
+    if (!edgesFound) return { status: 'unknown', collision: false, edgesFound, lateralShift };
+    return { status: 'pass', collision: false, edgesFound, lateralShift };
   };
   const offset = (point, bearing, along, lateral) => {
     const east = along * Math.sin(bearing) - lateral * Math.cos(bearing);
@@ -205,26 +230,6 @@
     ].map(([lon, lat]) => [lat, lon]);
     return window.L.polygon(corners, { color, weight: 1, fillColor: color, fillOpacity: 0.08, interactive: false });
   };
-  const routeSamples = (map, routeLayers) => {
-    const samples = [], bounds = map.getBounds();
-    for (const route of routeLayers) {
-      route.layer.eachLayer(layer => {
-        if (!(layer instanceof window.L.Polyline) || !String(layer.options.className || '').includes('route-soft')) return;
-        const points = layer.getLatLngs().map(point => [point.lng, point.lat]);
-        for (let i = 1; i < points.length; i++) {
-          const a = points[i - 1], b = points[i], distance = map.distance([a[1], a[0]], [b[1], b[0]]);
-          if (distance < 0.1) continue;
-          const steps = Math.max(1, Math.ceil(distance / 10));
-          for (let j = 0; j < steps; j++) {
-            const t = j / steps;
-            const point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-            if (bounds.contains([point[1], point[0]])) samples.push({ point, bearing: routeBearing(a, b), routeNo: route.routeNo });
-          }
-        }
-      });
-    }
-    return samples;
-  };
   const atDistance = (coordinates, distance) => {
     let remaining = Math.max(0, distance);
     for (let i = 1; i < coordinates.length; i++) {
@@ -240,8 +245,26 @@
   };
   const distanceBetween = (a, b) => Math.hypot((b[0] - a[0]) * metersPerLon(a[1]), (b[1] - a[1]) * 111320);
   const angularDifference = (a, b) => Math.abs(((a - b + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+  const gsiIntersectionPoints = features => {
+    const nodes = new Map(), threshold = 25 * Math.PI / 180;
+    const addDirection = (point, neighbor) => {
+      if (distanceBetween(point, neighbor) < 0.2) return;
+      const key = `${Math.round(point[0] * 100000)}/${Math.round(point[1] * 100000)}`;
+      const node = nodes.get(key) || { point, directions: [] }, direction = routeBearing(point, neighbor);
+      if (node.directions.every(value => angularDifference(value, direction) > threshold)) node.directions.push(direction);
+      nodes.set(key, node);
+    };
+    for (const feature of features) {
+      const coordinates = feature.geometry.coordinates;
+      for (let i = 0; i < coordinates.length; i++) {
+        if (i) addDirection(coordinates[i], coordinates[i - 1]);
+        if (i + 1 < coordinates.length) addDirection(coordinates[i], coordinates[i + 1]);
+      }
+    }
+    return [...nodes.values()].filter(node => node.directions.length >= 3).map(node => node.point);
+  };
   const vectorSamples = (route, dimensions) => {
-    const samples = [], seen = new Set(), skippedByIntersection = new Map();
+    const samples = [], seen = new Set();
     for (const step of route.steps || []) {
       const context = step._trolleyPathContext, check = step._trolleyCheck;
       if (!context || context.coordinates.length < 2 || step._endpointExcluded || check?.status === 'excluded') continue;
@@ -256,19 +279,15 @@
         if (!rear || !front || !center) continue;
         const bearing = routeBearing(rear.point, front.point);
         const turn = angularDifference(rear.bearing, front.bearing) * 180 / Math.PI;
-        const intersectionTurn = turn > 30 && (route._trolleyIntersections || []).some(point =>
-          distanceBetween(center.point, point) <= dimensions.length / 2 + 5);
-        if (intersectionTurn) {
-          skippedByIntersection.set(step, (skippedByIntersection.get(step) || 0) + 1);
-          continue;
-        }
-        samples.push({ step, station, point: center.point, rear: rear.point, front: front.point, bearing, routeBearing: center.bearing });
+        samples.push({ step, station, point: center.point, rear: rear.point, front: front.point, bearing,
+          routeBearing: center.bearing, turn, intersectionRadius: dimensions.length / 2 + 5 });
       }
     }
-    return { samples, skippedByIntersection };
+    return samples;
   };
   const makeStepResult = (stats, previous, name) => {
-    if (!stats || (!stats.samples && !stats.intersectionSkipped)) return previous;
+    if (!stats) return previous;
+    if (!stats.samples && !stats.intersectionSkipped) stats.unknown = true;
     let status = stats.fail ? 'fail' : stats.unknown || !stats.samples ? 'unchecked' : 'pass';
     const reason = status === 'fail' ? 'vector-footprint-collision' :
       status === 'unchecked' ? (stats.intersectionSkipped && !stats.samples ? 'intersection-turn-only' : 'road-edge-not-detected') : 'vector-footprint-fit';
@@ -277,19 +296,23 @@
   };
   const checkRoute = async (route, dimensions, options = {}) => {
     if (!state.features.length) return { active: false };
-    const { samples, skippedByIntersection } = vectorSamples(route, dimensions);
+    const samples = vectorSamples(route, dimensions);
     const centerlines = await fetchCenterlines(samples.map(sample => sample.point));
+    const intersections = [...(route._trolleyIntersections || []), ...gsiIntersectionPoints(centerlines)];
     const stepStats = new Map();
     for (const step of route.steps || []) {
       if (!step._endpointExcluded && step._trolleyCheck?.status !== 'excluded') {
         stepStats.set(step, { samples: 0, fail: false, unknown: false, intersectionSkipped: 0 });
       }
     }
-    for (const [step, count] of skippedByIntersection) stepStats.set(step, { samples: 0, fail: false, unknown: false, intersectionSkipped: count });
     const map = bridge.getMap(), bounds = map.getBounds(), marks = [];
     for (const sample of samples) {
       const stat = stepStats.get(sample.step) || { samples: 0, fail: false, unknown: false, intersectionSkipped: 0 };
       stepStats.set(sample.step, stat);
+      if (sample.turn > 30 && intersections.some(point => distanceBetween(sample.point, point) <= sample.intersectionRadius)) {
+        stat.intersectionSkipped++;
+        continue;
+      }
       stat.samples++;
       const matchedCenter = nearestCenterline(sample.point, centerlines, sample.routeBearing);
       const rearMatch = matchedCenter && nearestCenterline(sample.rear, centerlines, sample.routeBearing);
@@ -336,9 +359,9 @@
       if (state.edgeLayer) map.removeLayer(state.edgeLayer);
       if (state.routeLayer) map.removeLayer(state.routeLayer);
       if (state.footprints) map.removeLayer(state.footprints);
-      state.edgeLayer = window.L.geoJSON({ type: 'FeatureCollection', features: state.features },
+      state.edgeLayer = window.L.geoJSON({ type: 'FeatureCollection', features: featuresInBounds(state.features, bounds) },
         { style: { color: '#d00000', weight: 2, opacity: 0.9 } }).addTo(map);
-      state.routeLayer = window.L.geoJSON({ type: 'FeatureCollection', features: centerlines },
+      state.routeLayer = window.L.geoJSON({ type: 'FeatureCollection', features: featuresInBounds(centerlines, bounds) },
         { style: { color: '#7626a8', weight: 2, opacity: 0.75 } }).addTo(map);
       state.footprints = window.L.featureGroup(marks).addTo(map);
     }
@@ -346,6 +369,7 @@
   };
   bridge.checkRoute = checkRoute;
   const loadEdges = async file => {
+    if (file.size > 100 * 1024 * 1024) throw new Error('GeoJSONが大きすぎます（100MB以下に分割してください）');
     const geojson = JSON.parse(await file.text());
     state.features = lineFeatures(geojson);
     state.edges = state.features;
@@ -376,12 +400,22 @@
   document.getElementById('narrowEdgeFile').addEventListener('change', async event => {
     const file = event.target.files[0];
     if (!file) return;
+    state.features = [];
+    state.edgeGrid.clear();
+    state.edgeGlobal = [];
+    const map = bridge.getMap();
+    for (const key of ['edgeLayer', 'routeLayer', 'footprints']) {
+      if (state[key]) map.removeLayer(state[key]);
+      state[key] = null;
+    }
+    status('RdEdgデータを読み込んでいます。完了までは未判定です。');
     try {
       await loadEdges(file);
       status(`RdEdgを読み込みました（線データ ${state.features.length}件）。ルート選定時にベクトル照合を使用します。`);
     } catch (error) {
       state.features = [];
       state.edgeGrid.clear();
+      state.edgeGlobal = [];
       status(`RdEdgを読み込めません：${error.message || error}`);
     }
   });

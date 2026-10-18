@@ -197,7 +197,7 @@
     }
     return segments;
   };
-  const imageFit = (edges, width, length, keepLeft = false, tolerance = 0) => {
+  const imageFit = (edges, width, length, keepLeft = false) => {
     const scale = 5, size = 301, center = (size - 1) / 2;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
@@ -243,7 +243,7 @@
     if (keepLeft && leftBoundary === null) return { status: 'unknown', collision: false, edgesFound, lateralShift: 0 };
     const lateralShift = keepLeft ? (leftBoundary - center) / scale - halfW - 1 / scale : 0;
     const shiftPx = Math.round(lateralShift * scale);
-    const bodyHalfWidth = Math.round((halfW - tolerance) * scale), bodyHalfLength = Math.round(halfL * scale);
+    const bodyHalfWidth = Math.round(halfW * scale), bodyHalfLength = Math.round(halfL * scale);
     collision = countRedPixels(center + shiftPx - bodyHalfWidth, center + shiftPx + bodyHalfWidth,
       center - bodyHalfLength, center + bodyHalfLength) > 0;
     if (collision) return { status: 'fail', collision, edgesFound, lateralShift };
@@ -257,7 +257,6 @@
   };
   const mapTiles = new Map();
   const MAP_FAIL_RUN = 5;
-  const MAP_TOLERANCE = 0.8;
   const MAP_Z = 18;
   const loadMapTile = async (x, y) => {
     const key = `${x}/${y}`;
@@ -468,7 +467,7 @@
         if (bounds.contains([origin[1], origin[0]])) marks.push(footprint(front, rear, bearing, dimensions.width, 0, '#687782'));
         continue;
       }
-      const fit = imageFit(edges, dimensions.width, dimensions.length, keepLeft, drawnEdges && edges === drawnEdges ? MAP_TOLERANCE : 0);
+      const fit = imageFit(edges, dimensions.width, dimensions.length, keepLeft);
       if (stat.mapDrawn && edges === drawnEdges) {
         stat.mapFailRun = fit.status === 'fail' ? (stat.mapFailRun || 0) + 1 : 0;
         stat.mapMaxRun = Math.max(stat.mapMaxRun || 0, stat.mapFailRun);

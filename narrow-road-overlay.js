@@ -7,8 +7,9 @@
   const state = { edges: [], edgeLayer: null, routeLayer: null, footprints: null, features: [], edgeGrid: new Map(), centerlineTiles: new Map() };
   const panel = document.createElement('div');
   panel.id = 'narrowVectorPanel';
-  panel.innerHTML = '<b>道路ベクトル照合</b><label>道路縁 RdEdg GeoJSON（WGS84/EPSG:4326）<input id="narrowEdgeFile" type="file" accept=".json,.geojson,application/geo+json"></label><button id="narrowVectorCheck" type="button">全区間照合</button><div id="narrowVectorStatus">基盤地図情報のRdEdg GeoJSONを読み込んでください。F（狭隘道路除外）を使う場合、データ未読込・未判定は通過可にしません。</div>';
+  panel.innerHTML = '<b>道路幅照合</b><label>道路縁 RdEdg GeoJSON（任意・WGS84/EPSG:4326）<input id="narrowEdgeFile" type="file" accept=".json,.geojson,application/geo+json"></label><button id="narrowVectorCheck" type="button">全区間照合</button><div id="narrowVectorStatus">RdEdgがない地点も標準地図画像で照合します。地図画像から道路端を確認できない地点は通過OKにしません。</div>';
   panel.querySelector('b').insertAdjacentHTML('afterend',
+    '<a class="narrow-gsi-link" href="https://www.mlit.go.jp/road/ir/ir-data/census_visualizationR3/webmap.html" target="_blank" rel="noopener">国交省・一般交通量調査WEBマップ（車線数）</a>' +
     '<a class="narrow-gsi-link" href="https://service.gsi.go.jp/kiban/app/map/?search=base#9/34.6851/135.8048" target="_blank" rel="noopener">① 国土地理院道路情報のダウンロード</a>' +
     '<details class="narrow-gsi-help"><summary>取得手順（奈良県）</summary><ol><li>「基本項目を探す」→「項目指定」→「道路縁」にチェック</li><li>「都道府県・市区町村でメッシュを選択」を選び、奈良県とルート周辺の市町村を指定</li><li>「検索」→「選択をダウンロードリストに追加」→ダウンロード（ログインが必要です）</li><li>保存したZIPを下の②で選択</li></ol><small>全県一括ではなく、ルート周辺の市町村を選ぶとファイルを小さくできます。</small></details>');
   const edgeInput = panel.querySelector('#narrowEdgeFile');
@@ -16,7 +17,7 @@
   edgeInput.setAttribute('multiple', '');
   edgeInput.parentElement.firstChild.textContent = '② ファイル選択 ';
   panel.querySelector('#narrowVectorStatus').textContent =
-    '選択後アップロードします。20m間隔で全区間照合します。';
+    '20m間隔で照合します。国交省の車線数も参照し、2車線以上は対象外。RdEdgで判定できない地点は標準地図画像を中央線なし方式で補助確認します。';
   document.body.append(panel);
   const panelToggle = document.createElement('button');
   panelToggle.id = 'narrowPanelToggle';
@@ -257,7 +258,6 @@
     return [point[0] + east / metersPerLon(point[1]), point[1] + north / 111320];
   };
   const mapTiles = new Map();
-  const mapFailRun = () => { const v = Number(document.getElementById('trolleyFailLength')?.value); return Math.max(1, Math.ceil((Number.isFinite(v) && v > 0 ? v : 50) / 20)); };
   const MAP_Z = 18;
   const loadMapTile = async (x, y) => {
     const key = `${x}/${y}`;
@@ -313,14 +313,31 @@
         return null;
       };
       left.push({ along, lateral: scan(1) });
-      right.push({ along, lateral: scan(-1) === null ? null : -scan(-1) });
+      const rightDistance = scan(-1);
+      right.push({ along, lateral: rightDistance === null ? null : -rightDistance });
     }
+    const bridgeShortGaps = side => {
+      const result = side.map(item => ({ ...item }));
+      for (let start = 0; start < result.length;) {
+        if (result[start].lateral !== null) { start++; continue; }
+        let end = start;
+        while (end + 1 < result.length && result[end + 1].lateral === null) end++;
+        if (start > 0 && end + 1 < result.length && end - start < 3) {
+          const before = result[start - 1].lateral, after = result[end + 1].lateral, span = end - start + 2;
+          for (let i = start; i <= end; i++) {
+            result[i].lateral = before + (after - before) * (i - start + 1) / span;
+          }
+        }
+        start = end + 1;
+      }
+      return result;
+    };
     const smooth = side => side.map((item, i) => {
       if (item.lateral === null) return item;
       const near = side.slice(Math.max(0, i - 2), i + 3).map(x => x.lateral).filter(v => v !== null).sort((a, b) => a - b);
       return { along: item.along, lateral: near[Math.floor(near.length / 2)] };
     });
-    const leftLine = smooth(left), rightLine = smooth(right);
+    const leftLine = smooth(bridgeShortGaps(left)), rightLine = smooth(bridgeShortGaps(right));
     const segments = [];
     for (const side of [leftLine, rightLine]) {
       for (let i = 1; i < side.length; i++) {
@@ -330,7 +347,10 @@
     }
     const rows = left.length;
     const haveLeft = left.filter(item => item.lateral !== null).length, haveRight = right.filter(item => item.lateral !== null).length;
-    return haveLeft >= rows * 0.5 && haveRight >= rows * 0.5 ? segments : [];
+    return {
+      segments: haveLeft >= rows * 0.5 && haveRight >= rows * 0.5 ? segments : [],
+      unavailable: [...data.values()].some(tile => tile === null)
+    };
   };
   const footprint = (front, rear, bearing, width, lateralShift, color) => {
     const frontCenter = offset(front, bearing, 0, lateralShift), rearCenter = offset(rear, bearing, 0, lateralShift);
@@ -399,34 +419,72 @@
   };
   const makeStepResult = (stats, previous, name) => {
     if (!stats) return previous;
-    if (!stats.samples && !stats.intersectionSkipped) stats.unknown = true;
-    let status = stats.fail ? 'fail' : stats.unknown || !stats.samples ? 'unchecked' : 'pass';
+    if (!stats.samples && !stats.intersectionSkipped && !stats.censusExcludedSamples) stats.unknown = true;
+    let status = stats.fail ? 'fail' : !stats.samples && stats.censusExcludedSamples && !stats.unknown ? 'excluded' :
+      stats.unknown || !stats.samples ? 'unchecked' : stats.cautionPoints.length ? 'caution' : 'pass';
     const reason = status === 'fail' ? 'vector-footprint-collision' :
-      status === 'unchecked' ? (stats.intersectionSkipped && !stats.samples ? 'intersection-turn-only' : 'road-edge-not-detected') : 'vector-footprint-fit';
+      status === 'excluded' ? 'census-multilane-road' :
+      status === 'unchecked' ? (stats.intersectionSkipped && !stats.samples ? 'intersection-turn-only' : 'road-edge-not-detected') :
+      status === 'caution' ? 'short-narrow-section' : 'vector-footprint-fit';
     return { status, reason, name, samples: stats.samples || 0, intersectionSkipped: stats.intersectionSkipped || 0,
       mapMaxRun: stats.mapMaxRun || 0, mapFailCount: stats.mapFailCount || 0, minWidth: Number.isFinite(stats.minWidth) ? stats.minWidth : null,
-      failurePoints: stats.failurePoints || [],
-      source: '地理院RdCL・基盤地図情報RdEdg画像照合' };
+      failurePoints: stats.failurePoints || [], cautionPoints: stats.cautionPoints || [],
+      censusExcludedSamples: stats.censusExcludedSamples || 0,
+      mapFallbackAttempts: stats.mapFallbackAttempts || 0,
+      mapFallbackUnavailable: stats.mapFallbackUnavailable || 0,
+      mapFallbackUnavailablePoints: stats.mapFallbackUnavailablePoints || [],
+      mapFallbackNotDetected: stats.mapFallbackNotDetected || 0,
+      mapFallbackNotDetectedPoints: stats.mapFallbackNotDetectedPoints || [],
+      intersectionSkippedPoints: stats.intersectionSkippedPoints || [],
+      source: [stats.censusExcludedSamples ? '国交省道路交通センサス車線数' : '',
+        stats.mapDrawn ? '標準地図画像補助（中央線なし方式）' : '地理院RdCL・基盤地図情報RdEdg画像照合'].filter(Boolean).join('・') };
   };
   const checkRoute = async (route, dimensions, options = {}) => {
-    const samples = vectorSamples(route, dimensions);
+    if (options.draw) bridge.hideCheckLayers?.();
+    const allSamples = vectorSamples(route, dimensions), censusExcluded = new Map(), samples = [];
+    for (const sample of allSamples) {
+      if (route._censusLaneAt?.(sample.step, sample.point, sample.routeBearing) >= 2) {
+        censusExcluded.set(sample.step, (censusExcluded.get(sample.step) || 0) + 1);
+      } else samples.push(sample);
+    }
     const report = text => {
       const routeStatus = document.getElementById('status');
       const checkLabel = route._trolleyCheckLabel ? `${route._trolleyCheckLabel}：` : '';
       if (routeStatus) routeStatus.textContent = checkLabel + text;
     };
-    report(`道路中心線を取得しています（0/${samples.length}地点）…`);
-    const centerlines = await fetchCenterlines(samples.map(sample => sample.point), (loaded, total) => {
-      report(`道路中心線タイルを取得しています（${loaded}/${total}）…`);
-    });
+    report(samples.length
+      ? `道路中心線を取得しています（0/${samples.length}地点、国交省センサスで2車線以上の${allSamples.length-samples.length}地点を対象外）…`
+      : `国交省センサスで2車線以上の${allSamples.length}地点を狭隘チェック対象外にしています…`);
+    let centerlines = [], centerlineWarning = '';
+    if (samples.length) {
+      try {
+        centerlines = await fetchCenterlines(samples.map(sample => sample.point), (loaded, total) => {
+          report(`道路中心線タイルを取得しています（${loaded}/${total}）…`);
+        });
+      } catch (error) {
+        centerlineWarning = error.message || '道路中心線を取得できませんでした';
+        report(`道路中心線を取得できません。標準地図画像で補助確認しています：${centerlineWarning}`);
+      }
+    }
     const intersections = [...(route._trolleyIntersections || []), ...gsiIntersectionPoints(centerlines)];
     const stepStats = new Map();
     for (const step of route.steps || []) {
       if (!step._endpointExcluded && step._trolleyCheck?.status !== 'excluded') {
-        stepStats.set(step, { samples: 0, fail: false, unknown: false, intersectionSkipped: 0, failurePoints: [] });
+        stepStats.set(step, { samples: 0, fail: false, unknown: false, intersectionSkipped: 0, failurePoints: [], cautionPoints: [], failureSamples: [],
+          censusExcludedSamples: censusExcluded.get(step) || 0,
+          mapFallbackAttempts: 0, mapFallbackUnavailable: 0, mapFallbackNotDetected: 0,
+          mapFallbackUnavailablePoints: [], mapFallbackNotDetectedPoints: [], intersectionSkippedPoints: [] });
       }
     }
-    const map = bridge.getMap(), bounds = map.getBounds(), marks = [];
+    const map = bridge.getMap(), bounds = map.getBounds();
+    if (options.draw) {
+      state.edgeLayer = window.L.geoJSON({ type: 'FeatureCollection', features: featuresInBounds(state.features, bounds) },
+        { style: { color: '#d00000', weight: 2, opacity: 0.9 } }).addTo(map);
+      state.routeLayer = window.L.geoJSON({ type: 'FeatureCollection', features: featuresInBounds(centerlines, bounds) },
+        { style: { color: '#7626a8', weight: 2, opacity: 0.75 } }).addTo(map);
+      state.footprints = window.L.featureGroup().addTo(map);
+    }
+    const showMark = mark => { if (options.draw) state.footprints.addLayer(mark); };
     for (let i = 0; i < samples.length; i++) {
       const sample = samples[i];
       if (i % 100 === 0 || i === samples.length - 1) {
@@ -434,10 +492,14 @@
         report(`車両形状を照合中（${i + 1}/${samples.length}地点、道路：${sample.step.name || sample.step.ref || '名称なし'}）…`);
         await new Promise(resolve => setTimeout(resolve, 0));
       }
-      const stat = stepStats.get(sample.step) || { samples: 0, fail: false, unknown: false, intersectionSkipped: 0, failurePoints: [] };
+      const stat = stepStats.get(sample.step) || { samples: 0, fail: false, unknown: false, intersectionSkipped: 0, failurePoints: [], cautionPoints: [], failureSamples: [],
+        censusExcludedSamples: censusExcluded.get(sample.step) || 0,
+        mapFallbackAttempts: 0, mapFallbackUnavailable: 0, mapFallbackNotDetected: 0,
+        mapFallbackUnavailablePoints: [], mapFallbackNotDetectedPoints: [], intersectionSkippedPoints: [] };
       stepStats.set(sample.step, stat);
       if (sample.turn > 30 && intersections.some(point => distanceBetween(sample.point, point) <= sample.intersectionRadius)) {
         stat.intersectionSkipped++;
+        stat.intersectionSkippedPoints.push(sample.point);
         continue;
       }
       stat.samples++;
@@ -457,35 +519,75 @@
         bearing = routeBearing(rear, front);
         keepLeft = true;
       }
-      let edges = lineSegmentsNear(origin, bearing), drawnEdges = null;
-      if (!edges.length) {
-        // 道路縁データがない場所は、地理院地図に描かれた道路の左右の線を「中央線なし」と同じ方法で照合する
-        drawnEdges = edges = await mapDrawnEdges(origin, bearing, dimensions.length);
-        keepLeft = true;
-        if (edges.length) stat.mapDrawn = true;
+      let edges = lineSegmentsNear(origin, bearing), fit = edges.length
+        ? imageFit(edges, dimensions.width, dimensions.length, keepLeft)
+        : null;
+      let fallbackUnavailable = false, fallbackNotDetected = false;
+      if (!fit || fit.status === 'unknown') {
+        // 道路縁で判定できない地点は、標準地図を中央線なしと同じキープレフト方式で確認する
+        stat.mapDrawn = true;
+        stat.mapFallbackAttempts++;
+        const fallback = await mapDrawnEdges(origin, bearing, dimensions.length);
+        fallbackUnavailable = fallback.unavailable;
+        if (fallback.unavailable) stat.mapFallbackUnavailable++;
+        if (fallback.segments.length) {
+          const drawnFit = imageFit(fallback.segments, dimensions.width, dimensions.length, true);
+          edges = fallback.segments;
+          fit = drawnFit;
+          if (fit.status === 'fail') stat.mapFailCount = (stat.mapFailCount || 0) + 1;
+          if (fit.status === 'unknown' && !fallback.unavailable) {
+            stat.mapFallbackNotDetected++;
+            fallbackNotDetected = true;
+          }
+        } else {
+          if (!fallback.unavailable) {
+            stat.mapFallbackNotDetected++;
+            fallbackNotDetected = true;
+          }
+        }
       }
-      if (!edges.length) {
+      if (!fit || fit.status === 'unknown' || !edges.length) {
+        const nearbyIntersection = intersections.some(point =>
+          distanceBetween(origin, point) <= sample.intersectionRadius + 5);
+        if (nearbyIntersection && !fallbackUnavailable) {
+          if (fallbackNotDetected) stat.mapFallbackNotDetected--;
+          stat.intersectionSkipped++;
+          stat.intersectionSkippedPoints.push(origin);
+          continue;
+        }
         stat.unknown = true;
-        if (bounds.contains([origin[1], origin[0]])) marks.push(footprint(front, rear, bearing, dimensions.width, 0, '#687782'));
+        if (fallbackUnavailable) stat.mapFallbackUnavailablePoints.push(origin);
+        else stat.mapFallbackNotDetectedPoints.push(origin);
+        if (bounds.contains([origin[1], origin[0]])) showMark(footprint(front, rear, bearing, dimensions.width, 0, '#687782'));
         continue;
       }
-      const fit = imageFit(edges, dimensions.width, dimensions.length, keepLeft);
       if (fit.roadWidth != null) stat.minWidth = Math.min(stat.minWidth ?? Infinity, fit.roadWidth);
-      if (stat.mapDrawn && edges === drawnEdges) {
-        stat.mapFailRun = fit.status === 'fail' ? (stat.mapFailRun || 0) + 1 : 0;
-        stat.mapMaxRun = Math.max(stat.mapMaxRun || 0, stat.mapFailRun);
-        stat.mapFailCount = (stat.mapFailCount || 0) + (fit.status === 'fail' ? 1 : 0);
-        if (fit.status === 'fail' && stat.mapFailRun < mapFailRun()) fit.status = 'pass';
-      }
       if (fit.status === 'unknown') stat.unknown = true;
-      else if (fit.status === 'fail') { stat.fail = true; stat.failurePoints.push(origin); }
+      else if (fit.status === 'fail') stat.failureSamples.push({ leg: sample.step._routeLegIndex ?? 0, station: sample.station, point: origin, step: sample.step });
       if (bounds.contains([origin[1], origin[0]])) {
-        marks.push(footprint(front, rear, bearing, dimensions.width, fit.lateralShift,
-          fit.status === 'pass' ? '#16843b' : fit.status === 'fail' ? '#d00000' : '#687782'));
+        const mark = footprint(front, rear, bearing, dimensions.width, fit.lateralShift,
+          fit.status === 'pass' ? '#16843b' : fit.status === 'fail' ? '#ffbf00' : '#687782');
+        showMark(mark);
+        if (fit.status === 'fail') stepStats.get(sample.step).failureSamples.at(-1).mark = mark;
       }
       if ((i + 1) % 250 === 0) {
         report(`20m間隔で車両形状を照合しています（${i + 1}/${samples.length}地点）…`);
         await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    }
+    const failureSamples = [...stepStats.values()].flatMap(stats => stats.failureSamples);
+    const runs = bridge.classifyFailureRuns(failureSamples);
+    for (const run of runs) {
+      for (const sample of run.samples) {
+        const stats = stepStats.get(sample.step);
+        stats.mapMaxRun = Math.max(stats.mapMaxRun || 0, run.lengthMeters);
+        if (run.sustained) {
+          stats.fail = true;
+          stats.failurePoints.push(sample.point);
+          sample.mark?.setStyle({ color: '#d00000' });
+        } else {
+          stats.cautionPoints.push(sample.point);
+        }
       }
     }
     const stepResults = new Map();
@@ -493,17 +595,8 @@
       const stats = stepStats.get(step);
       if (stats) stepResults.set(step, makeStepResult(stats, step._trolleyCheck, step.name || ''));
     }
-    if (options.draw) {
-      if (state.edgeLayer) map.removeLayer(state.edgeLayer);
-      if (state.routeLayer) map.removeLayer(state.routeLayer);
-      if (state.footprints) map.removeLayer(state.footprints);
-      state.edgeLayer = window.L.geoJSON({ type: 'FeatureCollection', features: featuresInBounds(state.features, bounds) },
-        { style: { color: '#d00000', weight: 2, opacity: 0.9 } }).addTo(map);
-      state.routeLayer = window.L.geoJSON({ type: 'FeatureCollection', features: featuresInBounds(centerlines, bounds) },
-        { style: { color: '#7626a8', weight: 2, opacity: 0.75 } }).addTo(map);
-      state.footprints = window.L.featureGroup(marks).addTo(map);
-    }
-    return { active: true, stepResults, sampleCount: samples.length };
+    return { active: true, stepResults, sampleCount: allSamples.length, checkedSampleCount: samples.length,
+      censusExcludedSampleCount: allSamples.length - samples.length, warning: centerlineWarning };
   };
   bridge.checkRoute = checkRoute;
   bridge.hasRoadEdges = () => state.features.length > 0;

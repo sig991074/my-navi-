@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" role="img" aria-labelledby="title desc">
-  <title id="title">狭隘区間の迂回ルート探索</title>
-  <desc id="desc">元ルートを一度だけ照合し、幅不足区間をNGとして迂回候補AとBをそれぞれ一度ずつ照合し、結果を比較して表示する流れ。</desc>
+  <title id="title">北回り・南回り・元ルートの比較</title>
+  <desc id="desc">元ルートの中間地点から北と南へ20kmの検索点を作り、それぞれの経路と元ルートを一度ずつ幅チェックして3本を同時に表示する。</desc>
   <defs>
     <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
       <path d="M0 0L12 6L0 12Z" fill="#31566d"/>
@@ -16,41 +16,41 @@
     </style>
   </defs>
   <rect width="1200" height="700" fill="#f3f7f9"/>
-  <text x="48" y="54" class="title">狭隘道路チェックと迂回ルート探索</text>
-  <text x="50" y="84" class="body">基幹道路のうち、2車線以上と道路情報にある区間は対象外。情報がなければ1車線扱いで照合します。</text>
+  <text x="48" y="54" class="title">北回り・南回り・元ルートを比較</text>
+  <text x="50" y="84" class="body">各ルートのうち2車線以上と確認できた区間は対象外。残る対象道路を20m間隔で照合します。</text>
 
   <rect x="55" y="125" width="320" height="155" rx="14" class="box"/>
   <circle cx="94" cy="164" r="22" fill="#176fa7"/><text x="94" y="171" text-anchor="middle" font-size="20" font-weight="700" fill="#fff">1</text>
   <text x="130" y="171" class="head">元ルートを照合</text>
   <text x="78" y="211" class="body">1回だけ、20m間隔で確認</text>
-  <text x="78" y="243" class="small">幅不足がなければ元ルートを表示</text>
+  <text x="78" y="243" class="small">幅不足がなくても3候補の比較を続ける</text>
 
   <path d="M375 202H425" class="arrow"/>
   <rect x="435" y="125" width="320" height="155" rx="14" fill="#fff2f0" stroke="#d54841" stroke-width="2"/>
   <circle cx="474" cy="164" r="22" fill="#c62828"/><text x="474" y="171" text-anchor="middle" font-size="20" font-weight="700" fill="#fff">2</text>
-  <text x="510" y="171" class="head">不足区間をNGに記録</text>
-  <text x="458" y="211" class="body">元ルートはNGのまま保持</text>
-  <text x="458" y="243" class="small">同じ元ルートを再照合しない</text>
+  <text x="510" y="171" class="head">北回り・南回りを検索</text>
+  <text x="458" y="211" class="body">元ルート中間の北側・南側に検索点を設定</text>
+  <text x="458" y="243" class="small">元ルート上から各20km離して経由させる</text>
 
   <path d="M755 202H805" class="arrow"/>
   <rect x="815" y="125" width="330" height="155" rx="14" fill="#fff8df" stroke="#d3ae43" stroke-width="2"/>
   <circle cx="854" cy="164" r="22" fill="#bc8a00"/><text x="854" y="171" text-anchor="middle" font-size="20" font-weight="700" fill="#fff">3</text>
-  <text x="890" y="171" class="head">迂回候補を2方向検索</text>
-  <text x="838" y="211" class="body">NG区間から遠距離20kmの候補A・Bを各1回照合</text>
-  <text x="838" y="243" class="small">20kmは迂回検索点までの離隔距離。方角は道路形状で変化</text>
+  <text x="890" y="171" class="head">それぞれ幅を照合</text>
+  <text x="838" y="211" class="body">検索点を通る経路を20m間隔で確認</text>
+  <text x="838" y="243" class="small">未判定も安全扱いにせず、色と件数を表示</text>
 
   <path d="M980 280V335M980 335H355V375M980 335H845V375" fill="none" stroke="#31566d" stroke-width="3" marker-end="url(#arrow)"/>
   <rect x="105" y="385" width="500" height="145" rx="14" fill="#eef6ff" stroke="#6d9bc0" stroke-width="2"/>
-  <text x="135" y="425" class="head">迂回候補 A</text>
-  <text x="135" y="462" class="body">遠距離20kmの検索点を置き、20m間隔で照合</text>
-  <text x="135" y="495" class="small">OK / NG / 未判定と測定幅を記録</text>
+  <text x="135" y="425" class="head">北回りルート</text>
+  <text x="135" y="462" class="body">地図上で北側へ回り込む経路を表示</text>
+  <text x="135" y="495" class="small">OK / NG / 未判定を記録（細点線）</text>
   <rect x="655" y="385" width="500" height="145" rx="14" fill="#eef6ff" stroke="#6d9bc0" stroke-width="2"/>
-  <text x="685" y="425" class="head">迂回候補 B</text>
-  <text x="685" y="462" class="body">反対側にも遠距離20kmの検索点を置き、20m間隔で照合</text>
-  <text x="685" y="495" class="small">OK / NG / 未判定と測定幅を記録</text>
+  <text x="685" y="425" class="head">南回りルート</text>
+  <text x="685" y="462" class="body">地図上で南側へ回り込む経路を表示</text>
+  <text x="685" y="495" class="small">OK / NG / 未判定を記録（短点線）</text>
 
   <path d="M355 530V570H600M905 530V570H600V590" fill="none" stroke="#31566d" stroke-width="3" marker-end="url(#arrow)"/>
   <rect x="270" y="590" width="660" height="75" rx="14" fill="#e7f4ea" stroke="#65a875" stroke-width="2"/>
-  <text x="600" y="621" text-anchor="middle" class="head">A・Bを比べ、確認できた候補を表示</text>
-  <text x="600" y="647" text-anchor="middle" class="small">両方にNGが残る場合は、安全な迂回未確認としてNGを明示</text>
+  <text x="600" y="621" text-anchor="middle" class="head">北回り・南回り・元ルートの3本を表示</text>
+  <text x="600" y="647" text-anchor="middle" class="small">実線＝北回り、短点線＝南回り、長点線＝元ルート。幅不足・未判定件数を併記</text>
 </svg>

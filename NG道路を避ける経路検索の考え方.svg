@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="820" viewBox="0 0 1200 820" role="img" aria-labelledby="title desc">
+  <title id="title">NG道路を明示的に避ける経路検索</title>
+  <desc id="desc">経由点を置くだけでは元のNG道路を通る経路が選ばれることがある。NG区間を通行禁止エリアまたは禁止道路として経路計算から除外し、候補経路がNG区間を再利用しないことを照合する。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0 0L12 6L0 12Z" fill="#31566d"/>
+    </marker>
+    <style>
+      text{font-family:Meiryo,"Yu Gothic",sans-serif;fill:#17384b}
+      .title{font-size:30px;font-weight:700}
+      .head{font-size:22px;font-weight:700}
+      .body{font-size:17px}
+      .small{font-size:14px}
+      .muted{fill:#526c7b}
+      .panel{fill:#fff;stroke:#b8c8d1;stroke-width:2}
+      .road{fill:none;stroke:#7f98a8;stroke-width:8;stroke-linecap:round;stroke-linejoin:round}
+      .ng{fill:none;stroke:#d00000;stroke-width:12;stroke-linecap:round;stroke-linejoin:round}
+      .detour{fill:none;stroke:#16843b;stroke-width:8;stroke-linecap:round;stroke-linejoin:round}
+      .proposed{fill:none;stroke:#8e24aa;stroke-width:7;stroke-dasharray:12 9;stroke-linecap:round;stroke-linejoin:round}
+      .arrow{fill:none;stroke:#31566d;stroke-width:3;marker-end:url(#arrow)}
+      .node{fill:#176fa7;stroke:#fff;stroke-width:3}
+    </style>
+  </defs>
+  <rect width="1200" height="820" fill="#f3f7f9"/>
+  <text x="48" y="54" class="title">NG道路を明示的に避ける経路検索</text>
+  <text x="50" y="86" class="body muted">経由点を置くだけでなく、NG区間そのものを経路計算で通れないように指定します。</text>
+
+  <rect x="38" y="112" width="1124" height="320" rx="14" class="panel"/>
+  <text x="66" y="151" class="head">1　地図上のイメージ</text>
+  <path d="M130 360L260 300L390 300L520 245L650 245L780 320L910 320L1060 220" class="road"/>
+  <path d="M390 300L520 245L650 245" class="ng"/>
+  <path d="M130 360L260 300L340 190L710 160L850 235L910 320L1060 220" class="detour"/>
+  <circle cx="130" cy="360" r="13" class="node"/>
+  <circle cx="1060" cy="220" r="13" class="node"/>
+  <text x="99" y="397" class="body">出発地</text>
+  <text x="1000" y="195" class="body">目的地</text>
+  <text x="468" y="284" class="body" fill="#b00000" font-weight="700">NG区間（赤）</text>
+  <text x="520" y="145" class="body" fill="#16843b" font-weight="700">NG区間を通らない迂回路（緑）</text>
+  <circle cx="575" cy="177" r="11" fill="#ffdf00" stroke="#8b7300" stroke-width="2"/>
+  <text x="592" y="184" class="small">経由点は経路を通す目印にすぎず、NG道路の禁止にはならない</text>
+
+  <rect x="38" y="454" width="548" height="215" rx="14" fill="#fff2f0" stroke="#d54841" stroke-width="2"/>
+  <text x="66" y="493" class="head">経由点だけを指定（現在の弱点）</text>
+  <path d="M105 620L215 570L300 570L390 535L490 535" class="road"/>
+  <path d="M215 570L300 570L390 535" class="ng"/>
+  <path d="M105 620L215 570L300 570L390 535L490 535" class="proposed"/>
+  <circle cx="300" cy="570" r="12" fill="#ffdf00" stroke="#8b7300" stroke-width="2"/>
+  <text x="66" y="647" class="small">候補が経由点を通っても、元の赤いNG区間を再利用する場合があります。</text>
+
+  <rect x="614" y="454" width="548" height="215" rx="14" fill="#eaf5ec" stroke="#65a875" stroke-width="2"/>
+  <text x="642" y="493" class="head">NG区間を禁止して再検索（目標）</text>
+  <path d="M680 620L790 570L875 570L965 535L1060 535" class="road"/>
+  <path d="M790 570L875 570L965 535" class="ng"/>
+  <path d="M680 620L790 570L845 505L920 500L990 535L1060 535" class="detour"/>
+  <rect x="782" y="525" width="194" height="93" rx="20" fill="#e5393530" stroke="#d00000" stroke-width="2" stroke-dasharray="7 6"/>
+  <text x="645" y="647" class="small">検索時に赤い道路（必要な周辺余白を含む）を通行禁止にします。</text>
+
+  <path d="M600 682V716" class="arrow"/>
+  <rect x="105" y="724" width="990" height="70" rx="14" fill="#e7f1f7" stroke="#6b91a5" stroke-width="2"/>
+  <text x="600" y="754" text-anchor="middle" class="head">最後に候補を再照合</text>
+  <text x="600" y="779" text-anchor="middle" class="small">NG地点を通っていないことを確認。通る候補は不採用。迂回路が見つからなければ「迂回なし」と表示します。</text>
+</svg>

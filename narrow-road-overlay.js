@@ -405,6 +405,7 @@
       status === 'unchecked' ? (stats.intersectionSkipped && !stats.samples ? 'intersection-turn-only' : 'road-edge-not-detected') : 'vector-footprint-fit';
     return { status, reason, name, samples: stats.samples || 0, intersectionSkipped: stats.intersectionSkipped || 0,
       mapMaxRun: stats.mapMaxRun || 0, mapFailCount: stats.mapFailCount || 0, minWidth: Number.isFinite(stats.minWidth) ? stats.minWidth : null,
+      failurePoints: stats.failurePoints || [],
       source: '地理院RdCL・基盤地図情報RdEdg画像照合' };
   };
   const checkRoute = async (route, dimensions, options = {}) => {
@@ -422,7 +423,7 @@
     const stepStats = new Map();
     for (const step of route.steps || []) {
       if (!step._endpointExcluded && step._trolleyCheck?.status !== 'excluded') {
-        stepStats.set(step, { samples: 0, fail: false, unknown: false, intersectionSkipped: 0 });
+        stepStats.set(step, { samples: 0, fail: false, unknown: false, intersectionSkipped: 0, failurePoints: [] });
       }
     }
     const map = bridge.getMap(), bounds = map.getBounds(), marks = [];
@@ -433,7 +434,7 @@
         report(`車両形状を照合中（${i + 1}/${samples.length}地点、道路：${sample.step.name || sample.step.ref || '名称なし'}）…`);
         await new Promise(resolve => setTimeout(resolve, 0));
       }
-      const stat = stepStats.get(sample.step) || { samples: 0, fail: false, unknown: false, intersectionSkipped: 0 };
+      const stat = stepStats.get(sample.step) || { samples: 0, fail: false, unknown: false, intersectionSkipped: 0, failurePoints: [] };
       stepStats.set(sample.step, stat);
       if (sample.turn > 30 && intersections.some(point => distanceBetween(sample.point, point) <= sample.intersectionRadius)) {
         stat.intersectionSkipped++;
@@ -477,7 +478,7 @@
         if (fit.status === 'fail' && stat.mapFailRun < mapFailRun()) fit.status = 'pass';
       }
       if (fit.status === 'unknown') stat.unknown = true;
-      else if (fit.status === 'fail') stat.fail = true;
+      else if (fit.status === 'fail') { stat.fail = true; stat.failurePoints.push(origin); }
       if (bounds.contains([origin[1], origin[0]])) {
         marks.push(footprint(front, rear, bearing, dimensions.width, fit.lateralShift,
           fit.status === 'pass' ? '#16843b' : fit.status === 'fail' ? '#d00000' : '#687782'));

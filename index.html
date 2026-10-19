@@ -156,8 +156,51 @@ function pointAtRouteFraction(route,fraction){
   const ratio=Math.max(0,Math.min(1,(target-segment.start)/segment.length));
   return{point:[segment.a[0]+(segment.b[0]-segment.a[0])*ratio,segment.a[1]+(segment.b[1]-segment.a[1])*ratio],distance:target};
 }
-async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures){
-  let lastError;
+function routeExclusionPolygons(routes,bufferMeters=60){
+  const paths=routes.map(route=>{
+    const coordinates=route.geometry?.coordinates||[];
+    if(coordinates.length<2)throw Error((route._displayLabel||'既存')+'ルートの道路形状がなく、除外できません');
+    const segments=[];let total=0;
+    for(let i=1;i<coordinates.length;i++){
+      const a=coordinates[i-1],b=coordinates[i],length=dist({lat:a[1],lon:a[0]},{lat:b[1],lon:b[0]})*1000;
+      if(length>0){segments.push({a,b,length,start:total});total+=length}
+    }
+    if(total<=3000)throw Error((route._displayLabel||'既存')+'ルートが短く、出発・到着道路と迂回道路を分けられません');
+    const at=distance=>{
+      const segment=segments.find(item=>distance<=item.start+item.length)||segments.at(-1),ratio=Math.max(0,Math.min(1,(distance-segment.start)/segment.length));
+      return[segment.a[0]+(segment.b[0]-segment.a[0])*ratio,segment.a[1]+(segment.b[1]-segment.a[1])*ratio];
+    };
+    return[at(1500),...segments.filter(segment=>segment.start+segment.length>1500&&segment.start+segment.length<total-1500).map(segment=>segment.b),at(total-1500)];
+  });
+  const simplify=(points,tolerance)=>{
+    if(points.length<=2)return points;
+    const lat0=points.reduce((sum,point)=>sum+point[1],0)/points.length,cos=Math.max(.1,Math.cos(lat0*Math.PI/180)),origin=points[0],project=point=>[(point[0]-origin[0])*111320*cos,(point[1]-lat0)*111320],local=points.map(project);
+    const reduce=(line,start,end)=>{
+      let best=0,index=-1,dx=line[end][0]-line[start][0],dy=line[end][1]-line[start][1],length=dx*dx+dy*dy;
+      for(let i=start+1;i<end;i++){const t=Math.max(0,Math.min(1,((line[i][0]-line[start][0])*dx+(line[i][1]-line[start][1])*dy)/(length||1))),distance=Math.hypot(line[i][0]-line[start][0]-t*dx,line[i][1]-line[start][1]-t*dy);if(distance>best){best=distance;index=i}}
+      if(best<=tolerance||index<0)return[line[start],line[end]];
+      const left=reduce(line,start,index),right=reduce(line,index,end);
+      return left.slice(0,-1).concat(right);
+    };
+    return reduce(local,0,local.length-1).map(([x,y])=>[origin[0]+x/(111320*cos),lat0+y/111320]);
+  };
+  for(const tolerance of[8,16,32,64,128,256,512]){
+    const polygons=paths.map(path=>{
+      const line=simplify(path,tolerance),lat0=line.reduce((sum,point)=>sum+point[1],0)/line.length,cos=Math.max(.1,Math.cos(lat0*Math.PI/180)),origin=line[0],local=line.map(point=>[(point[0]-origin[0])*111320*cos,(point[1]-lat0)*111320]),normals=[];
+      for(let i=0;i<local.length-1;i++){const a=local[i],b=local[i+1],length=Math.hypot(b[0]-a[0],b[1]-a[1])||1;normals.push([-(b[1]-a[1])/length,(b[0]-a[0])/length])}
+      const extent=bufferMeters+tolerance,side=sign=>local.map((point,index)=>{
+        const normal=index===0?normals[0]:index===local.length-1?normals[normals.length-1]:[normals[index-1][0]+normals[index][0],normals[index-1][1]+normals[index][1]],length=Math.hypot(normal[0],normal[1])||1,denominator=index===0||index===local.length-1?1:(normal[0]*normals[index][0]+normal[1]*normals[index][1])/length,miter=Math.min(extent*2,extent/Math.max(.5,Math.abs(denominator)))*sign,cap=index===0?-extent:index===local.length-1?extent:0,tangent=[-normals[index===0?0:normals.length-1][1],normals[index===0?0:normals.length-1][0]];
+        return[point[0]+normal[0]/length*miter+tangent[0]*cap,point[1]+normal[1]/length*miter+tangent[1]*cap];
+      });
+      const ring=side(1).concat(side(-1).reverse()).map(point=>[origin[0]+point[0]/(111320*cos),lat0+point[1]/111320]);ring.push(ring[0]);return ring;
+    });
+    if(polygons.reduce((sum,polygon)=>sum+polygon.length,0)<=96)return polygons;
+  }
+  throw Error('既存ルートの除外区域が多く、迂回検索サービスの上限を超えました');
+}
+async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures,excludedRoutes=[]){
+  let lastError,polygons=[];
+  if(excludedRoutes.length)polygons=routeExclusionPolygons(excludedRoutes);
   for(const fraction of[.5,.4,.6,.3,.7]){
     const{point,distance}=pointAtRouteFraction(baseRoute,fraction);
     const waypoint={lat:point[1]+side*20000/111320,lon:point[0],name:label+'迂回検索点',type:'迂回検索点'};
@@ -165,7 +208,7 @@ async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures){
     for(let i=0;i<(baseRoute.legs||[]).length;i++){legEnd+=(baseRoute.legs[i].distance||0);if(distance<=legEnd){legIndex=i;break}}
     const viaPoints=points.slice();viaPoints.splice(Math.min(legIndex+1,viaPoints.length-1),0,waypoint);
     try{
-      const candidates=await getRoutes(viaPoints),candidate=candidates.find(route=>!usedSignatures.has(trolleyGeometrySignature(route)));
+      const candidates=excludedRoutes.length?[await getRoutesAvoiding(viaPoints,polygons)]:await getRoutes(viaPoints),candidate=candidates.find(route=>!usedSignatures.has(trolleyGeometrySignature(route)));
       if(candidate){candidate._displayLabel=label;candidate._routeNo=baseRoute._routeNo;usedSignatures.add(trolleyGeometrySignature(candidate));return candidate}
       lastError=Error(label+'回りの異なる経路が見つかりませんでした');
     }catch(error){lastError=error}
@@ -411,7 +454,8 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     const originalRoute=result.originalRoute||route,usedSignatures=new Set([trolleyGeometrySignature(originalRoute)]),displayRoutes=[];
     for(const[side,label]of[[1,'迂回路A（北回り）'],[-1,'迂回路B（南回り）']]){
       $('status').textContent=`${label}ルートを検索しています（迂回検索点は元ルートから北・南へ20km）…`;
-      const candidate=await getNorthSouthRoute(points,originalRoute,side,label,usedSignatures);
+      const excludedRoutes=side===1?[originalRoute]:[originalRoute,...displayRoutes];
+      const candidate=await getNorthSouthRoute(points,originalRoute,side,label,usedSignatures,excludedRoutes);
       const checkLabel=`ルート${routeNo} ${label}（確認${displayRoutes.length+2}/3・${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}）`;
       showRouteCheckPreview(candidate,checkLabel);
       let candidateWays=[],candidateWarning='';
@@ -427,7 +471,7 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     addRouteOptionMarkers(routeNo);
     const failed=route.trolleyFailures.length,cautions=route.trolleyCautions?.length||0;
     let summary='通過確認 '+route.trolleyChecked+'区間、未判定 '+route.trolleyUnchecked+'区間、対象外 '+route.trolleyExcluded+'区間'+(failed?'、狭隘道路不可 '+failed+'区間':'')+(cautions?'、狭隘注意 '+cautions+'区間（設定距離未満のため注意して通過可）':'');
-    if(displayRoutes.length===3)summary+='。3ルート表示：'+displayRoutes.map(candidate=>(candidate._displayLabel||'ルート')+' '+(candidate.distance/1000).toFixed(1)+'km（幅不足 '+candidate.trolleyFailures.length+'区間、未判定 '+candidate.trolleyUnchecked+'区間）').join('、')+'。北回り＝実線、南回り＝短点線、元ルート＝長点線。各線をクリックすると区間状態を確認できます';
+    if(displayRoutes.length===3)summary+='。3ルート表示：'+displayRoutes.map(candidate=>(candidate._displayLabel||'ルート')+' '+(candidate.distance/1000).toFixed(1)+'km（幅不足 '+candidate.trolleyFailures.length+'区間、未判定 '+candidate.trolleyUnchecked+'区間）').join('、')+'。迂回路Aは元ルートを除外、迂回路Bは元ルートとAを除外して検索。北回り＝実線、南回り＝短点線、元ルート＝長点線。各線をクリックすると区間状態を確認できます';
     else if(failed)summary=(result.detoured?'代替候補を検索しましたが、通行幅不足区間が未回避です。該当区間の残る候補を表示：':'安全な迂回候補を確認できず、通行幅不足区間の残る元ルートを表示：')+summary;
     else if(result.detoured)summary='幅不足区間を回避したルートを表示：'+summary;
     if(result.detourError)summary+='。迂回検索の結果：'+result.detourError;

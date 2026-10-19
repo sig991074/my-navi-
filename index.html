@@ -124,17 +124,17 @@ async function findTrolleySafeRoute(points,routes,routeNo){
   const checkedSignatures=new Set([trolleyGeometrySignature(route)]);
   let bestCandidate=null,bestPoints=null,safeCandidates=[],rejectedDetours={missedSearchPoints:0,reusedFailedRoad:0,duplicate:0};
   for(let attempt=0;route?.trolleyFailures?.length&&attempt<1;attempt++){
-    for(let meters of[5000])for(let side of[1,-1]){
+    for(let meters of[20000])for(let side of[1,-1]){
       let bypass=trolleyDetourPoints(route,meters,side);
       if(!bypass)continue;
       let insertAt=Math.max(1,Math.min(effectivePoints.length-1,bypass.legIndex+1));
       let nextPoints=[...effectivePoints.slice(0,insertAt),...bypass.points,...effectivePoints.slice(insertAt)],alternatives;
-      $('status').textContent=`幅不足の「${route.trolleyFailures[0]?.name||'道路'}」から遠距離5kmの迂回候補${side===1?'A':'B'}を検索中…`;
+      $('status').textContent=`幅不足の「${route.trolleyFailures[0]?.name||'道路'}」から遠距離20kmの迂回候補${side===1?'A':'B'}を検索中…`;
       try{alternatives=await getRoutes(nextPoints)}catch(error){if(error.message==='NoRoute')continue;throw error}
       alternatives=alternatives.sort(compareByPreference).filter(candidate=>{if(!routePassesDetourPoints(candidate,bypass.points)){rejectedDetours.missedSearchPoints++;return false}if(routeStillUsesFailedRoad(candidate,route.trolleyFailures)){rejectedDetours.reusedFailedRoad++;return false}if(checkedSignatures.has(trolleyGeometrySignature(candidate))){rejectedDetours.duplicate++;return false}return true}).slice(0,1);
       alternatives.forEach(candidate=>candidate._routeNo=routeNo);
       for(let i=0;i<alternatives.length;i++){
-        const candidate=alternatives[i],checkLabel=`ルート${routeNo} 遠距離5kmの迂回候補${side===1?'A':'B'}（確認${side===1?'2':'3'}/3・${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}）`;
+        const candidate=alternatives[i],checkLabel=`ルート${routeNo} 遠距離20kmの迂回候補${side===1?'A':'B'}（確認${side===1?'2':'3'}/3・${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}）`;
         checkedSignatures.add(trolleyGeometrySignature(candidate));
         showRouteCheckPreview(candidate,checkLabel,nextPoints);
         let candidateWays=ways,candidateWarning=warning;

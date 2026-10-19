@@ -36,17 +36,17 @@
   <rect x="815" y="125" width="330" height="155" rx="14" fill="#fff8df" stroke="#d3ae43" stroke-width="2"/>
   <circle cx="854" cy="164" r="22" fill="#bc8a00"/><text x="854" y="171" text-anchor="middle" font-size="20" font-weight="700" fill="#fff">3</text>
   <text x="890" y="171" class="head">迂回候補を2方向検索</text>
-  <text x="838" y="211" class="body">NG区間から遠距離5kmの候補A・Bを各1回照合</text>
-  <text x="838" y="243" class="small">5kmは迂回検索点までの離隔距離。方角は道路形状で変化</text>
+  <text x="838" y="211" class="body">NG区間から遠距離20kmの候補A・Bを各1回照合</text>
+  <text x="838" y="243" class="small">20kmは迂回検索点までの離隔距離。方角は道路形状で変化</text>
 
   <path d="M980 280V335M980 335H355V375M980 335H845V375" fill="none" stroke="#31566d" stroke-width="3" marker-end="url(#arrow)"/>
   <rect x="105" y="385" width="500" height="145" rx="14" fill="#eef6ff" stroke="#6d9bc0" stroke-width="2"/>
   <text x="135" y="425" class="head">迂回候補 A</text>
-  <text x="135" y="462" class="body">遠距離5kmの検索点を置き、20m間隔で照合</text>
+  <text x="135" y="462" class="body">遠距離20kmの検索点を置き、20m間隔で照合</text>
   <text x="135" y="495" class="small">OK / NG / 未判定と測定幅を記録</text>
   <rect x="655" y="385" width="500" height="145" rx="14" fill="#eef6ff" stroke="#6d9bc0" stroke-width="2"/>
   <text x="685" y="425" class="head">迂回候補 B</text>
-  <text x="685" y="462" class="body">反対側にも遠距離5kmの検索点を置き、20m間隔で照合</text>
+  <text x="685" y="462" class="body">反対側にも遠距離20kmの検索点を置き、20m間隔で照合</text>
   <text x="685" y="495" class="small">OK / NG / 未判定と測定幅を記録</text>
 
   <path d="M355 530V570H600M905 530V570H600V590" fill="none" stroke="#31566d" stroke-width="3" marker-end="url(#arrow)"/>

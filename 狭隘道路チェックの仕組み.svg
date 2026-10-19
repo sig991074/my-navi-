@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" style="max-width:100%;height:auto" role="img" aria-labelledby="title desc">
   <title id="title">狭隘道路チェックの仕組み</title>
-  <desc id="desc">国土地理院の道路中心線RdCLと基盤地図情報の道路縁RdEdgを画像化し、約10メートルごとに車両形状を重ねて照合します。幅員の数値計算はせず、交差点旋回はパス、直進は測定します。</desc>
+  <desc id="desc">国土地理院の道路中心線RdCLと基盤地図情報の道路縁RdEdgを画像化し、約20メートルごとに車両形状を重ねて照合します。幅員の数値計算はせず、交差点旋回はパス、直進は測定します。</desc>
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
       <path d="M0,0 L10,5 L0,10 Z" fill="#31566d"/>
@@ -24,7 +24,7 @@
   </defs>
   <rect width="1200" height="900" fill="#f3f7f9"/>
   <text x="44" y="52" class="title">狭隘道路チェック（道路ベクトル画像照合）</text>
-  <text x="46" y="82" class="body muted">RdCL・RdEdgを画像化し、約10mごとに車両形状と重ねます。道路幅の数値計算はしません。</text>
+  <text x="46" y="82" class="body muted">RdCL・RdEdgを画像化し、約20mごとに車両形状と重ねます。道路幅の数値計算はしません。</text>
 
   <rect x="38" y="108" width="1124" height="330" rx="14" class="panel"/>
   <text x="66" y="145" class="head">1　道路に沿って測定点を配置</text>
@@ -56,11 +56,11 @@
     <line x1="878" y1="246" x2="962" y2="201"/>
   </g>
   <g class="small" text-anchor="middle">
-    <text x="220" y="414">約10m以内</text><text x="320" y="327">約10m以内</text>
-    <text x="520" y="204">約10m以内</text><text x="720" y="389">約10m以内</text>
-    <text x="920" y="218">約10m以内</text>
+    <text x="220" y="414">約20m以内</text><text x="320" y="327">約20m以内</text>
+    <text x="520" y="204">約20m以内</text><text x="720" y="389">約20m以内</text>
+    <text x="920" y="218">約20m以内</text>
   </g>
-  <text x="1010" y="406" class="small muted">青丸＝10m測定位置</text>
+  <text x="1010" y="406" class="small muted">青丸＝20m測定位置</text>
   <text x="1010" y="426" class="small muted">赤丸＝前後の向き測定</text>
 
   <rect x="38" y="458" width="548" height="250" rx="14" class="panel"/>

@@ -16,7 +16,7 @@
   edgeInput.setAttribute('multiple', '');
   edgeInput.parentElement.firstChild.textContent = '② ファイル選択 ';
   panel.querySelector('#narrowVectorStatus').textContent =
-    '選択後アップロードします。10m間隔で全区間照合します。';
+    '選択後アップロードします。20m間隔で全区間照合します。';
   document.body.append(panel);
   const panelToggle = document.createElement('button');
   panelToggle.id = 'narrowPanelToggle';
@@ -257,7 +257,7 @@
     return [point[0] + east / metersPerLon(point[1]), point[1] + north / 111320];
   };
   const mapTiles = new Map();
-  const mapFailRun = () => { const v = Number(document.getElementById('trolleyFailLength')?.value); return Math.max(1, Math.ceil((Number.isFinite(v) && v > 0 ? v : 50) / 10)); };
+  const mapFailRun = () => { const v = Number(document.getElementById('trolleyFailLength')?.value); return Math.max(1, Math.ceil((Number.isFinite(v) && v > 0 ? v : 50) / 20)); };
   const MAP_Z = 18;
   const loadMapTile = async (x, y) => {
     const key = `${x}/${y}`;
@@ -380,8 +380,8 @@
     for (const step of route.steps || []) {
       const context = step._trolleyPathContext, check = step._trolleyCheck;
       if (!context || context.coordinates.length < 2 || step._endpointExcluded || check?.status === 'excluded') continue;
-      const [start, end] = context.range, first = Math.ceil(start / 10) * 10;
-      for (let station = first; station <= end + 0.01; station += 10) {
+      const [start, end] = context.range, first = Math.ceil(start / 20) * 20;
+      for (let station = first; station <= end + 0.01; station += 20) {
         const key = `${step._routeLegIndex ?? 0}/${Math.round(station * 100)}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -483,7 +483,7 @@
           fit.status === 'pass' ? '#16843b' : fit.status === 'fail' ? '#d00000' : '#687782'));
       }
       if ((i + 1) % 250 === 0) {
-        report(`10m間隔で車両形状を照合しています（${i + 1}/${samples.length}地点）…`);
+        report(`20m間隔で車両形状を照合しています（${i + 1}/${samples.length}地点）…`);
         await new Promise(resolve => setTimeout(resolve, 0));
       }
     }
@@ -619,7 +619,7 @@
         totals.samples += check.samples || 0;
       }
     }
-    status(`全ルート照合：10m間隔 ${totals.samples}点。画像上で車両形状内に道路縁が侵入 ${totals.fail}区間、両側道路縁の内側に収まる ${totals.pass}区間、未判定 ${totals.unchecked}区間。交差点旋回をパス ${totals.skipped}点（直進は計測）。紫=RdCL、赤=RdEdg、緑=照合可、赤=形状内へ侵入、灰=未判定。`);
+    status(`全ルート照合：20m間隔 ${totals.samples}点。画像上で車両形状内に道路縁が侵入 ${totals.fail}区間、両側道路縁の内側に収まる ${totals.pass}区間、未判定 ${totals.unchecked}区間。交差点旋回をパス ${totals.skipped}点（直進は計測）。紫=RdCL、赤=RdEdg、緑=照合可、赤=形状内へ侵入、灰=未判定。`);
   };
 
   document.getElementById('narrowEdgeFile').addEventListener('change', async event => {

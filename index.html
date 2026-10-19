@@ -80,18 +80,11 @@ function compareRoutes(a,b,routeNo){let pa=routeMetric(a),pb=routeMetric(b),orde
 function trolleyGeometrySignature(r){let c=r.geometry?.coordinates||[],step=Math.max(1,Math.floor(c.length/40));return JSON.stringify(c.filter((_,i)=>i%step===0).map(x=>[x[0].toFixed(4),x[1].toFixed(4)]))}
 async function prepareRoute(r,sharedWays,sharedWarning='',checkLabel=''){markEndpointExclusions(r);r._trolleyCheckLabel=checkLabel;await checkTrolleyRoute(r,sharedWays,sharedWarning);r.narrowWarning=!!r.trolleyFailures.length||!!r.trolleyUnchecked;return r}
 function preferredRoute(routes,routeNo){let safe=routes.filter(r=>!r.narrowWarning),choices=safe.length?safe:routes;choices.sort((a,b)=>{let risk=r=>(r.trolleyFailures?.length||0)*1000000+(r.trolleyUnchecked||0)*100000,narrowDistance=r=>(r.steps||[]).filter(isNarrowStep).reduce((n,s)=>n+(s.distance||0),0);return risk(a)-risk(b)||narrowDistance(a)-narrowDistance(b)||compareRoutes(a,b,routeNo)});if(routeNo===2&&chosenRouteGeometry[1]){let original=JSON.stringify((chosenRouteGeometry[1].coordinates||[]).filter((_,i)=>i%Math.max(1,Math.floor((chosenRouteGeometry[1].coordinates.length||1)/40))===0).map(x=>[x[0].toFixed(4),x[1].toFixed(4)]));let distinct=choices.find(r=>trolleyGeometrySignature(r)!==original);if(distinct)return distinct}return choices[0]||null}
-function decodePolyline6(str){let i=0,lat=0,lon=0,out=[];while(i<str.length){for(let k=0;k<2;k++){let shift=0,result=0,b;do{b=str.charCodeAt(i++)-63;result|=(b&31)<<shift;shift+=5}while(b>=32);let d=result&1?~(result>>1):result>>1;if(k)lon+=d;else lat+=d}out.push([lon/1e6,lat/1e6])}return out}
-async function getRoutesAvoiding(points,polygons){let body={locations:points.map(p=>({lat:p.lat,lon:p.lon,type:'break'})),costing:'auto',exclude_polygons:polygons},j;let controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);try{let res=await fetch('https://valhalla1.openstreetmap.de/route',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});j=await res.json();if(!res.ok||!j.trip)throw Error('NoRoute')}catch(error){if(error.name==='AbortError')throw Error('迂回経路の検索が30秒以内に応答しませんでした');throw error}finally{clearTimeout(timer)}let coords=[],steps=[];j.trip.legs.forEach((leg,legIndex)=>{let shape=decodePolyline6(leg.shape),offset=coords.length?coords.length-1:0;(leg.maneuvers||[]).forEach(m=>{let g=shape.slice(m.begin_shape_index,m.end_shape_index+1);if(g.length<2)return;let names=m.street_names||[],ref=(m.sign?.route_number_elements||[]).map(e=>e.text).join(' ');steps.push({name:names[0]||'',ref,distance:m.length*1000,duration:m.time,geometry:{type:'LineString',coordinates:g},maneuver:{type:'turn',location:g[0]},_routeLegIndex:legIndex})});coords.push(...(coords.length?shape.slice(1):shape))});let motorway=steps.filter(s=>['高速道路','無料高速'].includes(roadInfo(s).type)).reduce((n,s)=>n+s.distance,0),route27=steps.filter(s=>/(^|[^0-9])27([^0-9]|$)|国道27号/.test((s.name||'')+' '+(s.ref||''))).reduce((n,s)=>n+s.distance,0);return{distance:j.trip.summary.length*1000,duration:j.trip.summary.time,geometry:{type:'LineString',coordinates:coords},legs:[],steps,motorway,route27}}
-function failurePolygons(route,skip=[],budget=9000){let polys=[],pad=0.0003,spacing=400,near=p=>skip.some(s=>Math.hypot((p[0]-s.lon)*91000,(p[1]-s.lat)*111000)<150);for(let step of route.steps||[]){if(step._trolleyCheck?.status!=='fail')continue;let c=step.geometry?.coordinates||[],since=spacing;for(let i=0;i<c.length;i++){if(i)since+=Math.hypot((c[i][0]-c[i-1][0])*91000,(c[i][1]-c[i-1][1])*111000);if(since<spacing||near(c[i]))continue;since=0;let per=(pad*91000+pad*111000)*4;if(per>budget)return polys;budget-=per;polys.push([[c[i][0]-pad,c[i][1]-pad],[c[i][0]+pad,c[i][1]-pad],[c[i][0]+pad,c[i][1]+pad],[c[i][0]-pad,c[i][1]+pad]])}}return polys}
 function trolleyDetourPoints(route,meters,side){let steps=route.steps||[],first=steps.findIndex(step=>step._trolleyCheck?.status==='fail');if(first<0)return null;let legIndex=steps[first]._routeLegIndex??0,last=first;while(last+1<steps.length&&steps[last+1]._routeLegIndex===legIndex&&steps[last+1]._trolleyCheck?.status==='fail')last++;let a=steps[first].geometry?.coordinates,b=steps[last].geometry?.coordinates;if(!a||a.length<2||!b||b.length<2)return null;let start=a[0],startNext=a[1],end=b[b.length-1],endPrevious=b[b.length-2],offset=(point,next)=>{let lat=point[1],cos=Math.max(.1,Math.cos(lat*Math.PI/180)),dx=(next[0]-point[0])*cos,dy=next[1],length=Math.hypot(dx,dy);if(length<1e-8)return null;let east=-dy/length*meters*side,north=dx/length*meters*side;return{lat:point[1]+north/111320,lon:point[0]+east/(111320*cos),type:'迂回検索点',name:'迂回検索点'}};let startPoint=offset(start,startNext),endPoint=offset(endPrevious,end);return startPoint&&endPoint?{points:[startPoint,endPoint],legIndex}:null}
 async function findTrolleySafeRoute(points,routes,routeNo){
   let ways=[],warning='';
   routes.forEach(route=>route._routeNo=routeNo);
   const hasRoadEdges=window.evNarrowRoadBridge?.hasRoadEdges?.();
-  if(!hasRoadEdges){
-    $('status').textContent='道路の補助情報を取得しています…';
-    try{ways=await getRouteOsmWays(routes[0])}catch(error){warning=error.message||'OpenStreetMapの道路タグを取得できませんでした'}
-  }
   const excludesNarrow=priorities[routeNo].includes('F');
   const compareByPreference=(a,b)=>compareRoutes(a,b,routeNo);
   let candidates=routes.slice().sort(compareByPreference);
@@ -108,63 +101,51 @@ async function findTrolleySafeRoute(points,routes,routeNo){
   }else{
     candidates=candidates.slice(0,1);
   }
+  candidates=candidates.slice(0,1);
+  if(!hasRoadEdges){
+    $('status').textContent='道路の補助情報を取得しています…';
+    try{ways=await getRouteOsmWays(candidates[0])}catch(error){warning=error.message||'OpenStreetMapの道路タグを取得できませんでした'}
+  }
   for(let i=0;i<candidates.length;i++){
-    const candidate=candidates[i],checkLabel=`ルート${routeNo} 元ルート候補 ${i+1}/${candidates.length}（${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}）`;
+    const candidate=candidates[i],checkLabel=`ルート${routeNo} 元ルート（確認1/3・${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}）`;
     showRouteCheckPreview(candidate,checkLabel);
-    await prepareRoute(candidate,ways,warning,checkLabel);
+    let candidateWays=ways,candidateWarning=warning;
+    if(!hasRoadEdges){try{candidateWays=await getRouteOsmWays(candidate)}catch(error){candidateWarning=error.message||warning}}
+    await prepareRoute(candidate,candidateWays,candidateWarning,checkLabel);
     if(!excludesNarrow)return{route:candidates[i],detoured:false};
     if(!candidates[i].trolleyFailures.length&&(!candidates[i].trolleyUnchecked||candidates[i].trolleyVectorUsed))return{route:candidates[i],detoured:false};
   }
-  let effectivePoints=points,route=preferredRoute(routes,routeNo),detoured=false;
+  let effectivePoints=points,route=candidates[0]||preferredRoute(routes,routeNo),detoured=false;
   const score=item=>(item.trolleyFailures?.length||0)*1000000+(item.trolleyUnchecked||0)*100000+(item.trolleyFailures||[]).reduce((sum,step)=>sum+(step.distance||0),0)+(item.distance||0)*.1;
   if(route?.trolleyUnchecked&&!route.trolleyVectorUsed)return{route,detoured:false,unverified:true};
-  let excluded=[],avoidRoute=route,bestAvoid=null;
-  const failScore=item=>(item.trolleyFailures?.length||0)*1000000+(item.trolleyFailures||[]).reduce((sum,step)=>sum+(step.distance||0),0);
-  const ends=[points[0],points[points.length-1]];
-  for(let round=1;avoidRoute?.trolleyFailures?.length&&round<=4;round++){
-    let sets=[],fresh=failurePolygons(avoidRoute,ends,Math.max(0,9000-excluded.length*242));
-    if(fresh.length)sets.push({polys:[...excluded,...fresh],text:'すべての問題区間'});
-    if(avoidRoute.trolleyFailures.length>1)avoidRoute.trolleyFailures.slice(0,3).forEach(step=>{let p=failurePolygons({steps:[step]},ends,Math.max(0,9000-excluded.length*242));if(p.length)sets.push({polys:[...excluded,...p],text:`「${step.name||'道路'}」`})});
-    if(!sets.length)break;
-    let progressed=false;
-    for(let set of sets){
-      $('status').textContent=`${set.text}を通らない道を探しています（${round}回目）…`;
-      let avoided;
-      try{avoided=await getRoutesAvoiding(points,set.polys)}catch(error){console.warn('除外迂回に失敗',error);continue}
-      avoided._routeNo=routeNo;
-      const label=`ルート${routeNo} ${set.text}を避けた迂回 ${round}回目（${(avoided.distance/1000).toFixed(1)}km・${formatDuration(avoided.duration)}）`;
-      showRouteCheckPreview(avoided,label,points);
-      await new Promise(r=>setTimeout(r,1200));await prepareRoute(avoided,ways,warning,label);
-      if(!avoided.trolleyFailures.length)return{route:avoided,detoured:true};
-      if(!bestAvoid||failScore(avoided)<failScore(bestAvoid)){bestAvoid=avoided;avoidRoute=avoided;excluded=set.polys;progressed=true}
-    }
-    if(!progressed)break
-  }
-  if(bestAvoid&&failScore(bestAvoid)<failScore(route))return{route:bestAvoid,detoured:true};
-  for(let attempt=0;route?.trolleyFailures?.length&&attempt<2;attempt++){
-    let best=route,bestScore=score(route),bestPoints=null;
-    for(let meters of[500,1500,5000])for(let side of[1,-1]){
+  route._narrowRouteStatus=route.trolleyFailures.length?'元ルートNG':'元ルートOK';
+  const checkedSignatures=new Set([trolleyGeometrySignature(route)]);
+  let bestCandidate=null,bestPoints=null,safeCandidates=[];
+  for(let attempt=0;route?.trolleyFailures?.length&&attempt<1;attempt++){
+    for(let meters of[5000])for(let side of[1,-1]){
       let bypass=trolleyDetourPoints(route,meters,side);
       if(!bypass)continue;
       let insertAt=Math.max(1,Math.min(effectivePoints.length-1,bypass.legIndex+1));
       let nextPoints=[...effectivePoints.slice(0,insertAt),...bypass.points,...effectivePoints.slice(insertAt)],alternatives;
       $('status').textContent=`幅不足の「${route.trolleyFailures[0]?.name||'道路'}」付近から、${(meters/1000).toFixed(1)}km離れた道路を迂回検索中…`;
       try{alternatives=await getRoutes(nextPoints)}catch(error){if(error.message==='NoRoute')continue;throw error}
+      alternatives=alternatives.sort(compareByPreference).filter(candidate=>!checkedSignatures.has(trolleyGeometrySignature(candidate))).slice(0,1);
       alternatives.forEach(candidate=>candidate._routeNo=routeNo);
       for(let i=0;i<alternatives.length;i++){
-        const candidate=alternatives[i],checkLabel=`ルート${routeNo} 迂回候補 ${i+1}/${alternatives.length}（${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}、問題区間から約${(meters/1000).toFixed(1)}km）`;
+        const candidate=alternatives[i],checkLabel=`ルート${routeNo} 迂回候補${side===1?'A':'B'}（確認${side===1?'2':'3'}/3・${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}、元ルートNG区間から約${(meters/1000).toFixed(1)}km）`;
+        checkedSignatures.add(trolleyGeometrySignature(candidate));
         showRouteCheckPreview(candidate,checkLabel,nextPoints);
-        await prepareRoute(candidate,ways,warning,checkLabel)
+        await prepareRoute(candidate,ways,warning,checkLabel);
+        candidate._narrowRouteStatus=candidate.trolleyFailures.length?'迂回候補NG':'迂回候補OK';
+        if(!bestCandidate||score(candidate)<score(bestCandidate)){bestCandidate=candidate;bestPoints=nextPoints}
+        if(!candidate.trolleyFailures.length&&!candidate.trolleyUnchecked)safeCandidates.push(candidate);
       }
-      let safe=alternatives.filter(candidate=>!candidate.trolleyFailures.length&&!candidate.trolleyUnchecked);
-      if(safe.length)return{route:preferredRoute(safe,routeNo),detoured:true};
-      let candidate=alternatives.slice().sort((a,b)=>score(a)-score(b)||compareRoutes(a,b,routeNo))[0],candidateScore=score(candidate);
-      if(candidateScore<bestScore){best=candidate;bestScore=candidateScore;bestPoints=nextPoints}
     }
-    if(!bestPoints)break;
-    route=best;effectivePoints=bestPoints;detoured=true
+    if(safeCandidates.length)return{route:preferredRoute(safeCandidates,routeNo),detoured:true,originalRouteFailed:true};
+    if(!bestCandidate)break;
+    route=bestCandidate;effectivePoints=bestPoints;detoured=true
   }
-  return{route,detoured,unverified:!!route?.trolleyUnchecked}
+  return{route,detoured,unverified:!!route?.trolleyUnchecked,originalRouteFailed:true}
 }
 async function calculateRoutes(routeNo=selectedRoute,batch=false){document.body.classList.remove('route-view-clean');clearRouteCheckPreview();if(routeNo===2)copyCourse1EndpointsToCourse2();let plan=routePlans[routeNo];if(!plan.start||!plan.destination){let message='ルート'+routeNo+'の出発地と目的地を設定してください';if(!batch)$('status').textContent=message;return{ok:false,message}}try{trolleyDimensions()}catch(error){if(!batch)$('status').textContent=error.message;return{ok:false,message:error.message}}$('status').textContent='ルート'+routeNo+'を計算し、道路データで狭隘チェックしています';try{let points=[plan.start,...plan.vias,plan.destination],routes=await getRoutes(points),result=await findTrolleySafeRoute(points,routes,routeNo),route=result.route;clearRouteCheckPreview();if(!route){let message='迂回候補を再検索しましたが、表示可能な道路ルートがありません。出発地・目的地は変更していません';drawRoutes([],routeNo);if(!batch)$('status').textContent=message;return{ok:false,message}}chosenRouteGeometry[routeNo]=route.geometry;drawRoutes([route],routeNo);let failed=route.trolleyFailures.length,summary='通過確認 '+route.trolleyChecked+'区間、未判定 '+route.trolleyUnchecked+'区間'+(failed?'、通行幅不足 '+failed+'区間':'');if(failed)summary=(result.detoured?'代替候補を検索しましたが、通行幅不足区間が未回避です。該当区間の残る候補を表示：':'安全な迂回候補を確認できず、通行幅不足区間の残る元ルートを表示：')+summary;else if(result.detoured)summary='幅不足区間を回避したルートを表示：'+summary;if(result.unverified&&priorities[routeNo].includes('F'))summary+='。RdEdgベクトル未読込または未判定のため、狭隘道路の自動迂回は未確認です';if(route.trolleyVectorUsed)summary+='。地理院RdCL・RdEdg画像照合';else summary+='。RdEdg未読込のため未判定です（Fありは迂回未確認、Fなしは警告のみでルート維持）';if(route.trolleyDataWarning)summary+='。OSMタグ取得不可（道路種別の補助情報なし）：'+route.trolleyDataWarning;let message='ルート'+routeNo+'を表示しました。狭隘チェック：'+summary+'（経路線の細線：緑＝幅OK、赤＝幅不足、橙点線＝未判定）';if(!batch)$('status').textContent=message;return{ok:true,message}}catch(error){clearRouteCheckPreview();let message='ルート'+routeNo+'の検索／道路チェックエラー：'+(error.message||'経路データを取得できません');$('status').textContent=message;return{ok:false,message}}}
 async function calculateBothRoutes(){let original=selectedRoute;$('status').textContent='ルート1・ルート2を計算しています';let first=await calculateRoutes(1,true);copyCourse1EndpointsToCourse2();let second=await calculateRoutes(2,true);selectedRoute=original;updateRouteVisibility();drawMarkers();renderPlaces();$('status').textContent=first.ok&&second.ok?'ルート1・ルート2を同時表示しました':[first,second].filter(result=>!result.ok).map(result=>result.message).join('／')}

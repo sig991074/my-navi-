@@ -484,6 +484,7 @@
         { style: { color: '#7626a8', weight: 2, opacity: 0.75 } }).addTo(map);
       state.footprints = window.L.featureGroup().addTo(map);
     }
+    let pauses = 0, lastFailIndex = -100;
     const showMark = mark => { if (options.draw) state.footprints.addLayer(mark); };
     for (let i = 0; i < samples.length; i++) {
       const sample = samples[i];
@@ -570,6 +571,18 @@
         showMark(mark);
         if (fit.status === 'fail') stepStats.get(sample.step).failureSamples.at(-1).mark = mark;
       }
+      // 狭い道を見つけたら、その場で10秒止まって道幅を見せる（連続区間では1回、1ルート最大5回）
+      if (fit.status === 'fail' && options.draw !== false && pauses < 5 && i - lastFailIndex > 5) {
+        pauses++;
+        bridge.moveRouteCheckProgress?.(origin);
+        const widthText = fit.roadWidth != null ? `約${fit.roadWidth.toFixed(1)}m` : '測定できず';
+        const popup = window.L.popup({ closeButton: false, autoClose: false, closeOnClick: false })
+          .setLatLng([origin[1], origin[0]]).setContent(`<b>狭隘</b> 測定道路幅 ${widthText}`).openOn(map);
+        report(`狭い道を見つけました（測定道路幅 ${widthText}）。10秒止まって表示します…`);
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        map.closePopup(popup);
+      }
+      if (fit.status === 'fail') lastFailIndex = i;
       if ((i + 1) % 250 === 0) {
         report(`20m間隔で車両形状を照合しています（${i + 1}/${samples.length}地点）…`);
         await new Promise(resolve => setTimeout(resolve, 0));

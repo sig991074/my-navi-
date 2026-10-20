@@ -368,9 +368,16 @@ function offsetRouteCoordinates(coordinates,offsetPixels=5){
 function styleRouteOptionLines(routeNo){
   routeLayers.filter(item=>item.routeNo===routeNo).forEach((item,index)=>{
     const option=item.route._displayOption??index,routeDash=option===1?'2 7':option===2?'8 7':null;
+    const offsetPx=option===1?6:option===2?-6:0;
     item.layer.eachLayer(layer=>{
       if(layer instanceof L.Polyline&&['route-soft','route-casing','route-check-status'].includes(layer.options.className))
         layer.setStyle({dashArray:routeDash});
+      // 重なって見えなくならないよう、迂回路A・Bを元ルートの左右に少しずらして描く
+      if(offsetPx&&layer instanceof L.Polyline&&['route-soft','route-casing','route-check-status'].includes(layer.options.className)){
+        layer._origCoords=layer.getLatLngs().map(p=>[p.lng,p.lat]);
+        const apply=()=>layer.setLatLngs(offsetRouteCoordinates(layer._origCoords,offsetPx));
+        apply();map.on('zoomend',apply);item.layer.on('remove',()=>map.off('zoomend',apply));
+      }
     });
     for(const step of item.route.steps||[]){
       if(!['census-multilane-road','osm-multilane-road'].includes(step._trolleyCheck?.reason)||step.geometry?.coordinates?.length<2)continue;

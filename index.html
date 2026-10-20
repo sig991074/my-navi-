@@ -675,6 +675,11 @@ async function findTrolleySafeRoute(points,routes,routeNo){
   const originalRouteFailed=!!route.trolleyFailures.length;
   return{route,originalRoute:route,detourRoutes:[],detoured:false,originalRouteFailed,unverified:!!route.trolleyUnchecked};
 }
+function unverifiedTrolleyRoadNames(route){
+  return[...new Set((route.steps||[])
+    .filter(step=>step._trolleyCheck?.status==='unchecked')
+    .map(step=>(step.name||step.ref||'道路名なし').trim()))];
+}
 async function calculateRoutes(routeNo=selectedRoute,batch=false){
   document.body.classList.remove('route-view-clean');
   clearRouteCheckPreview();
@@ -725,6 +730,8 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     addRouteOptionMarkers(routeNo);
     const failed=route.trolleyFailures.length,cautions=route.trolleyCautions?.length||0;
     let summary='通過確認 '+route.trolleyChecked+'区間、未判定 '+route.trolleyUnchecked+'区間、対象外 '+route.trolleyExcluded+'区間'+(failed?'、狭隘道路不可 '+failed+'区間':'')+(cautions?'、狭隘注意 '+cautions+'区間（設定距離未満のため注意して通過可）':'');
+    const unverifiedRoads=unverifiedTrolleyRoadNames(route);
+    if(unverifiedRoads.length)summary+='。幅未判定の道路：'+unverifiedRoads.slice(0,5).join('、')+(unverifiedRoads.length>5?'、ほか':'');
     if(displayRoutes.length)summary+='。調査用候補：'+displayRoutes.map(candidate=>(candidate._displayLabel||'迂回路')+' '+(candidate.distance/1000).toFixed(1)+'km（幅不足 '+candidate.trolleyFailures.length+'区間、未判定 '+candidate.trolleyUnchecked+'区間）').join('、')+'。迂回路はNG道路区間を避けた調査用です。元ルートは置き換えず、最終ルートへの経由地設定は人が行います。点線は使わず全て実線です。赤線＝幅不足、黄線＝狭隘注意・幅未判定。各線をクリックすると区間状態を確認できます';
     if(result.originalRouteFailed){
       if(displayRoutes.length<2)summary+='。迂回路候補は'+displayRoutes.length+'本だけ取得できました';
@@ -735,7 +742,7 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     const routeErrors=[...detourErrors,...displayRoutes.filter(candidate=>candidate._detourError).map(candidate=>(candidate._displayLabel||'迂回路')+'：'+candidate._detourError)];
     if(routeErrors.length)summary+=(summary.endsWith('。')?'':'。')+routeErrors.join('。');
     if(result.originalRouteFailed)summary+='。迂回検索に出発地・経由地・NG区域をValhalla公開サービスへ送信しました';
-    if(result.unverified&&priorities[routeNo].includes('F'))summary+='。RdEdgベクトル未読込または未判定のため、狭隘道路の自動迂回は未確認です';
+    if(route.trolleyUnchecked)summary+='。幅未判定が残っており、狭隘道路の有無を確認できていません。既知の幅不足NGがないため、迂回検索は開始していません';
     if(route.trolleyVectorUsed){
       if(route.trolleyMapFallbackUsed){
         summary+='。標準地図画像を中央線なし方式で '+route.trolleyMapFallbackAttempts+' 地点補助確認';
@@ -763,7 +770,11 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     const candidateSummary=displayRoutes.map(candidate=>`${candidate._displayLabel||'迂回路'} ${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}`).join('、');
     const message=originalRoute.trolleyFailures.length
       ?`元ルートと狭隘NGを避けた調査用迂回路を表示しました。${candidateSummary||'迂回路候補なし'}。②から目的地へ到達できる候補を検証し、最短候補から実出発地発の本経路を確認しました。`
-      :'元ルートに幅不足NGがないため、合意した条件に従い迂回路は検索せず元ルートだけを表示しました。';
+      :route.trolleyUnchecked
+        ?`狭隘道路の有無を確認できていません（幅未判定 ${route.trolleyUnchecked} 区間）。未判定道路：${unverifiedRoads.slice(0,5).join('、')||'道路幅データ不足'}。既知の幅不足NGがないため迂回検索はしていません。`
+        :cautions
+          ?`設定距離以上の幅不足NGはありませんが、設定距離未満の狭隘注意が ${cautions} 区間あります。迂回検索はしていません。`
+          :'幅を確認できた対象区間に幅不足NGはありません。合意した条件に従い迂回検索はせず、元ルートだけを表示しました。';
     if(displayRoutes.length)summary+='。迂回路は②から目的地への到達検証後に候補距離の短い順で実出発地発の経路を確認し、元ルートNGを避けて幅チェックに合格したものを表示';
     route._summary=summary;
     renderPlaces();

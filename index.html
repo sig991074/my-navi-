@@ -175,7 +175,11 @@ async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures,exc
   for(const fraction of[.5,.4,.6,.3,.7]){
     const{point,distance}=pointAtRouteFraction(baseRoute,fraction);
     const polygons=routeExclusionPolygons(excludedRoutes);
-    const waypoint={lat:point[1]+side*20000/111320,lon:point[0],name:label+'迂回検索点',type:'迂回検索点'};
+    // 出発地→目的地の直線に直角な向きへ20kmずらす（南北ルートなら東西）。Aは北寄り（同じなら西）、Bはその反対側
+    const coords=baseRoute.geometry?.coordinates||[point,point],first=coords[0],last=coords.at(-1),cosLat=Math.cos(point[1]*Math.PI/180);
+    let ex=(last[0]-first[0])*cosLat,ny=last[1]-first[1];const len=Math.hypot(ex,ny)||1;ex/=len;ny/=len;
+    let px=-ny,py=ex;if(py-.01*px<-py+.01*px){px=-px;py=-py}
+    const waypoint={lat:point[1]+side*py*20000/111320,lon:point[0]+side*px*20000/111320/cosLat,name:label+'迂回検索点',type:'迂回検索点'};
     let legIndex=0,legEnd=0;
     for(let i=0;i<(baseRoute.legs||[]).length;i++){legEnd+=(baseRoute.legs[i].distance||0);if(distance<=legEnd){legIndex=i;break}}
     const viaPoints=points.slice();viaPoints.splice(Math.min(legIndex+1,viaPoints.length-1),0,waypoint);

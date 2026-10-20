@@ -1,8 +1,13 @@
 <!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CARナビ ルートプランナー</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><style>
 *{box-sizing:border-box}html,body,#app{margin:0;width:100%;height:100%;overflow:hidden;font-family:Meiryo,sans-serif}button{cursor:pointer}#app{display:grid;grid-template-columns:1fr 420px}#mapbox{position:relative;min-width:0}#map{position:absolute;inset:0}#top{position:absolute;z-index:1000;top:10px;left:52px;right:10px;display:grid;grid-template-columns:245px 1fr 65px 55px 88px 40px;gap:5px}#title,#q,#search,#historyBtn,#mapPick,#gps{height:42px;border-radius:5px}#title{display:flex;align-items:center;justify-content:center;background:linear-gradient(90deg,#fff,#9fd9f2);border:1px solid #61849a;font-weight:bold;font-size:18px}#q{border:1px solid #859aa8;padding:0 9px}#search,#historyBtn,#mapPick,#gps,#routeCalc{border:0;background:#176fa7;color:#fff;font-weight:bold}#menus{position:absolute;z-index:1001;left:10px;top:86px;width:155px;display:grid;gap:5px}.menu{position:relative}.head{height:41px;padding:5px 8px;background:#fff1ad;border:1px solid #a69545;border-radius:5px;font-size:13px;font-weight:bold;line-height:15px;cursor:pointer}.head small{display:block;font-size:9px;font-weight:normal;color:#485861;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.head:after{content:'▼';position:absolute;right:7px;top:13px}.pop{display:none;position:absolute;z-index:20;top:45px;left:0;width:155px;padding:5px;background:#fff;border:1px solid #81919b;box-shadow:0 5px 15px #0005}.menu.open .pop{display:block}.pop button{display:block;width:100%;height:28px;margin-bottom:3px;text-align:left;background:#fff;border:1px solid #c4ccd1;font-size:11px}.condition-pop{width:600px;padding:10px}.condition-grid{display:grid;grid-template-columns:170px 1fr;gap:12px}.condition-source{border-right:1px solid #aaa;padding-right:10px}.condition-source h4,.route-box h4{margin:0 0 6px;font-size:12px}.condition-card{padding:7px;margin-bottom:4px;border:1px solid #9baab3;background:#fff;cursor:grab;font-size:11px}.condition-card:before{content:'☰ ';color:#607d8b}.condition-card.dragging{opacity:.35}.drag-note{font-size:11px;color:#3b6175;margin-top:7px}.route-box{margin-bottom:10px}.priority-row{display:grid;grid-template-columns:repeat(6,42px 16px) 55px;align-items:center}.slot{height:31px;border:1px dashed #8297a3;background:#f8fbfc;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;cursor:pointer}.slot.filled{border-style:solid;background:#e6f4fa}.slot.over{background:#fff0ad}.sep{text-align:center;font-weight:bold}.other{height:31px;border:1px solid #9baab3;background:#eee;display:flex;align-items:center;justify-content:center;font-size:11px}.route-summary{font-size:11px;margin-top:5px;color:#234f68}.tiny{width:auto!important;height:24px!important;display:inline-block!important;margin-top:5px!important}.candidates{position:absolute;z-index:1300;top:58px;right:12px;width:280px;display:none;max-height:180px;overflow:auto;background:#fff;border:1px solid #718795}.cand{display:grid;grid-template-columns:30px 1fr;gap:6px;padding:6px;border-bottom:1px solid #ddd;cursor:pointer}.num,.searchpin{width:24px;height:24px;border-radius:50%;background:#176fa7;color:#fff;text-align:center;line-height:20px;font-weight:bold;border:2px solid #fff}.addr{font-size:10px;color:#657681}#routeCalc{position:absolute;z-index:1100;left:10px;top:225px;border-radius:5px;padding:10px 16px}body.menu-popup-open #routeCalc{display:none}#routeCalc:before{content:'▼';position:absolute;left:50%;top:-27px;transform:translateX(-50%);color:#176fa7;font-size:24px;line-height:24px;text-shadow:0 1px 1px #fff}#right{display:grid;grid-template-rows:auto auto 1fr;background:#fff;border-left:2px solid #315a72}#rh{padding:10px;text-align:center;border-bottom:1px solid #aaa}#sum{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid #aaa}.s{text-align:center;padding:6px 2px;font-size:10px}.s b{display:block;font-size:12px}#list{padding:10px;color:#445;overflow:auto}.placeRow,.routeResult{padding:7px;border-bottom:1px solid #ccc}.routeResult{margin:5px 0;border:1px solid #9bb;background:#f5fbfe}.routeResult b{color:#176fa7}#status{position:fixed;z-index:1100;left:10px;bottom:10px;width:min(270px,max(150px,calc(100vw - 440px)));min-width:0;max-width:270px;box-sizing:border-box;padding:5px 7px;background:#fffffff2;border:1px solid #176fa7;border-radius:5px;font-size:10px;font-weight:bold;line-height:1.25;color:#163f56;pointer-events:none}.route-legend{display:none;position:absolute;z-index:1100;left:0;top:210px;width:max-content;max-width:calc(100% - 20px);box-sizing:border-box;background:#fff;border:1px solid #8297a3;border-radius:5px;padding:7px 8px;font-size:11px;box-shadow:0 4px 12px #0004}.route-legend.show{display:block}.route-legend span{display:flex;align-items:center;margin:0 0 6px 0}.route-legend span:last-child{margin-bottom:0}.route-legend i{display:inline-block;width:20px;height:5px;margin-right:7px}.roadSectionList{margin:4px 0 7px 12px;border-left:3px solid #8ba4b3;padding:4px 0 4px 9px}.roadSection{display:grid;grid-template-columns:10px 1fr auto;gap:6px;align-items:center;padding:5px 3px;border-bottom:1px dotted #c2ccd2;font-size:11px}.roadDot{width:9px;height:9px;border-radius:50%}.roadKm{font-weight:bold;white-space:nowrap}.roadType{font-size:9px;color:#607580}.roadEmpty{padding:7px;color:#687b87;font-size:11px}.icInfo{padding:7px;background:#fff8cf;border:1px solid #ceb95d;font-size:11px;margin:5px 0}
 .route-callout{width:176px;min-height:58px;background:#fff;border:2px solid #176fa7;border-radius:5px;padding:5px 7px;color:#111;white-space:nowrap;box-shadow:0 2px 6px #0004;text-align:center;font-size:10px;line-height:1.3}.route-callout b{display:block;font-size:11px;color:#111;border-bottom:1px solid #9bb9ca;margin-bottom:3px;padding-bottom:2px}.route-callout.route2{border-color:#f28c28}.route-callout.route2 b{border-bottom-color:#f3b978}.routeNo{font-weight:bold;color:#176fa7}.routeHint{font-size:10px;color:#526b78;margin-top:3px}.narrow-callout{background:#fff7a8;border:3px solid #e0b900;border-radius:5px;padding:6px 10px;color:#332900;white-space:nowrap;box-shadow:0 3px 9px #0006;font-size:12px;font-weight:bold;line-height:1.4;z-index:1500}.narrow-callout .caution-title{display:block;font-size:13px;color:#6b5200;border-bottom:1px solid #d8b400;margin-bottom:3px;padding-bottom:2px}.narrow-callout small{display:block;font-size:10px;font-weight:bold;color:#5f4d00}.narrow-callout.fail{background:#fff0f0;border-color:#d00000;color:#700}.narrow-callout.fail .caution-title{color:#b00000;border-bottom-color:#d00000}
-.route-soft{mix-blend-mode:normal;filter:none}
+.route-soft{mix-blend-mode:normal;filter:none;stroke-width:2.5px!important}
 .route-casing{pointer-events:none}
+.route-casing{stroke-width:4px!important}
+.route-check-status{stroke-width:1.5px!important}
+.narrow-section-line{stroke-width:2px!important}
+#status{width:min(360px,max(210px,calc(100vw - 440px)));max-width:360px;font-size:12px;line-height:1.35}
+.route-summary{font-size:12px;line-height:1.45}
 .route-legend-open #narrowVectorPanel,.route-legend-open #status{display:none!important}
 .route-legend b{display:block;margin:3px 0 4px;padding-top:4px;border-top:1px solid #c5d0d6;font-size:11px}
 .route-legend b:first-child{padding-top:0;border-top:0}
@@ -157,6 +162,20 @@ function pointAtRouteFraction(route,fraction){
   const ratio=Math.max(0,Math.min(1,(target-segment.start)/segment.length));
   return{point:[segment.a[0]+(segment.b[0]-segment.a[0])*ratio,segment.a[1]+(segment.b[1]-segment.a[1])*ratio],distance:target};
 }
+function routeSideScore(route,baseRoute){
+  let score=0;
+  for(const fraction of[.2,.35,.5,.65,.8]){
+    const base=pointAtRouteFraction(baseRoute,fraction).point,alternate=pointAtRouteFraction(route,fraction).point;
+    const before=pointAtRouteFraction(baseRoute,Math.max(0,fraction-.02)).point,after=pointAtRouteFraction(baseRoute,Math.min(1,fraction+.02)).point;
+    const cosLat=Math.cos(base[1]*Math.PI/180);
+    let east=(after[0]-before[0])*cosLat,north=after[1]-before[1],length=Math.hypot(east,north)||1;
+    east/=length;north/=length;
+    let normalEast=-north,normalNorth=east;
+    if(normalNorth-.01*normalEast< -normalNorth+.01*normalEast){normalEast=-normalEast;normalNorth=-normalNorth}
+    score+=((alternate[0]-base[0])*cosLat*normalEast+(alternate[1]-base[1])*normalNorth)*111320;
+  }
+  return score/5;
+}
 function routeExclusionPolygons(routes){
   const failedSteps=[],seen=new Set();
   const existingPolygons=routes.flatMap(route=>route._narrowExclusionPolygons||[]),seenPolygons=new Set();
@@ -171,28 +190,58 @@ function routeExclusionPolygons(routes){
   if(perimeter>9900)throw Error('NG区間を避ける範囲の合計が検索サービスの上限（1万m）を超えました');
   return polygons;
 }
-async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures,excludedRoutes=[]){
+async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures,excludedRoutes=[],nearbyRoutes=[]){
+  const nearby=nearbyRoutes.filter(route=>!usedSignatures.has(trolleyGeometrySignature(route)))
+    .map(route=>({route,score:routeSideScore(route,baseRoute)}))
+    .filter(item=>item.score*side>250);
+  if(nearby.length){
+    const candidate=nearby.sort((a,b)=>a.route.distance-b.route.distance||a.route.duration-b.route.duration)[0].route;
+    candidate._displayLabel=label;candidate._routeNo=baseRoute._routeNo;candidate._searchPoints=points;
+    candidate._narrowExclusionPolygons=routeExclusionPolygons(excludedRoutes);
+    candidate._detourSearchMode='nearby';
+    usedSignatures.add(trolleyGeometrySignature(candidate));
+    return candidate;
+  }
   let lastError,candidatesFound=[];
-  for(const fraction of[.5,.4,.6,.3,.7]){
+  const polygons=routeExclusionPolygons(excludedRoutes);
+  const searchPointsAt=(fraction,offsetMeters)=>{
     const{point,distance}=pointAtRouteFraction(baseRoute,fraction);
-    const polygons=routeExclusionPolygons(excludedRoutes);
-    // 出発地→目的地の直線に直角な向きへ20kmずらす。Aは北寄り（同じなら西）、Bはその反対側
     const coords=baseRoute.geometry?.coordinates||[point,point],first=coords[0],last=coords.at(-1),cosLat=Math.cos(point[1]*Math.PI/180);
     let ex=(last[0]-first[0])*cosLat,ny=last[1]-first[1];const len=Math.hypot(ex,ny)||1;ex/=len;ny/=len;
     let px=-ny,py=ex;if(py-.01*px<-py+.01*px){px=-px;py=-py}
-    const waypoint={lat:point[1]+side*py*20000/111320,lon:point[0]+side*px*20000/111320/cosLat,name:label+'迂回検索点',type:'迂回検索点'};
+    const waypoint={lat:point[1]+side*py*offsetMeters/111320,lon:point[0]+side*px*offsetMeters/111320/cosLat,name:label+'迂回検索点',type:'迂回検索点'};
     let legIndex=0,legEnd=0;
     for(let i=0;i<(baseRoute.legs||[]).length;i++){legEnd+=(baseRoute.legs[i].distance||0);if(distance<=legEnd){legIndex=i;break}}
     const viaPoints=points.slice();viaPoints.splice(Math.min(legIndex+1,viaPoints.length-1),0,waypoint);
-    try{
-      const routes=polygons.length?[await getRoutesAvoiding(viaPoints,polygons)]:await getRoutes(viaPoints);
-      for(const candidate of routes){
-        if(usedSignatures.has(trolleyGeometrySignature(candidate)))continue;
-        candidate._displayLabel=label;candidate._routeNo=baseRoute._routeNo;candidate._searchPoints=viaPoints;candidate._narrowExclusionPolygons=polygons;
-        candidatesFound.push(candidate);
-      }
-      if(!routes.some(route=>!usedSignatures.has(trolleyGeometrySignature(route))))lastError=Error(label+'回りの異なる経路が見つかりませんでした');
-    }catch(error){lastError=error}
+    return viaPoints;
+  };
+  const searchCandidates=async(fractions,offsets,mode,requireSide)=>{
+    const attempts=fractions.flatMap(fraction=>offsets.map(offset=>({fraction,offset})));
+    const results=await Promise.all(attempts.map(async({fraction,offset})=>{
+      try{
+        const viaPoints=searchPointsAt(fraction,offset);
+        const routes=polygons.length?[await getRoutesAvoiding(viaPoints,polygons)]:await getRoutes(viaPoints);
+        return routes.filter(candidate=>{
+          if(usedSignatures.has(trolleyGeometrySignature(candidate)))return false;
+          if(requireSide&&routeSideScore(candidate,baseRoute)*side<=250)return false;
+          candidate._displayLabel=label;candidate._routeNo=baseRoute._routeNo;candidate._searchPoints=viaPoints;
+          candidate._narrowExclusionPolygons=polygons;candidate._detourSearchMode=mode;
+          return true;
+        });
+      }catch(error){lastError=error;return[]}
+    }));
+    candidatesFound.push(...results.flat());
+  };
+  await searchCandidates([.35,.5,.65],[500,1500],'nearby',true);
+  const localCandidates=[...new Map(candidatesFound.map(route=>[trolleyGeometrySignature(route),route])).values()];
+  if(localCandidates.length){
+    const candidate=localCandidates.sort((a,b)=>a.distance-b.distance||a.duration-b.duration)[0];
+    usedSignatures.add(trolleyGeometrySignature(candidate));
+    return candidate;
+  }
+  candidatesFound=[];
+  for(const fraction of[.5,.4,.6,.3,.7]){
+    await searchCandidates([fraction],[20000],'20km',false);
   }
   if(candidatesFound.length){
     const candidate=candidatesFound.sort((a,b)=>a.distance-b.distance||a.duration-b.duration)[0];
@@ -485,7 +534,7 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
       try{
         $('status').textContent=`${label}ルートを検索しています（元ルートから左右へ20kmの検索点を複数比較）…`;
         const excludedRoutes=side===1?[originalRoute]:[originalRoute,...displayRoutes];
-        let candidate=await getNorthSouthRoute(points,originalRoute,side,label,usedSignatures,excludedRoutes);
+        let candidate=await getNorthSouthRoute(points,originalRoute,side,label,usedSignatures,excludedRoutes,routes);
         const checkLabel=`ルート${routeNo} ${label}（確認${displayRoutes.length+2}/3・${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}）`;
         showRouteCheckPreview(candidate,checkLabel);
         let candidateWays=[],candidateWarning='';
@@ -544,9 +593,9 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     if(route.trolleyCensusWarning)summary+='。国交省道路交通センサス車線情報を取得できませんでした：'+route.trolleyCensusWarning;
     if(route.trolleyVectorWarning)summary+='。道路中心線の取得エラー（標準地図画像で補助確認）：'+route.trolleyVectorWarning;
     if(route.trolleyDataWarning)summary+='。OpenStreetMapの道路情報を取得できませんでした（道路名・車線数の補助情報なし）：'+route.trolleyDataWarning;
-    const candidateSummary=displayRoutes.map(candidate=>`${candidate._displayLabel||'迂回路'} ${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}`).join('、');
-    const message=`元ルートと調査用迂回路を表示しました。${candidateSummary||'迂回路候補なし'}。複数候補から距離の短い道を選び、同距離なら時間の短い道を選択。迂回路は比較用です。`;
-    summary+='。迂回候補は5か所の検索位置から選び、距離が短いものを優先。同距離なら所要時間が短いものを表示';
+    const candidateSummary=displayRoutes.map(candidate=>`${candidate._displayLabel||'迂回路'} ${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}（${candidate._detourSearchMode==='nearby'?'近い別経路':'20km検索'}）`).join('、');
+    const message=`元ルートと調査用迂回路を表示しました。${candidateSummary||'迂回路候補なし'}。近い別経路があれば優先し、なければ20km検索。迂回路は比較用です。`;
+    summary+='。近い別経路が見つかれば優先し、なければ20km検索の候補から距離が短いもの、同距離なら時間が短いものを表示';
     route._summary=summary;
     renderPlaces();
     if(!batch)$('status').textContent=message;

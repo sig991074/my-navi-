@@ -49,7 +49,7 @@ function trolleyFailThresholdSamples(){let value=Number($('trolleyFailLength')?.
 function classifyTrolleyFailureRuns(samples){const sorted=samples.slice().sort((a,b)=>a.leg-b.leg||a.station-b.station),runs=[];for(const sample of sorted){const run=runs[runs.length-1];if(!run||run.leg!==sample.leg||sample.station-run.lastStation>20.1)runs.push({leg:sample.leg,lastStation:sample.station,samples:[sample]});else{run.lastStation=sample.station;run.samples.push(sample)}}return runs.map(run=>({samples:run.samples,lengthMeters:run.samples.length*20,sustained:run.samples.length>=trolleyFailThresholdSamples()}))}
 function trolleyDisplayedWidth(check){return check?.status==='fail'?check.failureMinWidth:check?.status==='caution'?check.cautionMinWidth:check?.minWidth}
 function narrowInfo(s){
-  if(s._trolleyCheck){if(s._trolleyCheck.status==='caution'){let measuredWidth=s._trolleyCheck.cautionMinWidth;return{label:'連続 '+((s._trolleyCheck.mapMaxRun||0)/1000).toFixed(2)+'kmの幅不足（設定未満・注意して通過可）'+(Number.isFinite(measuredWidth)?'／測定道路幅 約'+measuredWidth.toFixed(1)+'m':''),known:false,width:measuredWidth}}if(s._trolleyCheck.status!=='fail')return null;let measuredWidth=s._trolleyCheck.failureMinWidth,placement=s._trolleyCheck.placement||'左右端を確認',clearance=Number.isFinite(s._trolleyCheck.minimumClearance)?'／余裕 '+s._trolleyCheck.minimumClearance.toFixed(1)+'m':'';return{label:placement+'で左右端が道路内に収まらない'+clearance+(Number.isFinite(measuredWidth)?'／測定道路幅 約'+measuredWidth.toFixed(1)+'m':'／道路幅を測定できず'),known:true,width:measuredWidth}}
+  if(s._trolleyCheck){if(s._trolleyCheck.status==='caution'){let measuredWidth=s._trolleyCheck.cautionMinWidth;return{label:'連続 '+((s._trolleyCheck.mapMaxRun||0)/1000).toFixed(2)+'kmの幅不足（設定距離未満・要注意）'+(Number.isFinite(measuredWidth)?'／測定道路幅 約'+measuredWidth.toFixed(1)+'m':''),known:false,width:measuredWidth}}if(s._trolleyCheck.status!=='fail')return null;let measuredWidth=s._trolleyCheck.failureMinWidth,placement=s._trolleyCheck.placement||'左右端を確認',clearance=Number.isFinite(s._trolleyCheck.minimumClearance)?'／余裕 '+s._trolleyCheck.minimumClearance.toFixed(1)+'m':'';return{label:placement+'で左右端が道路内に収まらない'+clearance+(Number.isFinite(measuredWidth)?'／測定道路幅 約'+measuredWidth.toFixed(1)+'m':'／道路幅を測定できず'),known:true,width:measuredWidth}}
   if(s._endpointExcluded)return null;
   let i=roadInfo(s),limit=narrowLimit(),name=(s.name||'').trim(),ref=(s.ref||'').trim(),text=(name+' '+ref).toLowerCase();
   let named=!!name&&!/道路名なし/.test(name),highwayEntry=/高速|自動車道|expressway|motorway|ランプ|入口|出口|ジャンクション|インターチェンジ|ic|jct/i.test(text)||/motorway|trunk|_link/i.test(String(s.highway||s.road_class||''));
@@ -64,7 +64,7 @@ function narrowInfo(s){
 function markEndpointExclusions(r){let steps=r.steps||[],total=steps.reduce((a,s)=>a+(s.distance||0),0),fromStart=0;steps.forEach(s=>{let d=s.distance||0,mid=fromStart+d/2;s._endpointExcluded=mid<300||total-mid<300;fromStart+=d})}
 let trolleyOsmCache=new Map(),trolleyTileCache=new Map(),trolleyOsmLastRequest=0;
 function trolleyDimensions(){let width=Number($('trolleyWidth')?.value),length=Number($('trolleyLength')?.value);if(!Number.isFinite(width)||width<1||width>20||!Number.isFinite(length)||length<1||length>30)throw Error('トロッコ寸法を確認してください（横幅1～20m、長さ1～30m）');return{width,length}}
-function addTrolleyControls(){if($('trolleyWidth'))return;let source=$('source'),box=document.createElement('div');box.className='icInfo';box.innerHTML='<b>狭隘道路チェック（通過幅）</b><br>横幅 <input id="trolleyWidth" type="number" min="1" max="20" step="0.1" value="4.1" aria-label="トロッコ横幅 m" style="width:48px"> m × 車両長 <input id="trolleyLength" type="number" min="1" max="30" step="0.1" value="5" aria-label="トロッコ長さ m" style="width:48px"> m<br>道幅 <input id="trolleyNarrowLimit" type="number" min="1" max="9.9" step="0.1" value="4.1" aria-label="狭隘道路不可 m未満" style="width:48px"> m未満<br>狭隘道路不可 <input id="trolleyFailLength" type="number" min="20" max="9999" step="20" value="1000" aria-label="狭隘道路不可 長さ m" style="width:64px"> m以上連続で不可（設定長以上の区間を迂回）<br><small>設定未満の連続区間は狭隘注意として表示し、通過可。中央線ありは中央線上、なし・不明はキープレフトで照合。</small>';source.parentElement.insertBefore(box,source.nextElementSibling);let main=$('narrowWidth'),mirror=box.querySelector('#trolleyNarrowLimit');if(main){try{let s=localStorage.getItem('ev_narrowWidth');if(s!==null)main.value=s}catch(e){}main.addEventListener('change',()=>{try{localStorage.setItem('ev_narrowWidth',main.value)}catch(e){}});mirror.value=main.value;mirror.addEventListener('input',()=>{main.value=mirror.value;main.dispatchEvent(new Event('input',{bubbles:true}));main.dispatchEvent(new Event('change',{bubbles:true}))});main.addEventListener('input',()=>{mirror.value=main.value})}box.querySelectorAll('input').forEach(input=>{try{let saved=localStorage.getItem('ev_'+input.id);if(saved!==null&&input.id!=='trolleyNarrowLimit')input.value=saved}catch(e){}input.addEventListener('change',()=>{try{localStorage.setItem('ev_'+input.id,input.value)}catch(e){}});['mousedown','click','dragstart'].forEach(type=>input.addEventListener(type,event=>event.stopPropagation()))})}
+function addTrolleyControls(){if($('trolleyWidth'))return;let source=$('source'),box=document.createElement('div');box.className='icInfo';box.innerHTML='<b>狭隘道路チェック（通過幅）</b><br>横幅 <input id="trolleyWidth" type="number" min="1" max="20" step="0.1" value="4.1" aria-label="トロッコ横幅 m" style="width:48px"> m × 車両長 <input id="trolleyLength" type="number" min="1" max="30" step="0.1" value="5" aria-label="トロッコ長さ m" style="width:48px"> m<br>道幅 <input id="trolleyNarrowLimit" type="number" min="1" max="9.9" step="0.1" value="4.1" aria-label="狭隘道路不可 m未満" style="width:48px"> m未満<br>狭隘道路不可 <input id="trolleyFailLength" type="number" min="20" max="9999" step="20" value="1000" aria-label="狭隘道路不可 長さ m" style="width:64px"> m以上連続で不可（設定長以上の区間を迂回）<br><small>設定未満の狭隘注意・幅未判定も安全側に扱い、迂回検索します。中央線ありは中央線上、なし・不明はキープレフトで照合。</small>';source.parentElement.insertBefore(box,source.nextElementSibling);let main=$('narrowWidth'),mirror=box.querySelector('#trolleyNarrowLimit');if(main){try{let s=localStorage.getItem('ev_narrowWidth');if(s!==null)main.value=s}catch(e){}main.addEventListener('change',()=>{try{localStorage.setItem('ev_narrowWidth',main.value)}catch(e){}});mirror.value=main.value;mirror.addEventListener('input',()=>{main.value=mirror.value;main.dispatchEvent(new Event('input',{bubbles:true}));main.dispatchEvent(new Event('change',{bubbles:true}))});main.addEventListener('input',()=>{mirror.value=main.value})}box.querySelectorAll('input').forEach(input=>{try{let saved=localStorage.getItem('ev_'+input.id);if(saved!==null&&input.id!=='trolleyNarrowLimit')input.value=saved}catch(e){}input.addEventListener('change',()=>{try{localStorage.setItem('ev_'+input.id,input.value)}catch(e){}});['mousedown','click','dragstart'].forEach(type=>input.addEventListener(type,event=>event.stopPropagation()))})}
 function positiveRoadWidth(value){let match=String(value||'').match(/^\s*(\d+(?:\.\d+)?)\s*(m|ft|feet|')?\s*$/i);if(!match)return null;let width=Number(match[1]);if(/^(ft|feet|')$/i.test(match[2]||''))width*=0.3048;return Number.isFinite(width)&&width>0&&width<100?width:null}
 function explicitCenterLine(tags){for(let key of ['centre_line','center_line','centreline','centerline','lane_markings','road_markings']){let value=String(tags?.[key]||'').trim().toLowerCase();if(/^(no|none|false|0|unmarked|absent)$/.test(value))return false;if(/^(yes|true|1|painted|marked|solid|dashed|broken|double|white|yellow|both|centre|center)$/.test(value))return true}return null}
 function hasMultipleLaneTags(tags={}){
@@ -192,15 +192,17 @@ function routeSharedFraction(route,baseRoute,toleranceMeters=50){
   return shared/samples;
 }
 function routeExclusionPolygons(routes){
-  const failedSteps=[],seen=new Set();
+  const triggerSteps=[],seenSteps=new Set(),seen=new Set();
   const existingPolygons=routes.flatMap(route=>route._narrowExclusionPolygons||[]),seenPolygons=new Set();
   const polygons=existingPolygons.filter(ring=>{const key=JSON.stringify(ring);if(seenPolygons.has(key))return false;seenPolygons.add(key);return true});
-  for(const route of routes)for(const step of route.trolleyFailures||[]){
-    const points=step._trolleyCheck?.failurePoints?.length?step._trolleyCheck.failurePoints:step.geometry?.coordinates||[];
+  for(const route of routes)for(const step of routeDetourTriggerSteps(route)){
+    if(seenSteps.has(step))continue;
+    seenSteps.add(step);
+    const points=detourTriggerPoints(step);
     const key=JSON.stringify(points.filter((_,index)=>index%Math.max(1,Math.floor(points.length/20))===0).map(point=>point.map(value=>Number(value.toFixed(5)))));
-    if(!seen.has(key)){seen.add(key);failedSteps.push(step)}
+    if(!seen.has(key)){seen.add(key);triggerSteps.push(step)}
   }
-  if(failedSteps.length)polygons.push(...failurePolygons({steps:failedSteps}));
+  if(triggerSteps.length)polygons.push(...detourTriggerPolygons({steps:triggerSteps}));
   const perimeter=polygons.reduce((sum,ring)=>sum+ring.reduce((length,point,index)=>index?length+dist({lat:ring[index-1][1],lon:ring[index-1][0]},{lat:point[1],lon:point[0]})*1000:length,0),0);
   if(perimeter>9900)throw Error('NG区間を避ける範囲の合計が検索サービスの上限（1万m）を超えました');
   return polygons;
@@ -275,15 +277,26 @@ async function getArterialRoadCandidates(anchors,baseRoute,side){
     return[...unique.values()].sort((a,b)=>a.distance-b.distance).slice(0,maxCandidatesPerAnchor).map(point=>({...point,_anchorIndex:index}));
   });
 }
+function detourTriggerPoints(step){
+  const check=step._trolleyCheck||{};
+  for(const points of[check.failurePoints,check.cautionPoints,check.mapFallbackUnavailablePoints,check.mapFallbackNotDetectedPoints,step.geometry?.coordinates]){
+    const valid=points?.filter(point=>Number.isFinite(point?.[0])&&Number.isFinite(point?.[1]));
+    if(valid?.length)return valid;
+  }
+  return[];
+}
+function routeDetourTriggerSteps(route){
+  return(route.steps||[]).filter(step=>['fail','caution','unchecked'].includes(step._trolleyCheck?.status));
+}
 function detourBoundaryPoints(baseRoute){
-  const failures=(baseRoute.trolleyFailures||[]).slice().sort((a,b)=>(a._routeLegIndex||0)-(b._routeLegIndex||0));
-  if(!failures.length)throw Error('元ルートに幅不足NG区間がありません');
-  const first=failures[0],last=failures[failures.length-1];
-  const firstPoints=first._trolleyCheck?.failurePoints?.length?first._trolleyCheck.failurePoints:first.geometry?.coordinates||[];
-  const lastPoints=last._trolleyCheck?.failurePoints?.length?last._trolleyCheck.failurePoints:last.geometry?.coordinates||[];
+  const triggers=routeDetourTriggerSteps(baseRoute).slice().sort((a,b)=>(a._routeLegIndex||0)-(b._routeLegIndex||0));
+  if(!triggers.length)throw Error('幅不足・狭隘注意・幅未判定の区間がありません');
+  const first=triggers[0],last=triggers[triggers.length-1];
+  const firstPoints=detourTriggerPoints(first);
+  const lastPoints=detourTriggerPoints(last);
   const start=firstPoints[0],end=lastPoints[lastPoints.length-1];
-  if(!start||!end)throw Error('狭隘NG区間の始点・終点を特定できませんでした');
-  return[{lat:start[1],lon:start[0],name:'NG区間始点',type:'迂回基準点'},{lat:end[1],lon:end[0],name:'NG区間終点',type:'迂回基準点'},failures[0]._routeLegIndex||0,failures[failures.length-1]._routeLegIndex||0];
+  if(!start||!end)throw Error('幅不足・狭隘注意・幅未判定区間の始点・終点を特定できませんでした');
+  return[{lat:start[1],lon:start[0],name:'幅確認対象区間始点',type:'迂回基準点'},{lat:end[1],lon:end[0],name:'幅確認対象区間終点',type:'迂回基準点'},first._routeLegIndex||0,last._routeLegIndex||0];
 }
 function pointInRing(point,ring){
   let inside=false;
@@ -323,12 +336,12 @@ function pointOutsideNgArea(point,route,polygons,direction){
   }
   throw Error('NG区間の除外範囲外に先行検証の始点・終点を置けませんでした');
 }
-function routeStillUsesFailedInterior(route,failedSteps,boundaryPoints=[]){
+function routeStillUsesDetourTrigger(route,triggerSteps,boundaryPoints=[]){
   const coordinates=route.geometry?.coordinates||[];
   if(coordinates.length<2)return true;
   const distanceToRoute=point=>{let best=Infinity;for(let i=1;i<coordinates.length;i++)best=Math.min(best,localPointSegmentDistance(point,coordinates[i-1],coordinates[i]));return best};
-  for(const step of failedSteps){
-    const points=step._trolleyCheck?.failurePoints||[];
+  for(const step of triggerSteps){
+    const points=detourTriggerPoints(step);
     if(points.length){
       if(points.some(point=>!boundaryPoints.some(boundary=>dist({lat:point[1],lon:point[0]},boundary)*1000<=45)&&distanceToRoute(point)<=45))return true;
     }else if(routeStillUsesFailedRoad(route,[step]))return true;
@@ -387,7 +400,7 @@ async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures,exc
       try{
         const route=await getRoutesAvoiding(testPoints,polygons);
         if(usedSignatures.has(trolleyGeometrySignature(route)))continue;
-        if(routeStillUsesFailedInterior(route,baseRoute.trolleyFailures,[ngStart,ngEnd])||!routeStaysOnSelectedSide(route,baseRoute,side,before,after))continue;
+        if(routeStillUsesDetourTrigger(route,routeDetourTriggerSteps(baseRoute),[ngStart,ngEnd])||!routeStaysOnSelectedSide(route,baseRoute,side,before,after))continue;
         reachable.push({route,before,after,testPoints});
       }catch(error){if(error.message!=='NoRoute')lastError=error}
     }
@@ -402,7 +415,7 @@ async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures,exc
     try{
       let candidate=await getRoutesAvoiding(actualPoints,polygons);
       if(usedSignatures.has(trolleyGeometrySignature(candidate)))continue;
-      if(routeStillUsesFailedInterior(candidate,baseRoute.trolleyFailures,[ngStart,ngEnd])||!routeStaysOnSelectedSide(candidate,baseRoute,side,item.before,item.after))continue;
+      if(routeStillUsesDetourTrigger(candidate,routeDetourTriggerSteps(baseRoute),[ngStart,ngEnd])||!routeStaysOnSelectedSide(candidate,baseRoute,side,item.before,item.after))continue;
       candidate._displayLabel=label;candidate._routeNo=baseRoute._routeNo;candidate._searchPoints=actualPoints;
       candidate._narrowExclusionPolygons=polygons;candidate._detourSearchMode='20km-arterial';
       const checkLabel='ルート'+baseRoute._routeNo+' '+label+'（実出発地発・'+(candidate.distance/1000).toFixed(1)+'km・'+formatDuration(candidate.duration)+'）';
@@ -411,10 +424,10 @@ async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures,exc
       await prepareRoute(candidate,ways,'',checkLabel);
       if(candidate.trolleyFailures.length){
         candidate=(await rerouteNarrowFailures(actualPoints,candidate,baseRoute._routeNo,label,excludedRoutes)).route;
-        if(routeStillUsesFailedInterior(candidate,baseRoute.trolleyFailures,[ngStart,ngEnd])||!routeStaysOnSelectedSide(candidate,baseRoute,side,item.before,item.after))continue;
+        if(routeStillUsesDetourTrigger(candidate,routeDetourTriggerSteps(baseRoute),[ngStart,ngEnd])||!routeStaysOnSelectedSide(candidate,baseRoute,side,item.before,item.after))continue;
       }
-      if(candidate.trolleyFailures.length||candidate.trolleyUnchecked){
-        lastError=Error(label+'：実出発地発の候補に幅不足または幅未判定区間が残っています');
+      if(candidate.trolleyFailures.length||candidate.trolleyCautions.length||candidate.trolleyUnchecked){
+        lastError=Error(label+'：実出発地発の候補に幅不足・狭隘注意または幅未判定区間が残っています');
         continue;
       }
       usedSignatures.add(trolleyGeometrySignature(candidate));
@@ -423,7 +436,7 @@ async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures,exc
   }
   throw Error(lastError?.message||label+'：②発の到達検証後、実出発地発で幅チェックに合格する候補がありません');
 }
-function failurePolygons(route,bufferMeters=35){
+function detourTriggerPolygons(route,bufferMeters=35){
   const clusters=[];
   const pointSegmentDistance=(point,a,b)=>{
     const dx=b[0]-a[0],dy=b[1]-a[1],length=dx*dx+dy*dy;
@@ -431,9 +444,8 @@ function failurePolygons(route,bufferMeters=35){
     return Math.hypot(point[0]-a[0]-t*dx,point[1]-a[1]-t*dy);
   };
   for(const step of route.steps||[]){
-    if(step._trolleyCheck?.status!=='fail')continue;
-    const points=(step._trolleyCheck.failurePoints?.length?step._trolleyCheck.failurePoints:step.geometry?.coordinates||[])
-      .filter(point=>Number.isFinite(point?.[0])&&Number.isFinite(point?.[1]));
+    if(!['fail','caution','unchecked'].includes(step._trolleyCheck?.status))continue;
+    const points=detourTriggerPoints(step);
     let cluster=[];
     for(const point of points){
       if(cluster.length&&localPointSegmentDistance(point,cluster[cluster.length-1],cluster[cluster.length-1])>100){clusters.push(cluster);cluster=[]}
@@ -441,7 +453,7 @@ function failurePolygons(route,bufferMeters=35){
     }
     if(cluster.length)clusters.push(cluster);
   }
-  if(!clusters.length)throw Error('幅不足の道路区間から除外区域を作成できませんでした');
+  if(!clusters.length)throw Error('幅不足・狭隘注意・幅未判定区間から迂回対象範囲を作成できませんでした');
   const simplify=(points,tolerance)=>{
     if(points.length<=2)return points;
     let max=0,index=0,a=points[0],b=points[points.length-1];
@@ -672,8 +684,7 @@ async function findTrolleySafeRoute(points,routes,routeNo){
   try{ways=await getRouteOsmWays(route)}catch(error){warning=error.message||'OpenStreetMapの道路情報を取得できませんでした'}
   await prepareRoute(route,ways,warning,checkLabel);
   route._displayLabel='元ルート';
-  const originalRouteFailed=!!route.trolleyFailures.length;
-  return{route,originalRoute:route,detourRoutes:[],detoured:false,originalRouteFailed,unverified:!!route.trolleyUnchecked};
+  return{route,originalRoute:route,detourRoutes:[],detoured:false};
 }
 function unverifiedTrolleyRoadNames(route){
   return[...new Set((route.steps||[])
@@ -708,7 +719,7 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     }
     chosenRouteGeometry[routeNo]=route.geometry;
     const originalRoute=result.originalRoute||route,usedSignatures=new Set([trolleyGeometrySignature(originalRoute)]),displayRoutes=[],detourErrors=[];
-    const detourSides=originalRoute.trolleyFailures.length?[[1,'迂回路A（北回り）'],[-1,'迂回路B（南回り）']]:[];
+    const detourSides=routeDetourTriggerSteps(originalRoute).length?[[1,'迂回路A（北回り）'],[-1,'迂回路B（南回り）']]:[];
     for(const[side,label]of detourSides){
       try{
         $('status').textContent=`${label}ルートを検索しています（4地点から20km圏内の基幹道路を探索）…`;
@@ -729,11 +740,11 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     styleRouteOptionLines(routeNo);
     addRouteOptionMarkers(routeNo);
     const failed=route.trolleyFailures.length,cautions=route.trolleyCautions?.length||0;
-    let summary='通過確認 '+route.trolleyChecked+'区間、未判定 '+route.trolleyUnchecked+'区間、対象外 '+route.trolleyExcluded+'区間'+(failed?'、狭隘道路不可 '+failed+'区間':'')+(cautions?'、狭隘注意 '+cautions+'区間（設定距離未満のため注意して通過可）':'');
+    let summary='通過確認 '+route.trolleyChecked+'区間、未判定 '+route.trolleyUnchecked+'区間、対象外 '+route.trolleyExcluded+'区間'+(failed?'、狭隘道路不可 '+failed+'区間':'')+(cautions?'、狭隘注意 '+cautions+'区間（設定距離未満の注意区間）':'');
     const unverifiedRoads=unverifiedTrolleyRoadNames(route);
     if(unverifiedRoads.length)summary+='。幅未判定の道路：'+unverifiedRoads.slice(0,5).join('、')+(unverifiedRoads.length>5?'、ほか':'');
-    if(displayRoutes.length)summary+='。調査用候補：'+displayRoutes.map(candidate=>(candidate._displayLabel||'迂回路')+' '+(candidate.distance/1000).toFixed(1)+'km（幅不足 '+candidate.trolleyFailures.length+'区間、未判定 '+candidate.trolleyUnchecked+'区間）').join('、')+'。迂回路はNG道路区間を避けた調査用です。元ルートは置き換えず、最終ルートへの経由地設定は人が行います。点線は使わず全て実線です。赤線＝幅不足、黄線＝狭隘注意・幅未判定。各線をクリックすると区間状態を確認できます';
-    if(result.originalRouteFailed){
+    if(displayRoutes.length)summary+='。調査用候補：'+displayRoutes.map(candidate=>(candidate._displayLabel||'迂回路')+' '+(candidate.distance/1000).toFixed(1)+'km（幅不足 '+candidate.trolleyFailures.length+'区間、狭隘注意 '+candidate.trolleyCautions.length+'区間、未判定 '+candidate.trolleyUnchecked+'区間）').join('、')+'。幅不足・狭隘注意・幅未判定区間を避けた調査用です。元ルートは置き換えず、最終ルートへの経由地設定は人が行います。点線は使わず全て実線です。赤線＝幅不足、黄線＝狭隘注意・幅未判定。各線をクリックすると区間状態を確認できます';
+    if(detourSides.length){
       if(displayRoutes.length<2)summary+='。迂回路候補は'+displayRoutes.length+'本だけ取得できました';
       else if(failed)summary=(result.detoured?'代替候補を検索しましたが、通行幅不足区間が未回避です。該当区間の残る候補を表示：':'安全な迂回候補を確認できず、通行幅不足区間の残る元ルートを表示：')+summary;
       else if(result.detoured)summary='幅不足区間を回避したルートを表示：'+summary;
@@ -741,8 +752,8 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     if(result.detourError)summary+='。迂回検索の結果：'+result.detourError;
     const routeErrors=[...detourErrors,...displayRoutes.filter(candidate=>candidate._detourError).map(candidate=>(candidate._displayLabel||'迂回路')+'：'+candidate._detourError)];
     if(routeErrors.length)summary+=(summary.endsWith('。')?'':'。')+routeErrors.join('。');
-    if(result.originalRouteFailed)summary+='。迂回検索に出発地・経由地・NG区域をValhalla公開サービスへ送信しました';
-    if(route.trolleyUnchecked)summary+='。幅未判定が残っており、狭隘道路の有無を確認できていません。既知の幅不足NGがないため、迂回検索は開始していません';
+    if(detourSides.length)summary+='。幅不足・狭隘注意・幅未判定の対象範囲を除外し、迂回路検索を実施しました';
+    if(route.trolleyUnchecked)summary+='。元ルートには幅未判定が残っており、狭隘道路の有無を確定できていません'+(detourSides.length?'。安全側に扱い、その区間を避ける迂回検索を試しました':'。迂回対象となる区間はありません');
     if(route.trolleyVectorUsed){
       if(route.trolleyMapFallbackUsed){
         summary+='。標準地図画像を中央線なし方式で '+route.trolleyMapFallbackAttempts+' 地点補助確認';
@@ -757,7 +768,7 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
           summary+='、地図画像取得不可 '+route.trolleyMapFallbackUnavailable+' 地点'+(locations?'（緯度,経度 '+locations+(route.trolleyMapFallbackUnavailablePoints.length>3?'ほか':'')+'）':'');
         }
       }else summary+='。地理院RdCL・RdEdg画像照合';
-    }else summary+='。RdEdg未読込のため未判定です（Fありは迂回未確認、Fなしは警告のみでルート維持）';
+    }else summary+='。RdEdg未読込のため道路幅を直接確認できず、幅未判定区間を対象に迂回検索します';
     if(route.trolleyIntersectionSkippedPoints.length){
       const locations=route.trolleyIntersectionSkippedPoints.slice(0,3)
         .map(point=>point[1].toFixed(5)+','+point[0].toFixed(5)).join('／');
@@ -769,12 +780,16 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     if(route.trolleyDataWarning)summary+='。OpenStreetMapの道路情報を取得できませんでした（道路名・車線数の補助情報なし）：'+route.trolleyDataWarning;
     const candidateSummary=displayRoutes.map(candidate=>`${candidate._displayLabel||'迂回路'} ${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}`).join('、');
     const message=originalRoute.trolleyFailures.length
-      ?`元ルートと狭隘NGを避けた調査用迂回路を表示しました。${candidateSummary||'迂回路候補なし'}。②から目的地へ到達できる候補を検証し、最短候補から実出発地発の本経路を確認しました。`
-      :route.trolleyUnchecked
-        ?`狭隘道路の有無を確認できていません（幅未判定 ${route.trolleyUnchecked} 区間）。未判定道路：${unverifiedRoads.slice(0,5).join('、')||'道路幅データ不足'}。既知の幅不足NGがないため迂回検索はしていません。`
-        :cautions
-          ?`設定距離以上の幅不足NGはありませんが、設定距離未満の狭隘注意が ${cautions} 区間あります。迂回検索はしていません。`
-          :'幅を確認できた対象区間に幅不足NGはありません。合意した条件に従い迂回検索はせず、元ルートだけを表示しました。';
+      ?`元ルートと幅不足NG区間を避けた調査用迂回路を表示しました。${candidateSummary||'迂回路候補なし'}。②から目的地へ到達できる候補を検証し、最短候補から実出発地発の本経路を確認しました。`
+      :detourSides.length&&displayRoutes.length
+        ?`狭隘注意・幅未判定区間を避ける迂回候補を確認しました。${candidateSummary}。元ルートの幅未判定は残るため、候補路線も道路幅を確認してください。`
+        :detourSides.length
+          ?`狭隘注意・幅未判定区間を避けて迂回検索しましたが、幅を確認できる候補は見つかりませんでした。${detourErrors.join('。')}`
+          :route.trolleyUnchecked
+            ?`狭隘道路の有無を確認できていません（幅未判定 ${route.trolleyUnchecked} 区間）。未判定道路：${unverifiedRoads.slice(0,5).join('、')||'道路幅データ不足'}。`
+            :cautions
+              ?`設定距離未満の狭隘注意が ${cautions} 区間あります。`
+              :'幅を確認できた対象区間に幅不足NGはありません。合意した条件に従い迂回検索はせず、元ルートだけを表示しました。';
     if(displayRoutes.length)summary+='。迂回路は②から目的地への到達検証後に候補距離の短い順で実出発地発の経路を確認し、元ルートNGを避けて幅チェックに合格したものを表示';
     route._summary=summary;
     renderPlaces();

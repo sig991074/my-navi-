@@ -46,17 +46,17 @@
   <text x="615" y="222" text-anchor="middle" class="body">NG区間とその始点・終点を特定</text>
   <path d="M790 203H835" class="arrow"/>
   <polygon points="950,148 1065,203 950,258 835,203" class="decision"/>
-  <text x="950" y="198" text-anchor="middle" class="head">狭隘NG</text>
-  <text x="950" y="222" text-anchor="middle" class="head">あり？</text>
+  <text x="950" y="198" text-anchor="middle" class="head">NG・注意・</text>
+  <text x="950" y="222" text-anchor="middle" class="head">未判定あり？</text>
   <path d="M1065 203H1110" class="arrow"/>
   <rect x="1125" y="160" width="425" height="86" rx="12" class="success"/>
-  <text x="1337" y="194" text-anchor="middle" class="head">No：元ルートだけを表示</text>
-  <text x="1337" y="222" text-anchor="middle" class="body">迂回検索はしない</text>
+  <text x="1337" y="194" text-anchor="middle" class="head">No：幅を確認できている</text>
+  <text x="1337" y="222" text-anchor="middle" class="body">注意・未判定もなく迂回不要</text>
 
   <path d="M950 258V285H215V320" class="arrow"/>
   <text x="969" y="282" class="badge">Yes</text>
   <rect x="50" y="320" width="1500" height="580" rx="18" class="box"/>
-  <text x="80" y="362" class="head">2. 狭隘NGを通らない南側候補を作る（地図上の考え方）</text>
+  <text x="80" y="362" class="head">2. 狭隘NG・注意・幅未判定を避ける南側候補を作る</text>
   <text x="82" y="390" class="small">4つの基準点ごとに半径20km以内の幹線道路を探索。南側候補では元ルートより北側（西側）の道路を対象外にする。</text>
 
   <path d="M70 405H1530V532L1430 535L1225 610L1045 610L875 565L700 565L525 610L345 610L170 650L70 690Z" class="excluded"/>
@@ -148,8 +148,8 @@
   <text x="50" y="1530" class="section">4. 実装した手順と判定条件</text>
   <rect x="50" y="1555" width="720" height="270" rx="14" class="success"/>
   <text x="80" y="1598" class="head">今回実装した処理</text>
-  <text x="80" y="1640" class="body">1. 元ルートを先に幅チェック。NGなしなら迂回検索をしない。</text>
-  <text x="80" y="1678" class="body">2. NGありなら①②③④それぞれの20km圏で道路候補を探す。</text>
+  <text x="80" y="1640" class="body">1. 元ルートを幅チェック。NG・狭隘注意・幅未判定を迂回対象にする。</text>
+  <text x="80" y="1678" class="body">2. NG・注意・未判定があれば①②③④の20km圏で道路探索。</text>
   <text x="80" y="1716" class="body">3. ②のNG範囲外の境界点から③候補・経由地を通り④へ先行検証。</text>
   <text x="80" y="1754" class="body">4. 到達候補を距離順（同距離は時間順）に本経路検索。</text>
   <text x="80" y="1796" class="small">実出発地発でNG回避・幅OK・幅未判定なしの候補だけ表示。</text>
@@ -157,7 +157,7 @@
   <rect x="800" y="1555" width="750" height="270" rx="14" class="search"/>
   <text x="830" y="1598" class="head">制限と確認上の注意</text>
   <text x="830" y="1640" class="body">・各基準点の近い道路候補を最大6地点まで検証する。</text>
-  <text x="830" y="1678" class="body">・②発はNG除外範囲の外側に置いた境界点から検証する。</text>
+  <text x="830" y="1678" class="body">・②発は対象範囲の外側に置いた境界点から先行検証する。</text>
   <text x="830" y="1716" class="body">・地図上の実地点を使ったOverpass／Valhalla統合試験は未実施。</text>
   <text x="830" y="1754" class="body">・外部ルート検索と幅データが利用できない候補は採用しない。</text>
   <text x="830" y="1792" class="small">20kmを維持。南側は北（西）側候補を除外し、NG区間も回避。</text>

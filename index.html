@@ -253,7 +253,7 @@ async function getArterialRoadCandidates(anchors,baseRoute,side){
   for(const endpoint of endpoints){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
     try{
-      const response=await fetch(endpoint+'?data='+encodeURIComponent(query),{signal:controller.signal});
+      const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:'data='+encodeURIComponent(query),signal:controller.signal});
       if(!response.ok)throw Error('道路候補検索サービス HTTP '+response.status);
       payload=await response.json();
       break;

@@ -559,7 +559,7 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     addRouteOptionMarkers(routeNo);
     const failed=route.trolleyFailures.length,cautions=route.trolleyCautions?.length||0;
     let summary='通過確認 '+route.trolleyChecked+'区間、未判定 '+route.trolleyUnchecked+'区間、対象外 '+route.trolleyExcluded+'区間'+(failed?'、狭隘道路不可 '+failed+'区間':'')+(cautions?'、狭隘注意 '+cautions+'区間（設定距離未満のため注意して通過可）':'');
-    if(displayRoutes.length)summary+='。調査用候補：'+displayRoutes.map(candidate=>(candidate._displayLabel||'迂回路')+' '+(candidate.distance/1000).toFixed(1)+'km（幅不足 '+candidate.trolleyFailures.length+'区間、未判定 '+candidate.trolleyUnchecked+'区間）').join('、')+'。迂回路はNG道路区間を避けた調査用です。元ルートは置き換えず、最終ルートへの経由地設定は人が行います。全て実線です。赤線＝幅不足、黄線＝狭隘注意・幅未判定。各線をクリックすると区間状態を確認できます';
+    if(displayRoutes.length)summary+='。調査用候補：'+displayRoutes.map(candidate=>(candidate._displayLabel||'迂回路')+' '+(candidate.distance/1000).toFixed(1)+'km（幅不足 '+candidate.trolleyFailures.length+'区間、未判定 '+candidate.trolleyUnchecked+'区間）').join('、')+'。迂回路はNG道路区間を避けた調査用です。元ルートは置き換えず、最終ルートへの経由地設定は人が行います。点線は使わず全て実線です。赤線＝幅不足、黄線＝狭隘注意・幅未判定。各線をクリックすると区間状態を確認できます';
     if(displayRoutes.length<2)summary+='。迂回路候補は'+displayRoutes.length+'本だけ取得できました';
     else if(failed)summary=(result.detoured?'代替候補を検索しましたが、通行幅不足区間が未回避です。該当区間の残る候補を表示：':'安全な迂回候補を確認できず、通行幅不足区間の残る元ルートを表示：')+summary;
     else if(result.detoured)summary='幅不足区間を回避したルートを表示：'+summary;
@@ -593,7 +593,7 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     if(route.trolleyVectorWarning)summary+='。道路中心線の取得エラー（標準地図画像で補助確認）：'+route.trolleyVectorWarning;
     if(route.trolleyDataWarning)summary+='。OpenStreetMapの道路情報を取得できませんでした（道路名・車線数の補助情報なし）：'+route.trolleyDataWarning;
     const candidateSummary=displayRoutes.map(candidate=>`${candidate._displayLabel||'迂回路'} ${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}（${candidate._detourSearchMode==='nearby'?'近い別経路':'20km検索'}）`).join('、');
-    const message=`元ルートと調査用迂回路を表示しました。${candidateSummary||'迂回路候補なし'}。近い別経路があれば優先し、なければ20km検索。赤線＝幅不足、黄線＝狭隘注意・幅未判定。全て実線です。`;
+    const message=`元ルートと調査用迂回路を表示しました。${candidateSummary||'迂回路候補なし'}。近い別経路があれば優先し、なければ20km検索。赤線＝幅不足、黄線＝狭隘注意・幅未判定。点線は使わず全て実線です。`;
     summary+='。近い別経路が見つかれば優先し、なければ20km検索の候補から距離が短いもの、同距離なら時間が短いものを表示';
     route._summary=summary;
     renderPlaces();

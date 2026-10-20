@@ -214,8 +214,7 @@
       context.stroke();
     }
     const pixels = context.getImageData(0, 0, size, size).data;
-    const halfW = width / 2, halfL = length / 2, inner = 0.15;
-    let collision = false, leftEvidence = 0, rightEvidence = 0;
+    const halfW = width / 2, halfL = length / 2;
     const countRedPixels = (x1, x2, y1, y2) => {
       let count = 0;
       for (let y = Math.max(0, y1); y <= Math.min(size - 1, y2); y++) {
@@ -245,9 +244,10 @@
     if (keepLeft && leftBoundary === null) return { status: 'unknown', collision: false, edgesFound, lateralShift: 0, roadWidth };
     const lateralShift = keepLeft ? (leftBoundary - center) / scale - halfW - 1 / scale : 0;
     const shiftPx = Math.round(lateralShift * scale);
-    const bodyHalfWidth = Math.round(halfW * scale), bodyHalfLength = Math.round(halfL * scale);
-    collision = countRedPixels(center + shiftPx - bodyHalfWidth, center + shiftPx + bodyHalfWidth,
-      center - bodyHalfLength, center + bodyHalfLength) > 0;
+    const bodyHalfWidth = Math.round(halfW * scale);
+    const bodyLeft = center + shiftPx + bodyHalfWidth, bodyRight = center + shiftPx - bodyHalfWidth;
+    collision = (leftBoundary !== null && leftBoundary <= bodyLeft) ||
+      (rightBoundary !== null && rightBoundary >= bodyRight);
     if (collision) return { status: 'fail', collision, edgesFound, lateralShift, roadWidth };
     if (!edgesFound) return { status: 'unknown', collision: false, edgesFound, lateralShift, roadWidth };
     return { status: 'pass', collision: false, edgesFound, lateralShift, roadWidth };
@@ -428,6 +428,8 @@
       status === 'caution' ? 'short-narrow-section' : 'vector-footprint-fit';
     return { status, reason, name, samples: stats.samples || 0, intersectionSkipped: stats.intersectionSkipped || 0,
       mapMaxRun: stats.mapMaxRun || 0, mapFailCount: stats.mapFailCount || 0, minWidth: Number.isFinite(stats.minWidth) ? stats.minWidth : null,
+      failureMinWidth: Number.isFinite(stats.failureMinWidth) ? stats.failureMinWidth : null,
+      cautionMinWidth: Number.isFinite(stats.cautionMinWidth) ? stats.cautionMinWidth : null,
       failurePoints: stats.failurePoints || [], cautionPoints: stats.cautionPoints || [],
       censusExcludedSamples: stats.censusExcludedSamples || 0,
       mapFallbackAttempts: stats.mapFallbackAttempts || 0,
@@ -471,6 +473,7 @@
     for (const step of route.steps || []) {
       if (!step._endpointExcluded && step._trolleyCheck?.status !== 'excluded') {
         stepStats.set(step, { samples: 0, fail: false, unknown: false, intersectionSkipped: 0, failurePoints: [], cautionPoints: [], failureSamples: [],
+          failureWidths: [], cautionWidths: [],
           censusExcludedSamples: censusExcluded.get(step) || 0,
           mapFallbackAttempts: 0, mapFallbackUnavailable: 0, mapFallbackNotDetected: 0,
           mapFallbackUnavailablePoints: [], mapFallbackNotDetectedPoints: [], intersectionSkippedPoints: [] });
@@ -484,7 +487,6 @@
         { style: { color: '#7626a8', weight: 2, opacity: 0.75 } }).addTo(map);
       state.footprints = window.L.featureGroup().addTo(map);
     }
-    let pauses = 0, lastFailIndex = -100;
     const showMark = mark => { if (options.draw) state.footprints.addLayer(mark); };
     for (let i = 0; i < samples.length; i++) {
       const sample = samples[i];
@@ -494,6 +496,7 @@
         await new Promise(resolve => setTimeout(resolve, 0));
       }
       const stat = stepStats.get(sample.step) || { samples: 0, fail: false, unknown: false, intersectionSkipped: 0, failurePoints: [], cautionPoints: [], failureSamples: [],
+        failureWidths: [], cautionWidths: [],
         censusExcludedSamples: censusExcluded.get(sample.step) || 0,
         mapFallbackAttempts: 0, mapFallbackUnavailable: 0, mapFallbackNotDetected: 0,
         mapFallbackUnavailablePoints: [], mapFallbackNotDetectedPoints: [], intersectionSkippedPoints: [] };
@@ -564,25 +567,13 @@
       }
       if (fit.roadWidth != null) stat.minWidth = Math.min(stat.minWidth ?? Infinity, fit.roadWidth);
       if (fit.status === 'unknown') stat.unknown = true;
-      else if (fit.status === 'fail') stat.failureSamples.push({ leg: sample.step._routeLegIndex ?? 0, station: sample.station, point: origin, step: sample.step });
+      else if (fit.status === 'fail') stat.failureSamples.push({ leg: sample.step._routeLegIndex ?? 0, station: sample.station, point: origin, step: sample.step, roadWidth: fit.roadWidth });
       if (bounds.contains([origin[1], origin[0]])) {
         const mark = footprint(front, rear, bearing, dimensions.width, fit.lateralShift,
           fit.status === 'pass' ? '#16843b' : fit.status === 'fail' ? '#ffbf00' : '#687782');
         showMark(mark);
         if (fit.status === 'fail') stepStats.get(sample.step).failureSamples.at(-1).mark = mark;
       }
-      // 狭い道を見つけたら、その場で5秒止まって道幅を見せる（連続区間では1回、1ルート最大5回）
-      if (fit.status === 'fail' && options.draw !== false && pauses < 5 && i - lastFailIndex > 5) {
-        pauses++;
-        bridge.moveRouteCheckProgress?.(origin);
-        const widthText = fit.roadWidth != null ? `約${fit.roadWidth.toFixed(1)}m` : '測定できず';
-        const popup = window.L.popup({ closeButton: false, autoClose: false, closeOnClick: false })
-          .setLatLng([origin[1], origin[0]]).setContent(`<b>狭隘</b> 測定道路幅 ${widthText}`).openOn(map);
-        report(`狭い道を見つけました（測定道路幅 ${widthText}）。        5秒止まって表示します…`);
-                await new Promise(resolve => setTimeout(resolve, 5000));
-        map.closePopup(popup);
-      }
-      if (fit.status === 'fail') lastFailIndex = i;
       if ((i + 1) % 250 === 0) {
         report(`20m間隔で車両形状を照合しています（${i + 1}/${samples.length}地点）…`);
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -597,11 +588,27 @@
         if (run.sustained) {
           stats.fail = true;
           stats.failurePoints.push(sample.point);
+          if (sample.roadWidth != null) stats.failureWidths.push(sample.roadWidth);
           sample.mark?.setStyle({ color: '#d00000' });
         } else {
           stats.cautionPoints.push(sample.point);
+          if (sample.roadWidth != null) stats.cautionWidths.push(sample.roadWidth);
         }
       }
+      if (run.sustained && options.draw !== false) {
+        const sample = run.samples[Math.floor(run.samples.length / 2)];
+        bridge.moveRouteCheckProgress?.(sample.point);
+        const widthText = sample.roadWidth != null ? `約${sample.roadWidth.toFixed(1)}m` : '測定できず';
+        const popup = window.L.popup({ closeButton: false, autoClose: false, closeOnClick: false })
+          .setLatLng([sample.point[1], sample.point[0]]).setContent(`<b>幅不足区間</b> 測定道路幅 ${widthText}`).openOn(map);
+        report(`幅不足が続く区間を確認しました（測定道路幅 ${widthText}）。5秒止まって表示します…`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        map.closePopup(popup);
+      }
+    }
+    for (const stats of stepStats.values()) {
+      stats.failureMinWidth = stats.failureWidths.length ? Math.min(...stats.failureWidths) : null;
+      stats.cautionMinWidth = stats.cautionWidths.length ? Math.min(...stats.cautionWidths) : null;
     }
     const stepResults = new Map();
     for (const step of route.steps || []) {

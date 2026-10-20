@@ -62,7 +62,7 @@ function narrowInfo(s){
   return null
 }
 function markEndpointExclusions(r){let steps=r.steps||[],total=steps.reduce((a,s)=>a+(s.distance||0),0),fromStart=0;steps.forEach(s=>{let d=s.distance||0,mid=fromStart+d/2;s._endpointExcluded=mid<300||total-mid<300;fromStart+=d})}
-let trolleyOsmCache=new Map(),trolleyTileCache=new Map(),trolleyOsmLastRequest=0;
+let trolleyOsmCache=new Map(),trolleyTileCache=new Map(),trolleyOsmLastRequest=0,trolleyDetourCandidateCache=null;
 function trolleyDimensions(){let width=Number($('trolleyWidth')?.value),length=Number($('trolleyLength')?.value);if(!Number.isFinite(width)||width<1||width>20||!Number.isFinite(length)||length<1||length>30)throw Error('トロッコ寸法を確認してください（横幅1～20m、長さ1～30m）');return{width,length}}
 function addTrolleyControls(){if($('trolleyWidth'))return;let source=$('source'),box=document.createElement('div');box.className='icInfo';box.innerHTML='<b>狭隘道路チェック（通過幅）</b><br>横幅 <input id="trolleyWidth" type="number" min="1" max="20" step="0.1" value="4.1" aria-label="トロッコ横幅 m" style="width:48px"> m × 車両長 <input id="trolleyLength" type="number" min="1" max="30" step="0.1" value="5" aria-label="トロッコ長さ m" style="width:48px"> m<br>道幅 <input id="trolleyNarrowLimit" type="number" min="1" max="9.9" step="0.1" value="4.1" aria-label="狭隘道路不可 m未満" style="width:48px"> m未満<br>狭隘道路不可 <input id="trolleyFailLength" type="number" min="20" max="9999" step="20" value="1000" aria-label="狭隘道路不可 長さ m" style="width:64px"> m以上連続で不可（設定長以上の区間を迂回）<br><small>設定未満の狭隘注意・幅未判定も安全側に扱い、迂回検索します。中央線ありは中央線上、なし・不明はキープレフトで照合。</small>';source.parentElement.insertBefore(box,source.nextElementSibling);let main=$('narrowWidth'),mirror=box.querySelector('#trolleyNarrowLimit');if(main){try{let s=localStorage.getItem('ev_narrowWidth');if(s!==null)main.value=s}catch(e){}main.addEventListener('change',()=>{try{localStorage.setItem('ev_narrowWidth',main.value)}catch(e){}});mirror.value=main.value;mirror.addEventListener('input',()=>{main.value=mirror.value;main.dispatchEvent(new Event('input',{bubbles:true}));main.dispatchEvent(new Event('change',{bubbles:true}))});main.addEventListener('input',()=>{mirror.value=main.value})}box.querySelectorAll('input').forEach(input=>{try{let saved=localStorage.getItem('ev_'+input.id);if(saved!==null&&input.id!=='trolleyNarrowLimit')input.value=saved}catch(e){}input.addEventListener('change',()=>{try{localStorage.setItem('ev_'+input.id,input.value)}catch(e){}});['mousedown','click','dragstart'].forEach(type=>input.addEventListener(type,event=>event.stopPropagation()))})}
 function positiveRoadWidth(value){let match=String(value||'').match(/^\s*(\d+(?:\.\d+)?)\s*(m|ft|feet|')?\s*$/i);if(!match)return null;let width=Number(match[1]);if(/^(ft|feet|')$/i.test(match[2]||''))width*=0.3048;return Number.isFinite(width)&&width>0&&width<100?width:null}
@@ -247,28 +247,61 @@ function nearestPointOnWay(anchor,way){
 async function getArterialRoadCandidates(anchors,baseRoute,side){
   const roadTags='^(trunk|primary|secondary|tertiary|unclassified|residential|living_street)$';
   const selectors=anchors.map(point=>`way(around:20000,${point.lat},${point.lon})["highway"~"${roadTags}"];`).join('\n');
-  const query=`[out:json][timeout:25];(${selectors});out geom;`;
-  const endpoints=['https://overpass.openstreetmap.fr/api/interpreter','https://overpass.osm.ch/api/interpreter','https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
-  let payload,lastError;
-  for(const endpoint of endpoints){
-    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
-    try{
-      const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:'data='+encodeURIComponent(query),signal:controller.signal});
-      if(!response.ok)throw Error('道路候補検索サービス HTTP '+response.status);
-      payload=await response.json();
-      break;
-    }catch(error){lastError=error.name==='AbortError'?Error('道路候補検索サービスが30秒以内に応答しませんでした'):error}
-    finally{clearTimeout(timer)}
+  const endpoints=['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+  async function queryOverpass(query){
+    let lastError;
+    for(const endpoint of endpoints){
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+      try{
+        const requestOptions={method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(query),signal:controller.signal};
+        if(location.protocol==='http:'||location.protocol==='https:'){
+          const request=new URL(location.href);
+          request.search='';
+          request.hash='';
+          requestOptions.referrer=request.href;
+          requestOptions.referrerPolicy='unsafe-url';
+        }
+        const response=await fetch(endpoint,requestOptions);
+        if(!response.ok)throw Error('道路候補検索サービス HTTP '+response.status);
+        const payload=await response.json();
+        if(!Array.isArray(payload.elements))throw Error('道路候補検索サービスの応答形式が不正です');
+        return payload;
+      }catch(error){lastError=error.name==='AbortError'?Error('道路候補検索サービスが30秒以内に応答しませんでした'):error}
+      finally{clearTimeout(timer)}
+    }
+    throw Error(lastError?.message||'検索サービスから応答がありません');
   }
-  if(!payload)throw Error('20km圏内の基幹道路を検索できませんでした。検索サービスから応答がありません：'+(lastError?.message||'原因不明')+'。道路がないとは判定できません');
-  const ways=(payload.elements||[]).filter(item=>item.type==='way'&&item.geometry?.length>1)
-    .map(item=>({id:item.id,tags:item.tags||{},geometry:item.geometry.map(point=>[point.lon,point.lat])}));
-  const eligibleHighways=new Set(['trunk','primary','secondary','tertiary','unclassified','residential','living_street']);
-  const eligibleWays=ways.filter(way=>eligibleHighways.has(String(way.tags?.highway||''))&&!hasMultipleLaneTags(way.tags||{}));
-  const maxCandidatesPerAnchor=6;
+  const maxCandidatesPerAnchor=6,cacheKey=JSON.stringify(anchors.map(point=>[point.lat.toFixed(5),point.lon.toFixed(5)]))+'|'+trolleyGeometrySignature(baseRoute);
+  let ways=trolleyDetourCandidateCache?.key===cacheKey&&trolleyDetourCandidateCache.expires>Date.now()?trolleyDetourCandidateCache.ways:null;
+  if(!ways){
+    let payload;
+    try{payload=await queryOverpass(`[out:json][timeout:25];(${selectors});out center tags;`)}
+    catch(error){throw Error('20km圏内の基幹道路を検索できませんでした。検索サービスから応答がありません：'+error.message+'。道路がないとは判定できません')}
+    const eligibleHighways=new Set(['trunk','primary','secondary','tertiary','unclassified','residential','living_street']);
+    const eligibleWays=(payload.elements||[]).filter(item=>item.type==='way'&&item.center&&eligibleHighways.has(String(item.tags?.highway||''))&&!hasMultipleLaneTags(item.tags||{}));
+    const geometryCandidatesPerAnchor=maxCandidatesPerAnchor*4,wayIds=new Set();
+    for(const candidateSide of[1,-1])for(const anchor of anchors){
+      const nearby=eligibleWays.map(way=>{
+        const point={lat:way.center.lat,lon:way.center.lon};
+        return{way,distance:dist(anchor,point)*1000,point};
+      }).filter(candidate=>candidate.distance<=20000&&routeSideScoreAtPoint(candidate.point,baseRoute)*candidateSide>0)
+        .sort((a,b)=>a.distance-b.distance).slice(0,geometryCandidatesPerAnchor);
+      nearby.forEach(candidate=>wayIds.add(candidate.way.id));
+    }
+    if(!wayIds.size){
+      trolleyDetourCandidateCache={key:cacheKey,ways:[],expires:Date.now()+5*60*1000};
+      return anchors.map(()=>[]);
+    }
+    let geometryPayload;
+    try{geometryPayload=await queryOverpass(`[out:json][timeout:15];way(id:${[...wayIds].join(',')});out geom;`)}
+    catch(error){throw Error('選択した道路の形状を取得できませんでした：'+error.message+'。道路がないとは判定できません')}
+    ways=(geometryPayload.elements||[]).filter(item=>item.type==='way'&&item.geometry?.length>1)
+      .map(item=>({id:item.id,tags:item.tags||{},geometry:item.geometry.map(point=>[point.lon,point.lat])}));
+    trolleyDetourCandidateCache={key:cacheKey,ways,expires:Date.now()+5*60*1000};
+  }
   return anchors.map((anchor,index)=>{
     const unique=new Map();
-    for(const way of eligibleWays){
+    for(const way of ways){
       const candidate=nearestPointOnWay(anchor,way);
       if(!candidate||candidate.distance>20000||routeSideScoreAtPoint(candidate,baseRoute)*side<=0)continue;
       const key=candidate.lon.toFixed(5)+','+candidate.lat.toFixed(5);

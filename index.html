@@ -172,11 +172,11 @@ function routeExclusionPolygons(routes){
   return polygons;
 }
 async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures,excludedRoutes=[]){
-  let lastError;
+  let lastError,candidatesFound=[];
   for(const fraction of[.5,.4,.6,.3,.7]){
     const{point,distance}=pointAtRouteFraction(baseRoute,fraction);
     const polygons=routeExclusionPolygons(excludedRoutes);
-    // 出発地→目的地の直線に直角な向きへ20kmずらす（南北ルートなら東西）。Aは北寄り（同じなら西）、Bはその反対側
+    // 出発地→目的地の直線に直角な向きへ20kmずらす。Aは北寄り（同じなら西）、Bはその反対側
     const coords=baseRoute.geometry?.coordinates||[point,point],first=coords[0],last=coords.at(-1),cosLat=Math.cos(point[1]*Math.PI/180);
     let ex=(last[0]-first[0])*cosLat,ny=last[1]-first[1];const len=Math.hypot(ex,ny)||1;ex/=len;ny/=len;
     let px=-ny,py=ex;if(py-.01*px<-py+.01*px){px=-px;py=-py}
@@ -185,10 +185,19 @@ async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures,exc
     for(let i=0;i<(baseRoute.legs||[]).length;i++){legEnd+=(baseRoute.legs[i].distance||0);if(distance<=legEnd){legIndex=i;break}}
     const viaPoints=points.slice();viaPoints.splice(Math.min(legIndex+1,viaPoints.length-1),0,waypoint);
     try{
-      const candidates=polygons.length?[await getRoutesAvoiding(viaPoints,polygons)]:await getRoutes(viaPoints),candidate=candidates.find(route=>!usedSignatures.has(trolleyGeometrySignature(route)));
-      if(candidate){candidate._displayLabel=label;candidate._routeNo=baseRoute._routeNo;candidate._searchPoints=viaPoints;candidate._narrowExclusionPolygons=polygons;usedSignatures.add(trolleyGeometrySignature(candidate));return candidate}
-      lastError=Error(label+'回りの異なる経路が見つかりませんでした');
+      const routes=polygons.length?[await getRoutesAvoiding(viaPoints,polygons)]:await getRoutes(viaPoints);
+      for(const candidate of routes){
+        if(usedSignatures.has(trolleyGeometrySignature(candidate)))continue;
+        candidate._displayLabel=label;candidate._routeNo=baseRoute._routeNo;candidate._searchPoints=viaPoints;candidate._narrowExclusionPolygons=polygons;
+        candidatesFound.push(candidate);
+      }
+      if(!routes.some(route=>!usedSignatures.has(trolleyGeometrySignature(route))))lastError=Error(label+'回りの異なる経路が見つかりませんでした');
     }catch(error){lastError=error}
+  }
+  if(candidatesFound.length){
+    const candidate=candidatesFound.sort((a,b)=>a.distance-b.distance||a.duration-b.duration)[0];
+    usedSignatures.add(trolleyGeometrySignature(candidate));
+    return candidate;
   }
   throw Error(lastError?.message||label+'回りの経路を検索できませんでした');
 }
@@ -474,7 +483,7 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     const originalRoute=result.originalRoute||route,usedSignatures=new Set([trolleyGeometrySignature(originalRoute)]),displayRoutes=[],detourErrors=[];
     for(const[side,label]of[[1,'迂回路A（北回り）'],[-1,'迂回路B（南回り）']]){
       try{
-        $('status').textContent=`${label}ルートを検索しています（迂回検索点は元ルートから北・南へ20km）…`;
+        $('status').textContent=`${label}ルートを検索しています（元ルートから左右へ20kmの検索点を複数比較）…`;
         const excludedRoutes=side===1?[originalRoute]:[originalRoute,...displayRoutes];
         let candidate=await getNorthSouthRoute(points,originalRoute,side,label,usedSignatures,excludedRoutes);
         const checkLabel=`ルート${routeNo} ${label}（確認${displayRoutes.length+2}/3・${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}）`;
@@ -535,7 +544,9 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     if(route.trolleyCensusWarning)summary+='。国交省道路交通センサス車線情報を取得できませんでした：'+route.trolleyCensusWarning;
     if(route.trolleyVectorWarning)summary+='。道路中心線の取得エラー（標準地図画像で補助確認）：'+route.trolleyVectorWarning;
     if(route.trolleyDataWarning)summary+='。OpenStreetMapの道路情報を取得できませんでした（道路名・車線数の補助情報なし）：'+route.trolleyDataWarning;
-    const message='色解説：経路線にカーソルを合わせてください。';
+    const candidateSummary=displayRoutes.map(candidate=>`${candidate._displayLabel||'迂回路'} ${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}`).join('、');
+    const message=`元ルートと調査用迂回路を表示しました。${candidateSummary||'迂回路候補なし'}。複数候補から距離の短い道を選び、同距離なら時間の短い道を選択。迂回路は比較用です。`;
+    summary+='。迂回候補は5か所の検索位置から選び、距離が短いものを優先。同距離なら所要時間が短いものを表示';
     route._summary=summary;
     renderPlaces();
     if(!batch)$('status').textContent=message;

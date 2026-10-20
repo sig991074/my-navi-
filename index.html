@@ -205,64 +205,223 @@ function routeExclusionPolygons(routes){
   if(perimeter>9900)throw Error('NG区間を避ける範囲の合計が検索サービスの上限（1万m）を超えました');
   return polygons;
 }
-async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures,excludedRoutes=[],nearbyRoutes=[]){
-  const nearby=nearbyRoutes.filter(route=>!usedSignatures.has(trolleyGeometrySignature(route)))
-    .map(route=>({route,score:routeSideScore(route,baseRoute)}))
-    .filter(item=>item.score*side>250&&routeSharedFraction(item.route,baseRoute)<=maxSharedRouteFraction);
-  if(nearby.length){
-    const candidate=nearby.sort((a,b)=>a.route.distance-b.route.distance||a.route.duration-b.route.duration)[0].route;
-    candidate._displayLabel=label;candidate._routeNo=baseRoute._routeNo;candidate._searchPoints=points;
-    candidate._narrowExclusionPolygons=routeExclusionPolygons(excludedRoutes);
-    candidate._detourSearchMode='nearby';
-    usedSignatures.add(trolleyGeometrySignature(candidate));
-    return candidate;
+function routeSideScoreAtPoint(point,baseRoute){
+  const coordinates=baseRoute.geometry?.coordinates||[];
+  if(coordinates.length<2)throw Error('迂回候補の方向判定に元ルート形状が必要です');
+  let bestDistance=Infinity,bestFraction=.5,bestPoint=null,total=0;
+  const segments=[];
+  for(let i=1;i<coordinates.length;i++){
+    const a=coordinates[i-1],b=coordinates[i],length=dist({lat:a[1],lon:a[0]},{lat:b[1],lon:b[0]})*1000;
+    if(length>0){segments.push({a,b,length,start:total});total+=length}
   }
-  let lastError,candidatesFound=[];
+  for(const segment of segments){
+    const cos=Math.cos(rad((segment.a[1]+segment.b[1]+point.lat)/3));
+    const dx=(segment.b[0]-segment.a[0])*111320*cos,dy=(segment.b[1]-segment.a[1])*111320;
+    const px=(point.lon-segment.a[0])*111320*cos,py=(point.lat-segment.a[1])*111320;
+    const ratio=Math.max(0,Math.min(1,(px*dx+py*dy)/(dx*dx+dy*dy||1)));
+    const x=segment.a[0]+(segment.b[0]-segment.a[0])*ratio,y=segment.a[1]+(segment.b[1]-segment.a[1])*ratio;
+    const distance=dist({lat:y,lon:x},{lat:point.lat,lon:point.lon})*1000;
+    if(distance<bestDistance){bestDistance=distance;bestFraction=(segment.start+segment.length*ratio)/total;bestPoint=[x,y]}
+  }
+  if(!bestPoint)return 0;
+  const{cosLat,normalEast,normalNorth}=routeSideNormalAtFraction(baseRoute,bestFraction);
+  return((point.lon-bestPoint[0])*cosLat*normalEast+(point.lat-bestPoint[1])*normalNorth)*111320;
+}
+function nearestPointOnWay(anchor,way){
+  const coordinates=way.geometry||[];
+  if(coordinates.length<2)return null;
+  const cos=Math.cos(rad(anchor.lat));
+  let best=null;
+  for(let i=1;i<coordinates.length;i++){
+    const a=coordinates[i-1],b=coordinates[i],dx=(b[0]-a[0])*111320*cos,dy=(b[1]-a[1])*111320;
+    const px=(anchor.lon-a[0])*111320*cos,py=(anchor.lat-a[1])*111320;
+    const ratio=Math.max(0,Math.min(1,(px*dx+py*dy)/(dx*dx+dy*dy||1)));
+    const point={lon:a[0]+(b[0]-a[0])*ratio,lat:a[1]+(b[1]-a[1])*ratio};
+    const distance=dist(anchor,point)*1000;
+    if(!best||distance<best.distance)best={...point,distance};
+  }
+  return best;
+}
+async function getArterialRoadCandidates(anchors,baseRoute,side){
+  const roadTags='^(trunk|primary|secondary|tertiary|unclassified|residential|living_street)$';
+  const selectors=anchors.map(point=>`way(around:20000,${point.lat},${point.lon})["highway"~"${roadTags}"];`).join('\n');
+  const query=`[out:json][timeout:25];(${selectors});out geom;`;
+  const endpoints=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.nchc.org.tw/api/interpreter'];
+  let payload,lastError;
+  for(const endpoint of endpoints){
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+    try{
+      const response=await fetch(endpoint+'?data='+encodeURIComponent(query),{signal:controller.signal});
+      if(!response.ok)throw Error('道路候補検索サービス HTTP '+response.status);
+      payload=await response.json();
+      break;
+    }catch(error){lastError=error.name==='AbortError'?Error('道路候補検索サービスが30秒以内に応答しませんでした'):error}
+    finally{clearTimeout(timer)}
+  }
+  if(!payload)throw Error('20km圏内の基幹道路を検索できませんでした：'+(lastError?.message||'検索サービスから応答がありません'));
+  const eligibleHighways=new Set(['trunk','primary','secondary','tertiary','unclassified','residential','living_street']);
+  const ways=(payload.elements||[]).filter(item=>item.type==='way'&&item.geometry?.length>1&&eligibleHighways.has(String(item.tags?.highway||''))&&!hasMultipleLaneTags(item.tags||{}));
+  const maxCandidatesPerAnchor=6;
+  return anchors.map((anchor,index)=>{
+    const unique=new Map();
+    for(const way of ways){
+      const candidate=nearestPointOnWay(anchor,way);
+      if(!candidate||candidate.distance>20000||routeSideScoreAtPoint(candidate,baseRoute)*side<=0)continue;
+      const key=candidate.lon.toFixed(5)+','+candidate.lat.toFixed(5);
+      const item={...candidate,name:way.tags?.name||way.tags?.['name:ja']||way.tags?.ref||'基幹道路',ref:way.tags?.ref||'',type:'迂回候補地点',_wayId:way.id};
+      const existing=unique.get(key);
+      if(!existing||item.distance<existing.distance)unique.set(key,item);
+    }
+    return[...unique.values()].sort((a,b)=>a.distance-b.distance).slice(0,maxCandidatesPerAnchor).map(point=>({...point,_anchorIndex:index}));
+  });
+}
+function detourBoundaryPoints(baseRoute){
+  const failures=(baseRoute.trolleyFailures||[]).slice().sort((a,b)=>(a._routeLegIndex||0)-(b._routeLegIndex||0));
+  if(!failures.length)throw Error('元ルートに幅不足NG区間がありません');
+  const first=failures[0],last=failures[failures.length-1];
+  const firstPoints=first._trolleyCheck?.failurePoints?.length?first._trolleyCheck.failurePoints:first.geometry?.coordinates||[];
+  const lastPoints=last._trolleyCheck?.failurePoints?.length?last._trolleyCheck.failurePoints:last.geometry?.coordinates||[];
+  const start=firstPoints[0],end=lastPoints[lastPoints.length-1];
+  if(!start||!end)throw Error('狭隘NG区間の始点・終点を特定できませんでした');
+  return[{lat:start[1],lon:start[0],name:'NG区間始点',type:'迂回基準点'},{lat:end[1],lon:end[0],name:'NG区間終点',type:'迂回基準点'},failures[0]._routeLegIndex||0,failures[failures.length-1]._routeLegIndex||0];
+}
+function pointInRing(point,ring){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const a=ring[i],b=ring[j];
+    if((a[1]>point[1])!==(b[1]>point[1])&&point[0]<(b[0]-a[0])*(point[1]-a[1])/(b[1]-a[1])+a[0])inside=!inside;
+  }
+  return inside;
+}
+function nearestRouteFraction(point,route){
+  const coordinates=route.geometry?.coordinates||[];
+  let total=0,bestDistance=Infinity,bestAlong=0;
+  const segments=[];
+  for(let i=1;i<coordinates.length;i++){
+    const a=coordinates[i-1],b=coordinates[i],length=dist({lat:a[1],lon:a[0]},{lat:b[1],lon:b[0]})*1000;
+    if(length>0){segments.push({a,b,length,start:total});total+=length}
+  }
+  for(const segment of segments){
+    const cos=Math.cos(rad((segment.a[1]+segment.b[1]+point.lat)/3));
+    const dx=(segment.b[0]-segment.a[0])*111320*cos,dy=(segment.b[1]-segment.a[1])*111320;
+    const px=(point.lon-segment.a[0])*111320*cos,py=(point.lat-segment.a[1])*111320;
+    const ratio=Math.max(0,Math.min(1,(px*dx+py*dy)/(dx*dx+dy*dy||1)));
+    const x=segment.a[0]+(segment.b[0]-segment.a[0])*ratio,y=segment.a[1]+(segment.b[1]-segment.a[1])*ratio;
+    const distance=dist({lat:y,lon:x},point)*1000;
+    if(distance<bestDistance){bestDistance=distance;bestAlong=segment.start+segment.length*ratio}
+  }
+  if(!total)throw Error('元ルートの距離を計算できません');
+  return{fraction:bestAlong/total,total};
+}
+function pointOutsideNgArea(point,route,polygons,direction){
+  const{fraction,total}=nearestRouteFraction(point,route),step=20;
+  for(let offset=0;offset<=total;offset+=step){
+    const nextFraction=fraction+direction*offset/total;
+    if(nextFraction<0||nextFraction>1)break;
+    const candidate=pointAtRouteFraction(route,nextFraction).point;
+    if(!polygons.some(ring=>pointInRing(candidate,ring)))return{lat:candidate[1],lon:candidate[0],name:direction<0?'NG区間始点手前':'NG区間終点先',type:'迂回基準点'};
+  }
+  throw Error('NG区間の除外範囲外に先行検証の始点・終点を置けませんでした');
+}
+function routeStillUsesFailedInterior(route,failedSteps,boundaryPoints=[]){
+  const coordinates=route.geometry?.coordinates||[];
+  if(coordinates.length<2)return true;
+  const distanceToRoute=point=>{let best=Infinity;for(let i=1;i<coordinates.length;i++)best=Math.min(best,localPointSegmentDistance(point,coordinates[i-1],coordinates[i]));return best};
+  for(const step of failedSteps){
+    const points=step._trolleyCheck?.failurePoints||[];
+    if(points.length){
+      if(points.some(point=>!boundaryPoints.some(boundary=>dist({lat:point[1],lon:point[0]},boundary)*1000<=45)&&distanceToRoute(point)<=45))return true;
+    }else if(routeStillUsesFailedRoad(route,[step]))return true;
+  }
+  return false;
+}
+function buildDetourPoints(points,firstNgLeg,lastNgLeg,candidates){
+  const result=[];
+  for(let i=0;i<points.length-1;i++){
+    result.push(points[i]);
+    if(i===0&&candidates[0])result.push(candidates[0]);
+    if(i===firstNgLeg&&candidates[1])result.push(candidates[1]);
+    if(i===lastNgLeg&&candidates[2])result.push(candidates[2],candidates[3]);
+    if(i===points.length-2&&candidates[4])result.push(candidates[4]);
+  }
+  result.push(points[points.length-1]);
+  return result;
+}
+function routeIndexNearPoint(route,point){
+  const coordinates=route.geometry?.coordinates||[];
+  let bestIndex=-1,bestDistance=Infinity;
+  coordinates.forEach((coordinate,index)=>{
+    const distance=dist({lat:coordinate[1],lon:coordinate[0]},point);
+    if(distance<bestDistance){bestDistance=distance;bestIndex=index}
+  });
+  return bestIndex;
+}
+function routeStaysOnSelectedSide(route,baseRoute,side,fromPoint,toPoint){
+  const coordinates=route.geometry?.coordinates||[];
+  let start=routeIndexNearPoint(route,fromPoint),end=routeIndexNearPoint(route,toPoint);
+  if(start<0||end<0)return false;
+  if(start>end)[start,end]=[end,start];
+  for(let index=start;index<=end;index++){
+    if(routeSideScoreAtPoint({lat:coordinates[index][1],lon:coordinates[index][0]},baseRoute)*side<0)return false;
+  }
+  return true;
+}
+async function getNorthSouthRoute(points,baseRoute,side,label,usedSignatures,excludedRoutes=[]){
+  const [ngStart,ngEnd,firstNgLeg,lastNgLeg]=detourBoundaryPoints(baseRoute);
+  const anchors=[points[0],ngStart,ngEnd,points[points.length-1]];
+  $('status').textContent=label+'：4地点の20km圏内から幹線道路を検索しています…';
+  const candidatesByAnchor=await getArterialRoadCandidates(anchors,baseRoute,side);
+  if(candidatesByAnchor.some(list=>!list.length))throw Error(label+'：4地点のいずれかで、指定側の20km圏内に対象道路が見つかりませんでした');
   const polygons=routeExclusionPolygons(excludedRoutes);
-  const searchPointsAt=(fraction,offsetMeters)=>{
-    const{point,distance}=pointAtRouteFraction(baseRoute,fraction),{cosLat,normalEast,normalNorth}=routeSideNormalAtFraction(baseRoute,fraction);
-    const waypoint={lat:point[1]+side*normalNorth*offsetMeters/111320,lon:point[0]+side*normalEast*offsetMeters/111320/cosLat,name:label+'迂回検索点',type:'迂回検索点'};
-    let legIndex=0,legEnd=0;
-    for(let i=0;i<(baseRoute.legs||[]).length;i++){legEnd+=(baseRoute.legs[i].distance||0);if(distance<=legEnd){legIndex=i;break}}
-    const viaPoints=points.slice();viaPoints.splice(Math.min(legIndex+1,viaPoints.length-1),0,waypoint);
-    return viaPoints;
-  };
-  const searchCandidates=async(fractions,offsets,mode,requireSide)=>{
-    const attempts=fractions.flatMap(fraction=>offsets.map(offset=>({fraction,offset})));
-    const results=await Promise.all(attempts.map(async({fraction,offset})=>{
+  const middleStops=points.slice(firstNgLeg+1,lastNgLeg+1);
+  const laterStops=points.slice(lastNgLeg+1);
+  const boundaryStart=pointOutsideNgArea(ngStart,baseRoute,polygons,-1);
+  const boundaryEnd=pointOutsideNgArea(ngEnd,baseRoute,polygons,1);
+  const reachable=[];
+  let tested=0,lastError;
+  for(const before of candidatesByAnchor[1]){
+    for(const after of candidatesByAnchor[2]){
+      tested++;
+      $('status').textContent=`${label}：②から目的地への先行検証 ${tested}/${candidatesByAnchor[1].length*candidatesByAnchor[2].length}`;
+      const testPoints=[boundaryStart,before,...middleStops,after,boundaryEnd,...laterStops];
       try{
-        const viaPoints=searchPointsAt(fraction,offset);
-        const routes=polygons.length?[await getRoutesAvoiding(viaPoints,polygons)]:await getRoutes(viaPoints);
-        return routes.filter(candidate=>{
-          if(usedSignatures.has(trolleyGeometrySignature(candidate)))return false;
-          if(requireSide&&routeSideScoreAtFraction(candidate,baseRoute,fraction)*side<=250)return false;
-          if(routeSharedFraction(candidate,baseRoute)>maxSharedRouteFraction)return false;
-          candidate._displayLabel=label;candidate._routeNo=baseRoute._routeNo;candidate._searchPoints=viaPoints;
-          candidate._narrowExclusionPolygons=polygons;candidate._detourSearchMode=mode;
-          return true;
-        });
-      }catch(error){lastError=error;return[]}
-    }));
-    candidatesFound.push(...results.flat());
-  };
-  await searchCandidates([.25,.4,.55,.7,.85],[1000],'nearby',true);
-  if(!candidatesFound.length)await searchCandidates([.25,.4,.55,.7,.85],[5000,10000],'nearby',true);
-  const localCandidates=[...new Map(candidatesFound.map(route=>[trolleyGeometrySignature(route),route])).values()];
-  if(localCandidates.length){
-    const candidate=localCandidates.sort((a,b)=>a.distance-b.distance||a.duration-b.duration)[0];
-    usedSignatures.add(trolleyGeometrySignature(candidate));
-    return candidate;
+        const route=await getRoutesAvoiding(testPoints,polygons);
+        if(usedSignatures.has(trolleyGeometrySignature(route)))continue;
+        if(routeStillUsesFailedInterior(route,baseRoute.trolleyFailures,[ngStart,ngEnd])||!routeStaysOnSelectedSide(route,baseRoute,side,before,after))continue;
+        reachable.push({route,before,after,testPoints});
+      }catch(error){if(error.message!=='NoRoute')lastError=error}
+    }
   }
-  candidatesFound=[];
-  for(const fraction of[.5,.4,.6,.3,.7]){
-    await searchCandidates([fraction],[20000],'20km',false);
+  if(!reachable.length)throw Error(lastError?.message||label+'：②から目的地まで到達できるNG回避候補がありません');
+  reachable.sort((a,b)=>a.route.distance-b.route.distance||a.route.duration-b.route.duration);
+  const startCandidate=candidatesByAnchor[0][0],destinationCandidate=candidatesByAnchor[3][0];
+  for(const item of reachable){
+    const waypoints=[startCandidate,item.before,item.after,boundaryEnd,destinationCandidate];
+    const actualPoints=buildDetourPoints(points,firstNgLeg,lastNgLeg,waypoints);
+    $('status').textContent=`${label}：到達可能候補の最短順に、実出発地から本経路を検索しています…`;
+    try{
+      let candidate=await getRoutesAvoiding(actualPoints,polygons);
+      if(usedSignatures.has(trolleyGeometrySignature(candidate)))continue;
+      if(routeStillUsesFailedInterior(candidate,baseRoute.trolleyFailures,[ngStart,ngEnd])||!routeStaysOnSelectedSide(candidate,baseRoute,side,item.before,item.after))continue;
+      candidate._displayLabel=label;candidate._routeNo=baseRoute._routeNo;candidate._searchPoints=actualPoints;
+      candidate._narrowExclusionPolygons=polygons;candidate._detourSearchMode='20km-arterial';
+      const checkLabel='ルート'+baseRoute._routeNo+' '+label+'（実出発地発・'+(candidate.distance/1000).toFixed(1)+'km・'+formatDuration(candidate.duration)+'）';
+      showRouteCheckPreview(candidate,checkLabel);
+      const ways=await getRouteOsmWays(candidate);
+      await prepareRoute(candidate,ways,'',checkLabel);
+      if(candidate.trolleyFailures.length){
+        candidate=(await rerouteNarrowFailures(actualPoints,candidate,baseRoute._routeNo,label,excludedRoutes)).route;
+        if(routeStillUsesFailedInterior(candidate,baseRoute.trolleyFailures,[ngStart,ngEnd])||!routeStaysOnSelectedSide(candidate,baseRoute,side,item.before,item.after))continue;
+      }
+      if(candidate.trolleyFailures.length||candidate.trolleyUnchecked){
+        lastError=Error(label+'：実出発地発の候補に幅不足または幅未判定区間が残っています');
+        continue;
+      }
+      usedSignatures.add(trolleyGeometrySignature(candidate));
+      return candidate;
+    }catch(error){if(error.message!=='NoRoute')lastError=error}
   }
-  if(candidatesFound.length){
-    const candidate=candidatesFound.sort((a,b)=>a.distance-b.distance||a.duration-b.duration)[0];
-    usedSignatures.add(trolleyGeometrySignature(candidate));
-    return candidate;
-  }
-  throw Error(lastError?.message||label+'回りの経路を検索できませんでした');
+  throw Error(lastError?.message||label+'：②発の到達検証後、実出発地発で幅チェックに合格する候補がありません');
 }
 function failurePolygons(route,bufferMeters=35){
   const clusters=[];
@@ -544,20 +703,12 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     }
     chosenRouteGeometry[routeNo]=route.geometry;
     const originalRoute=result.originalRoute||route,usedSignatures=new Set([trolleyGeometrySignature(originalRoute)]),displayRoutes=[],detourErrors=[];
-    for(const[side,label]of[[1,'迂回路A（北回り）'],[-1,'迂回路B（南回り）']]){
+    const detourSides=originalRoute.trolleyFailures.length?[[1,'迂回路A（北回り）'],[-1,'迂回路B（南回り）']]:[];
+    for(const[side,label]of detourSides){
       try{
-        $('status').textContent=`${label}ルートを検索しています（近場を優先し、必要な場合は左右20kmの検索点を比較）…`;
+        $('status').textContent=`${label}ルートを検索しています（4地点から20km圏内の基幹道路を探索）…`;
         const excludedRoutes=side===1?[originalRoute]:[originalRoute,...displayRoutes];
-        let candidate=await getNorthSouthRoute(points,originalRoute,side,label,usedSignatures,excludedRoutes,routes);
-        const checkLabel=`ルート${routeNo} ${label}（確認${displayRoutes.length+2}/3・${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}）`;
-        showRouteCheckPreview(candidate,checkLabel);
-        let candidateWays=[],candidateWarning='';
-        try{candidateWays=await getRouteOsmWays(candidate)}catch(error){candidateWarning=error.message||label+'ルートのOpenStreetMap道路情報を取得できませんでした'}
-        await prepareRoute(candidate,candidateWays,candidateWarning,checkLabel);
-        if(candidate.trolleyFailures.length){
-          try{candidate=(await rerouteNarrowFailures(candidate._searchPoints||points,candidate,routeNo,label,excludedRoutes)).route}
-          catch(error){candidate._detourError=error.message||'NG道路区間を避けた再検索に失敗しました'}
-        }
+        let candidate=await getNorthSouthRoute(points,originalRoute,side,label,usedSignatures,excludedRoutes);
         const finalSignature=trolleyGeometrySignature(candidate);
         if([originalRoute,...displayRoutes].some(item=>trolleyGeometrySignature(item)===finalSignature))throw Error('元ルートや他の迂回路と同じ経路になりました');
         usedSignatures.add(finalSignature);
@@ -575,9 +726,11 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     const failed=route.trolleyFailures.length,cautions=route.trolleyCautions?.length||0;
     let summary='通過確認 '+route.trolleyChecked+'区間、未判定 '+route.trolleyUnchecked+'区間、対象外 '+route.trolleyExcluded+'区間'+(failed?'、狭隘道路不可 '+failed+'区間':'')+(cautions?'、狭隘注意 '+cautions+'区間（設定距離未満のため注意して通過可）':'');
     if(displayRoutes.length)summary+='。調査用候補：'+displayRoutes.map(candidate=>(candidate._displayLabel||'迂回路')+' '+(candidate.distance/1000).toFixed(1)+'km（幅不足 '+candidate.trolleyFailures.length+'区間、未判定 '+candidate.trolleyUnchecked+'区間）').join('、')+'。迂回路はNG道路区間を避けた調査用です。元ルートは置き換えず、最終ルートへの経由地設定は人が行います。点線は使わず全て実線です。赤線＝幅不足、黄線＝狭隘注意・幅未判定。各線をクリックすると区間状態を確認できます';
-    if(displayRoutes.length<2)summary+='。迂回路候補は'+displayRoutes.length+'本だけ取得できました';
-    else if(failed)summary=(result.detoured?'代替候補を検索しましたが、通行幅不足区間が未回避です。該当区間の残る候補を表示：':'安全な迂回候補を確認できず、通行幅不足区間の残る元ルートを表示：')+summary;
-    else if(result.detoured)summary='幅不足区間を回避したルートを表示：'+summary;
+    if(result.originalRouteFailed){
+      if(displayRoutes.length<2)summary+='。迂回路候補は'+displayRoutes.length+'本だけ取得できました';
+      else if(failed)summary=(result.detoured?'代替候補を検索しましたが、通行幅不足区間が未回避です。該当区間の残る候補を表示：':'安全な迂回候補を確認できず、通行幅不足区間の残る元ルートを表示：')+summary;
+      else if(result.detoured)summary='幅不足区間を回避したルートを表示：'+summary;
+    }
     if(result.detourError)summary+='。迂回検索の結果：'+result.detourError;
     const routeErrors=[...detourErrors,...displayRoutes.filter(candidate=>candidate._detourError).map(candidate=>(candidate._displayLabel||'迂回路')+'：'+candidate._detourError)];
     if(routeErrors.length)summary+=(summary.endsWith('。')?'':'。')+routeErrors.join('。');
@@ -607,9 +760,11 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     if(route.trolleyCensusWarning)summary+='。国交省道路交通センサス車線情報を取得できませんでした：'+route.trolleyCensusWarning;
     if(route.trolleyVectorWarning)summary+='。道路中心線の取得エラー（標準地図画像で補助確認）：'+route.trolleyVectorWarning;
     if(route.trolleyDataWarning)summary+='。OpenStreetMapの道路情報を取得できませんでした（道路名・車線数の補助情報なし）：'+route.trolleyDataWarning;
-    const candidateSummary=displayRoutes.map(candidate=>`${candidate._displayLabel||'迂回路'} ${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}（${candidate._detourSearchMode==='nearby'?'近い別経路':'20km検索'}）`).join('、');
-    const message=`元ルートと調査用迂回路を表示しました。${candidateSummary||'迂回路候補なし'}。元ルートと25%を超えて重なる候補は除外。近場候補がない場合は20km検索。赤線＝幅不足、黄線＝狭隘注意・幅未判定。点線は使わず全て実線です。`;
-    summary+='。元ルートと重なる割合が25%を超える候補は除き、距離が短いもの、同距離なら時間が短いものを表示';
+    const candidateSummary=displayRoutes.map(candidate=>`${candidate._displayLabel||'迂回路'} ${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}`).join('、');
+    const message=originalRoute.trolleyFailures.length
+      ?`元ルートと狭隘NGを避けた調査用迂回路を表示しました。${candidateSummary||'迂回路候補なし'}。②から目的地へ到達できる候補を検証し、最短候補から実出発地発の本経路を確認しました。`
+      :'元ルートに幅不足NGがないため、合意した条件に従い迂回路は検索せず元ルートだけを表示しました。';
+    if(displayRoutes.length)summary+='。迂回路は②から目的地への到達検証後に候補距離の短い順で実出発地発の経路を確認し、元ルートNGを避けて幅チェックに合格したものを表示';
     route._summary=summary;
     renderPlaces();
     if(!batch)$('status').textContent=message;

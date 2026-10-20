@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1900" viewBox="0 0 1600 1900" role="img" aria-labelledby="title desc">
+  <title id="title">狭隘道路NG区間を避ける迂回ルート検索の仕組み</title>
+  <desc id="desc">元ルートの幅チェックで狭隘NG区間を特定し、4基準点から20km以内の幹線道路上に迂回経由地候補を置く。まずNG区間始点②の除外範囲外に置いた境界点から目的地へ到達できる候補を検証し、到達可能な候補から最短を選ぶ。その後、実際の出発地から選定経由地を通る本経路を検索し、狭隘NG回避と幅を確認する。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#36586c"/>
+    </marker>
+    <style>
+      text{font-family:Meiryo,"Yu Gothic",sans-serif;fill:#17384b}
+      .title{font-size:30px;font-weight:700}
+      .section{font-size:22px;font-weight:700}
+      .head{font-size:18px;font-weight:700}
+      .body{font-size:15px}
+      .small{font-size:13px}
+      .tiny{font-size:12px}
+      .box{fill:#fff;stroke:#8fa8b6;stroke-width:2}
+      .process{fill:#edf5f9;stroke:#6d92a5;stroke-width:2}
+      .search{fill:#fff4df;stroke:#d3a23a;stroke-width:2}
+      .success{fill:#eaf5ec;stroke:#5e9c6a;stroke-width:2}
+      .danger{fill:#fff0ef;stroke:#ce5148;stroke-width:2}
+      .decision{fill:#fff9d9;stroke:#b18a22;stroke-width:2.5}
+      .excluded{fill:#ce514818;stroke:#ce5148;stroke-width:1.5}
+      .arrow{fill:none;stroke:#36586c;stroke-width:2.5;marker-end:url(#arrow)}
+      .radius{fill:none;stroke:#438cac;stroke-width:2;stroke-dasharray:8 6}
+      .original{fill:none;stroke:#788b98;stroke-width:7;stroke-linecap:round;stroke-linejoin:round}
+      .ng{fill:none;stroke:#d32121;stroke-width:13;stroke-linecap:round}
+      .detour{fill:none;stroke:#16843b;stroke-width:7;stroke-linecap:round;stroke-linejoin:round}
+      .candidate{fill:none;stroke:#1686b2;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+      .road{fill:none;stroke:#d28219;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+      .anchor{fill:#dff1fb;stroke:#176f91;stroke-width:3}
+      .via{fill:#fff;stroke:#d28219;stroke-width:4}
+      .badge{font-size:13px;font-weight:700}
+    </style>
+  </defs>
+  <rect width="1600" height="1900" fill="#f3f7f9"/>
+  <text x="48" y="56" class="title">狭隘道路NG区間を避ける迂回ルート検索</text>
+  <text x="50" y="88" class="body">添付図の考え方：元ルートの狭隘NGを確認し、4つの基準点から近くの幹線道路を探して迂回経由地に使う。</text>
+
+  <text x="50" y="137" class="section">1. 最初に元ルートの狭隘区間を確定する</text>
+  <rect x="50" y="160" width="330" height="86" rx="12" class="process"/>
+  <text x="215" y="194" text-anchor="middle" class="head">出発地から目的地まで</text>
+  <text x="215" y="222" text-anchor="middle" class="body">元ルートを検索</text>
+  <path d="M380 203H425" class="arrow"/>
+  <rect x="440" y="160" width="350" height="86" rx="12" class="search"/>
+  <text x="615" y="194" text-anchor="middle" class="head">道路幅をチェック</text>
+  <text x="615" y="222" text-anchor="middle" class="body">NG区間とその始点・終点を特定</text>
+  <path d="M790 203H835" class="arrow"/>
+  <polygon points="950,148 1065,203 950,258 835,203" class="decision"/>
+  <text x="950" y="198" text-anchor="middle" class="head">狭隘NG</text>
+  <text x="950" y="222" text-anchor="middle" class="head">あり？</text>
+  <path d="M1065 203H1110" class="arrow"/>
+  <rect x="1125" y="160" width="425" height="86" rx="12" class="success"/>
+  <text x="1337" y="194" text-anchor="middle" class="head">No：元ルートだけを表示</text>
+  <text x="1337" y="222" text-anchor="middle" class="body">迂回検索はしない</text>
+
+  <path d="M950 258V285H215V320" class="arrow"/>
+  <text x="969" y="282" class="badge">Yes</text>
+  <rect x="50" y="320" width="1500" height="580" rx="18" class="box"/>
+  <text x="80" y="362" class="head">2. 狭隘NGを通らない南側候補を作る（地図上の考え方）</text>
+  <text x="82" y="390" class="small">4つの基準点ごとに半径20km以内の幹線道路を探索。南側候補では元ルートより北側（西側）の道路を対象外にする。</text>
+
+  <path d="M70 405H1530V532L1430 535L1225 610L1045 610L875 565L700 565L525 610L345 610L170 650L70 690Z" class="excluded"/>
+  <text x="975" y="454" class="badge" fill="#b71c1c">赤みの範囲：南側ルートでは北側（西側）を対象外</text>
+  <path d="M170 650L345 610L525 610L700 565L875 565L1045 610L1225 610L1430 535" class="original"/>
+  <path d="M525 610L700 565L875 565" class="ng"/>
+  <text x="630" y="596" class="badge" fill="#b71c1c">幅不足NG区間（赤）</text>
+
+  <circle cx="170" cy="650" r="12" class="anchor"/>
+  <circle cx="525" cy="610" r="12" class="anchor"/>
+  <circle cx="875" cy="565" r="12" class="anchor"/>
+  <circle cx="1430" cy="535" r="12" class="anchor"/>
+  <text x="105" y="686" class="small">① 出発地</text>
+  <text x="430" y="650" class="small">② NG区間始点</text>
+  <text x="790" y="605" class="small">③ NG区間終点</text>
+  <text x="1365" y="572" class="small">④ 目的地</text>
+
+  <ellipse cx="170" cy="650" rx="160" ry="125" class="radius"/>
+  <ellipse cx="525" cy="610" rx="160" ry="125" class="radius"/>
+  <ellipse cx="875" cy="565" rx="160" ry="125" class="radius"/>
+  <ellipse cx="1430" cy="535" rx="125" ry="125" class="radius"/>
+  <text x="65" y="500" class="tiny">①から20km圏</text>
+  <text x="422" y="460" class="tiny">②から20km圏</text>
+  <text x="772" y="415" class="tiny">③から20km圏</text>
+  <text x="1342" y="392" class="tiny">④から20km圏</text>
+
+  <path d="M85 780L170 650L300 735L470 720L620 755L810 742L1010 760L1230 690L1430 535" class="road"/>
+  <text x="85" y="816" class="small">橙実線＝20km圏内で探す幹線道路（国道～村道）</text>
+  <circle cx="300" cy="735" r="9" class="via"/>
+  <circle cx="470" cy="720" r="9" class="via"/>
+  <circle cx="810" cy="742" r="9" class="via"/>
+  <circle cx="1010" cy="760" r="9" class="via"/>
+  <circle cx="1230" cy="690" r="9" class="via"/>
+  <text x="275" y="760" class="badge">候補点</text>
+  <text x="445" y="746" class="badge">候補点</text>
+  <text x="785" y="771" class="badge">候補点</text>
+  <text x="984" y="790" class="badge">候補点</text>
+  <text x="1205" y="717" class="badge">候補点</text>
+
+  <path d="M170 650L300 735L470 720L620 755L810 742L1010 760L1230 690L1430 535" class="detour"/>
+  <text x="1010" y="730" class="badge" fill="#16843b">緑：元ルートNGを避ける南側ルート候補</text>
+  <rect x="80" y="850" width="1440" height="32" rx="6" fill="#eaf5ec"/>
+  <text x="96" y="872" class="small">南側候補は元ルートNGを避け、かつ北側（西側）の候補を除外。北側ルート全体を除外エリアにはしない。</text>
+
+  <text x="50" y="952" class="section">3. 先に②から目的地へ到達検証し、最短候補を選んでから本経路を取る</text>
+  <rect x="50" y="978" width="1500" height="500" rx="16" class="box"/>
+  <rect x="78" y="1008" width="320" height="96" rx="12" class="search"/>
+  <text x="238" y="1044" text-anchor="middle" class="head">南側の候補経由地を組み合わせる</text>
+  <text x="238" y="1074" text-anchor="middle" class="body">北側（西側）道路は候補から除外</text>
+  <path d="M398 1056H435" class="arrow"/>
+  <rect x="450" y="1008" width="335" height="96" rx="12" class="danger"/>
+  <text x="617" y="1044" text-anchor="middle" class="head">先行検証は②のNG範囲外から</text>
+  <text x="617" y="1074" text-anchor="middle" class="body">②NG始点側 → 南側経由地 → ④目的地</text>
+  <path d="M785 1056H820" class="arrow"/>
+  <rect x="835" y="1008" width="300" height="96" rx="12" class="process"/>
+  <text x="985" y="1044" text-anchor="middle" class="head">目的地まで行けるか</text>
+  <text x="985" y="1074" text-anchor="middle" class="body">元ルートNGを通らず検証</text>
+  <path d="M1135 1056H1160" class="arrow"/>
+  <polygon points="1300,990 1440,1056 1300,1122 1160,1056" class="decision"/>
+  <text x="1300" y="1051" text-anchor="middle" class="head">目的地まで</text>
+  <text x="1300" y="1076" text-anchor="middle" class="head">到達できた？</text>
+
+  <path d="M1300 1122V1160H985V1104" class="arrow"/>
+  <text x="1318" y="1148" class="badge">No：次の候補で先行検証</text>
+  <path d="M1440 1056H1490V1230H1450" class="arrow"/>
+  <text x="1447" y="1038" class="badge">Yes</text>
+  <rect x="1120" y="1190" width="410" height="86" rx="12" class="success"/>
+  <text x="1325" y="1225" text-anchor="middle" class="head">到達可能な候補から最短を選択</text>
+  <text x="1325" y="1254" text-anchor="middle" class="body">距離で比較し、選定経由地を確定</text>
+
+  <path d="M1120 1233H1060" class="arrow"/>
+  <rect x="650" y="1190" width="395" height="86" rx="12" class="process"/>
+  <text x="847" y="1225" text-anchor="middle" class="head">実出発地から本経路を検索</text>
+  <text x="847" y="1254" text-anchor="middle" class="body">①→選定経由地→④。NGと幅を再確認</text>
+  <path d="M650 1233H610" class="arrow"/>
+  <polygon points="480,1178 610,1233 480,1288 350,1233" class="decision"/>
+  <text x="480" y="1228" text-anchor="middle" class="head">NG回避・</text>
+  <text x="480" y="1253" text-anchor="middle" class="head">幅OK？</text>
+  <path d="M350 1233H310V1165H1325V1190" class="arrow"/>
+  <text x="320" y="1149" class="badge">No：次順位候補を本経路検索</text>
+  <rect x="445" y="1290" width="560" height="86" rx="12" class="success"/>
+  <text x="725" y="1325" text-anchor="middle" class="head">NG回避・幅チェック合格：候補確定</text>
+  <text x="725" y="1354" text-anchor="middle" class="body">選んだ経由地で実出発地発の経路を登録</text>
+  <path d="M480 1288V1333H445" class="arrow"/>
+  <text x="495" y="1310" class="badge">Yes</text>
+  <rect x="78" y="1390" width="1452" height="60" rx="10" class="process"/>
+  <text x="804" y="1427" text-anchor="middle" class="body">先行検証（②NG範囲外の境界点発）で到達できない候補は除外。到達できる中から最短を選び、①発の本経路を再検証する。</text>
+
+  <text x="50" y="1530" class="section">4. 実装した手順と判定条件</text>
+  <rect x="50" y="1555" width="720" height="270" rx="14" class="success"/>
+  <text x="80" y="1598" class="head">今回実装した処理</text>
+  <text x="80" y="1640" class="body">1. 元ルートを先に幅チェック。NGなしなら迂回検索をしない。</text>
+  <text x="80" y="1678" class="body">2. NGありなら①②③④それぞれの20km圏で道路候補を探す。</text>
+  <text x="80" y="1716" class="body">3. ②のNG範囲外の境界点から③候補・経由地を通り④へ先行検証。</text>
+  <text x="80" y="1754" class="body">4. 到達候補を距離順（同距離は時間順）に本経路検索。</text>
+  <text x="80" y="1796" class="small">実出発地発でNG回避・幅OK・幅未判定なしの候補だけ表示。</text>
+
+  <rect x="800" y="1555" width="750" height="270" rx="14" class="search"/>
+  <text x="830" y="1598" class="head">制限と確認上の注意</text>
+  <text x="830" y="1640" class="body">・各基準点の近い道路候補を最大6地点まで検証する。</text>
+  <text x="830" y="1678" class="body">・②発はNG除外範囲の外側に置いた境界点から検証する。</text>
+  <text x="830" y="1716" class="body">・地図上の実地点を使ったOverpass／Valhalla統合試験は未実施。</text>
+  <text x="830" y="1754" class="body">・外部ルート検索と幅データが利用できない候補は採用しない。</text>
+  <text x="830" y="1792" class="small">20kmを維持。南側は北（西）側候補を除外し、NG区間も回避。</text>
+</svg>

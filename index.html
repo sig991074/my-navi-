@@ -260,13 +260,15 @@ async function getArterialRoadCandidates(anchors,baseRoute,side){
     }catch(error){lastError=error.name==='AbortError'?Error('道路候補検索サービスが30秒以内に応答しませんでした'):error}
     finally{clearTimeout(timer)}
   }
-  if(!payload)throw Error('20km圏内の基幹道路を検索できませんでした：'+(lastError?.message||'検索サービスから応答がありません'));
+  if(!payload)throw Error('20km圏内の基幹道路を検索できませんでした。検索サービスから応答がありません：'+(lastError?.message||'原因不明')+'。道路がないとは判定できません。');
+  const ways=(payload.elements||[]).filter(item=>item.type==='way'&&item.geometry?.length>1)
+    .map(item=>({id:item.id,tags:item.tags||{},geometry:item.geometry.map(point=>[point.lon,point.lat])}));
   const eligibleHighways=new Set(['trunk','primary','secondary','tertiary','unclassified','residential','living_street']);
-  const ways=(payload.elements||[]).filter(item=>item.type==='way'&&item.geometry?.length>1&&eligibleHighways.has(String(item.tags?.highway||''))&&!hasMultipleLaneTags(item.tags||{}));
+  const eligibleWays=ways.filter(way=>eligibleHighways.has(String(way.tags?.highway||''))&&!hasMultipleLaneTags(way.tags||{}));
   const maxCandidatesPerAnchor=6;
   return anchors.map((anchor,index)=>{
     const unique=new Map();
-    for(const way of ways){
+    for(const way of eligibleWays){
       const candidate=nearestPointOnWay(anchor,way);
       if(!candidate||candidate.distance>20000||routeSideScoreAtPoint(candidate,baseRoute)*side<=0)continue;
       const key=candidate.lon.toFixed(5)+','+candidate.lat.toFixed(5);

@@ -246,7 +246,7 @@
     const shiftPx = Math.round(lateralShift * scale);
     const bodyHalfWidth = Math.round(halfW * scale);
     const bodyLeft = center + shiftPx + bodyHalfWidth, bodyRight = center + shiftPx - bodyHalfWidth;
-    collision = (leftBoundary !== null && leftBoundary <= bodyLeft) ||
+    const collision = (leftBoundary !== null && leftBoundary <= bodyLeft) ||
       (rightBoundary !== null && rightBoundary >= bodyRight);
     if (collision) return { status: 'fail', collision, edgesFound, lateralShift, roadWidth };
     if (!edgesFound) return { status: 'unknown', collision: false, edgesFound, lateralShift, roadWidth };

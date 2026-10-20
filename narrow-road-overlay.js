@@ -571,15 +571,15 @@
         showMark(mark);
         if (fit.status === 'fail') stepStats.get(sample.step).failureSamples.at(-1).mark = mark;
       }
-      // 狭い道を見つけたら、その場で10秒止まって道幅を見せる（連続区間では1回、1ルート最大5回）
+      // 狭い道を見つけたら、その場で5秒止まって道幅を見せる（連続区間では1回、1ルート最大5回）
       if (fit.status === 'fail' && options.draw !== false && pauses < 5 && i - lastFailIndex > 5) {
         pauses++;
         bridge.moveRouteCheckProgress?.(origin);
         const widthText = fit.roadWidth != null ? `約${fit.roadWidth.toFixed(1)}m` : '測定できず';
         const popup = window.L.popup({ closeButton: false, autoClose: false, closeOnClick: false })
           .setLatLng([origin[1], origin[0]]).setContent(`<b>狭隘</b> 測定道路幅 ${widthText}`).openOn(map);
-        report(`狭い道を見つけました（測定道路幅 ${widthText}）。10秒止まって表示します…`);
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        report(`狭い道を見つけました（測定道路幅 ${widthText}）。        5秒止まって表示します…`);
+                await new Promise(resolve => setTimeout(resolve, 5000));
         map.closePopup(popup);
       }
       if (fit.status === 'fail') lastFailIndex = i;

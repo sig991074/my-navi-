@@ -865,7 +865,8 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     }
     chosenRouteGeometry[routeNo]=route.geometry;
     const originalRoute=result.originalRoute||route,usedSignatures=new Set([trolleyGeometrySignature(originalRoute)]),displayRoutes=[],detourErrors=[];
-    const detourSides=routeDetourTriggerSteps(originalRoute).length?[[1,'迂回路A（北回り）'],[-1,'迂回路B（南回り）']]:[];
+    const detourEnabled=priorities[routeNo].includes('F')||!document.body.classList.contains('hide-narrow');
+    const detourSides=detourEnabled&&routeDetourTriggerSteps(originalRoute).length?[[1,'迂回路A（北回り）'],[-1,'迂回路B（南回り）']]:[];
     for(const[side,label]of detourSides){
       try{
         $('status').textContent=`${label}ルートを検索しています（NG区間始点を通る直角線・片側20kmの交差道路を探索）…`;
@@ -925,7 +926,10 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     if(route.trolleyVectorWarning)summary+='。道路中心線の取得エラー（標準地図画像で補助確認）：'+route.trolleyVectorWarning;
     if(route.trolleyDataWarning)summary+='。OpenStreetMapの道路情報を取得できませんでした（道路名・車線数の補助情報なし）：'+route.trolleyDataWarning;
     const candidateSummary=displayRoutes.map(candidate=>`${candidate._displayLabel||'迂回路'} ${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}`).join('、');
-    const message=originalRoute.trolleyFailures.length
+    const narrowFound=routeDetourTriggerSteps(originalRoute).length;
+    const message=!detourEnabled&&narrowFound
+      ?`狭隘道路があります。狭隘道路安全チェックを行ってください。（幅不足 ${originalRoute.trolleyFailures.length} 区間、狭隘注意 ${cautions} 区間、幅未判定 ${route.trolleyUnchecked} 区間。走行条件にFが無いため、迂回はせず元ルートのみ表示しています）`
+      :originalRoute.trolleyFailures.length
       ?`元ルートと幅不足NG区間を避けた調査用迂回路を表示しました。${candidateSummary||'迂回路候補なし'}。②から目的地へ到達できる候補を検証し、最短候補から実出発地発の本経路を確認しました。`
       :detourSides.length&&displayRoutes.length
         ?`狭隘注意・幅未判定区間を避ける迂回候補を確認しました。${candidateSummary}。元ルートの幅未判定は残るため、候補路線も道路幅を確認してください。`

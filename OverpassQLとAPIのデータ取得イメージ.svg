@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1250" viewBox="0 0 1600 1250" role="img" aria-labelledby="title desc">
+  <title id="title">迂回道路検索条件：NG始点から直角方向へ各20km、該当なし側は±30度</title>
+  <desc id="desc">出発地と目的地を結ぶ直線を角度の基準にし、実ルート上のNG区間始点から直角線を両方向に各20km引く。直角線に道路候補がない側だけ、その側の線を方位角±30度振った2本を各20km追加検索する。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0 0L12 6L0 12Z" fill="#36566b"/>
+    </marker>
+    <marker id="measure" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto-start-reverse">
+      <path d="M10 0L0 5L10 10" fill="none" stroke="#236d94" stroke-width="2"/>
+    </marker>
+    <style>
+      text{font-family:Meiryo,"Yu Gothic",sans-serif;fill:#17384b}
+      .title{font-size:31px;font-weight:700}
+      .subtitle{font-size:18px}
+      .head{font-size:21px;font-weight:700}
+      .body{font-size:17px}
+      .small{font-size:15px}
+      .tiny{font-size:13px}
+      .panel{fill:#fff;stroke:#8da3b0;stroke-width:2}
+      .blue{fill:#edf6fb;stroke:#4382a3;stroke-width:2}
+      .green{fill:#edf7ef;stroke:#4e8b5b;stroke-width:2}
+      .gold{fill:#fff7df;stroke:#b98b19;stroke-width:2}
+      .redbox{fill:#fff0ed;stroke:#bf584d;stroke-width:2}
+      .baseline{fill:none;stroke:#c93535;stroke-width:5;stroke-dasharray:14 9}
+      .route{fill:none;stroke:#465bb3;stroke-width:9;stroke-linecap:round;stroke-linejoin:round}
+      .search{fill:none;stroke:#1886bd;stroke-width:6}
+      .fallback{fill:none;stroke-width:4;stroke-dasharray:10 8;opacity:.9}
+      .northroad{fill:none;stroke:#16834a;stroke-width:8;stroke-linecap:round;stroke-linejoin:round}
+      .southroad{fill:none;stroke:#d58a18;stroke-width:8;stroke-linecap:round;stroke-linejoin:round}
+      .minor{fill:none;stroke:#aab5ba;stroke-width:5;stroke-linecap:round}
+      .arrow{fill:none;stroke:#36566b;stroke-width:3;marker-end:url(#arrow)}
+      .mono{font-family:Consolas,monospace;font-size:16px;font-weight:700}
+      .number{fill:#176f91}
+      .numbertext{font-size:16px;font-weight:700;fill:#fff}
+    </style>
+  </defs>
+  <rect width="1600" height="1250" fill="#f3f7f9"/>
+  <text x="45" y="55" class="title">迂回道路検索：直角線に該当なし側は±30°も検索</text>
+  <text x="48" y="89" class="subtitle">NG始点を通る直角線を両方向20km検索し、候補がない側だけ角度を±30°振った2本を追加します。</text>
+
+  <rect x="40" y="120" width="930" height="820" rx="16" class="panel"/>
+  <text x="70" y="160" class="head">1　地図上の位置関係（添付画像の考え方）</text>
+  <rect x="68" y="185" width="875" height="700" rx="10" fill="#f7f9f5" stroke="#d6e0e2" stroke-width="1.5"/>
+
+  <path d="M110 340C250 320 340 355 460 335S700 320 900 350" class="minor"/>
+  <path d="M115 760C245 720 335 755 440 730S680 760 910 705" class="minor"/>
+  <path d="M180 225C200 370 185 560 220 850" class="minor"/>
+  <path d="M770 220C745 390 790 560 765 850" class="minor"/>
+
+  <path d="M270 370C320 410 385 460 435 495S495 545 525 575" class="northroad"/>
+  <path d="M390 310C440 380 505 520 553 613S600 670 630 700" class="northroad"/>
+  <path d="M515 360C560 455 615 590 650 710S680 760 710 790" class="northroad"/>
+  <path d="M300 625C330 550 345 470 360 420S400 350 430 320" class="southroad"/>
+  <path d="M535 700C565 670 580 650 590 650S630 590 650 560" class="southroad"/>
+  <path d="M685 740C690 745 690 750 690 750S740 690 760 660" class="southroad"/>
+  <path d="M125 510L250 480L350 495" class="minor"/>
+  <path d="M750 460L845 425L915 440" class="minor"/>
+
+  <path d="M220 820L790 240" class="baseline"/>
+  <text x="625" y="340" class="small" fill="#b52d2d" transform="rotate(-45 625 340)">出発地～目的地の直線（角度の基準）</text>
+  <circle cx="220" cy="820" r="16" fill="#168448" stroke="#fff" stroke-width="4"/>
+  <circle cx="790" cy="240" r="16" fill="#c93333" stroke="#fff" stroke-width="4"/>
+  <text x="105" y="858" class="body" font-weight="700">出発地</text>
+  <text x="815" y="242" class="body" font-weight="700">目的地</text>
+
+  <path d="M220 820C290 775 350 720 415 670C455 638 480 605 500 560C518 520 548 488 615 448C690 402 730 325 790 240" class="route"/>
+  <text x="264" y="756" class="small" fill="#394da2">実際の曲がったルート</text>
+  <circle cx="500" cy="560" r="17" fill="#ffe000" stroke="#947700" stroke-width="3"/>
+  <text x="328" y="582" class="body" font-weight="700">NG区間の始点</text>
+  <path d="M240 300L500 560L760 820" class="search"/>
+  <path d="M500 560L250 493L750 627" class="fallback" stroke="#db7b16"/>
+  <path d="M500 560L433 310L567 810" class="fallback" stroke="#8e5aa7"/>
+  <text x="185" y="482" class="small" fill="#a85b08">追加線 +30°</text>
+  <text x="438" y="293" class="small" fill="#714486">追加線 −30°</text>
+  <text x="268" y="390" class="small" fill="#126d9b" transform="rotate(38 268 390)">北回り側：NG始点から20km</text>
+  <text x="560" y="672" class="small" fill="#126d9b" transform="rotate(38 560 672)">南回り側：NG始点から20km</text>
+  <path d="M500 560L516 539L537 555L521 576" fill="none" stroke="#17384b" stroke-width="3"/>
+  <text x="535" y="546" class="body" font-weight="700">90°</text>
+  <line x1="270" y1="330" x2="460" y2="520" stroke="#236d94" stroke-width="2.5" marker-start="url(#measure)" marker-end="url(#measure)"/>
+  <line x1="540" y1="600" x2="735" y2="795" stroke="#236d94" stroke-width="2.5" marker-start="url(#measure)" marker-end="url(#measure)"/>
+  <circle cx="435" cy="495" r="10" fill="#e13232" stroke="#fff" stroke-width="3"/>
+  <circle cx="553" cy="613" r="10" fill="#e13232" stroke="#fff" stroke-width="3"/>
+  <circle cx="650" cy="710" r="10" fill="#e13232" stroke="#fff" stroke-width="3"/>
+  <circle cx="360" cy="420" r="10" fill="#e13232" stroke="#fff" stroke-width="3"/>
+  <circle cx="590" cy="650" r="10" fill="#e13232" stroke="#fff" stroke-width="3"/>
+
+  <text x="93" y="895" class="small" fill="#16834a">緑＝北回り側の対象公道候補</text>
+  <text x="365" y="895" class="small" fill="#b47812">橙＝南回り側の対象公道候補</text>
+  <text x="670" y="895" class="small" fill="#d12f2f">赤丸＝探索線との交差GPS</text>
+  <text x="82" y="923" class="tiny">破線の追加線は説明用。直角線に候補がない側だけ、その側の±30°線を各20km検索します。</text>
+
+  <rect x="995" y="120" width="565" height="400" rx="16" class="blue"/>
+  <text x="1025" y="161" class="head">2　QL/APIに渡す空間条件案</text>
+  <circle cx="1048" cy="203" r="18" class="number"/><text x="1048" y="209" text-anchor="middle" class="numbertext">1</text>
+  <text x="1080" y="210" class="body">角度の基準：出発地 → 目的地の直線</text>
+  <circle cx="1048" cy="250" r="18" class="number"/><text x="1048" y="256" text-anchor="middle" class="numbertext">2</text>
+  <text x="1080" y="257" class="body">探索線の通過位置：NG区間始点</text>
+  <circle cx="1048" cy="297" r="18" class="number"/><text x="1048" y="303" text-anchor="middle" class="numbertext">3</text>
+  <text x="1080" y="304" class="body">探索線の角度：基準線に対して90°</text>
+  <circle cx="1048" cy="344" r="18" class="number"/><text x="1048" y="350" text-anchor="middle" class="numbertext">4</text>
+  <text x="1080" y="351" class="body">探索距離：北・南それぞれ20km</text>
+  <circle cx="1048" cy="391" r="18" class="number"/><text x="1048" y="397" text-anchor="middle" class="numbertext">5</text>
+  <text x="1080" y="398" class="body">返すデータ：交差する道路wayの形状とID</text>
+  <circle cx="1048" cy="438" r="18" class="number"/><text x="1048" y="444" text-anchor="middle" class="numbertext">6</text>
+  <text x="1080" y="445" class="body">交差計算：道路線 × 青い探索線</text>
+  <text x="1025" y="486" class="small">※候補がない側だけ、方位角を＋30°・−30°した2本を各20km検索。</text>
+
+  <path d="M1278 520V548" class="arrow"/>
+  <rect x="995" y="558" width="565" height="230" rx="16" class="green"/>
+  <text x="1025" y="599" class="head">3　道路の選択条件（ユーザー定義）</text>
+  <text x="1030" y="642" class="body">対象：バイパス、国道、都道・道道・府道・</text>
+  <text x="1090" y="672" class="body">県道、市道・町道・村道などの公道</text>
+  <text x="1030" y="714" class="small">道路名や車線数で勝手に除外しない。</text>
+  <text x="1030" y="748" class="small">QL/APIから線形状を取得し、交差した道路を残す。</text>
+  <text x="1030" y="775" class="tiny">候補数の上限なし。高速入口等を独自に足さない。</text>
+
+  <path d="M1278 788V816" class="arrow"/>
+  <rect x="995" y="826" width="565" height="114" rx="16" class="gold"/>
+  <text x="1025" y="867" class="head">4　交差GPSを迂回候補に渡す</text>
+  <text x="1030" y="906" class="body">北側候補と南側候補をそれぞれ経路検索へ。</text>
+
+  <rect x="40" y="965" width="1520" height="230" rx="16" class="redbox"/>
+  <text x="72" y="1007" class="head">承認前に明示する未確認点（推測で決めません）</text>
+  <text x="82" y="1048" class="body">OSM/Overpassのどのタグで「国道～村道・バイパス」という公道区分をQL選択できるか、対象地域の実データで照合が必要です。</text>
+  <text x="82" y="1084" class="body">QL/APIが交差線そのものを空間検索できるか、または線の範囲からway形状を取得して交差を計算するかを確認します。</text>
+  <text x="82" y="1120" class="body">実装仕様：この図の条件を承認後、まず小さな対象区間で検索時間・返却道路・交差GPSを検証。成功を確認してから本実装。</text>
+  <text x="82" y="1166" class="small">本図は承認用の仕様案です。現行コードの説明ではなく、まだコード修正も実データ検索も行っていません。</text>
+</svg>

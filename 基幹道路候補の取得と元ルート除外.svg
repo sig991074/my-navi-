@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="2110" viewBox="0 0 1500 2110" role="img" aria-labelledby="title desc">
+  <title id="title">迂回用道路データ取得フローチャート</title>
+  <desc id="desc">4基準点の20km圏内からOSM Overpassのhighway wayを追加の道路種別選別なしで形状取得し、元ルートに対する基準角と交差がない場合のみ前後30度で交差GPSを抽出する手順。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0 0L12 6L0 12Z" fill="#34566b"/>
+    </marker>
+    <marker id="greenArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0 0L12 6L0 12Z" fill="#28794b"/>
+    </marker>
+    <style>
+      text{font-family:Meiryo,"Yu Gothic",sans-serif;fill:#17384b}
+      .title{font-size:32px;font-weight:700}
+      .subtitle{font-size:18px}
+      .head{font-size:21px;font-weight:700}
+      .body{font-size:17px}
+      .small{font-size:15px}
+      .tiny{font-size:13px}
+      .box{fill:#fff;stroke:#7894a5;stroke-width:2}
+      .query{fill:#edf6fb;stroke:#4382a3;stroke-width:2}
+      .decision{fill:#fff7df;stroke:#b98b19;stroke-width:2}
+      .warning{fill:#fff0ed;stroke:#bf584d;stroke-width:2}
+      .success{fill:#edf7ef;stroke:#4e8b5b;stroke-width:2}
+      .arrow{fill:none;stroke:#34566b;stroke-width:3;marker-end:url(#arrow)}
+      .greenArrow{fill:none;stroke:#28794b;stroke-width:3;marker-end:url(#greenArrow)}
+      .mono{font-family:Consolas,monospace;font-size:16px;fill:#18384b}
+      .label{font-size:14px;font-weight:700}
+    </style>
+  </defs>
+  <rect width="1500" height="2110" fill="#f3f7f9"/>
+  <text x="50" y="55" class="title">迂回用道路データ取得フローチャート</text>
+  <text x="52" y="88" class="subtitle">現在のコード：OSM Overpassから、4地点の20km圏内にある道路wayの形状を取得します。</text>
+
+  <rect x="60" y="115" width="1380" height="105" rx="14" class="box"/>
+  <text x="90" y="151" class="head">開始：元ルートとNG区間から4つの基準点を用意</text>
+  <text x="95" y="184" class="body">①出発地　②NG区間の始点　③NG区間の終点　④目的地</text>
+  <text x="95" y="207" class="small">北回り／南回りそれぞれについて、同じ4地点の周囲を検索します。</text>
+  <path d="M750 220V250" class="arrow"/>
+
+  <rect x="60" y="260" width="1380" height="310" rx="14" class="query"/>
+  <text x="90" y="300" class="head">1　Overpass QLのセレクト条件（基準点ごとに1行、合計4行）</text>
+  <text x="105" y="348" class="mono">way(around:20000, &lt;①の緯度&gt;, &lt;①の経度&gt;)[highway];</text>
+  <text x="105" y="382" class="mono">way(around:20000, &lt;②の緯度&gt;, &lt;②の経度&gt;)[highway];</text>
+  <text x="105" y="416" class="mono">way(around:20000, &lt;③の緯度&gt;, &lt;③の経度&gt;)[highway];</text>
+  <text x="105" y="450" class="mono">way(around:20000, &lt;④の緯度&gt;, &lt;④の経度&gt;)[highway];</text>
+  <text x="95" y="493" class="small">way＝線状道路データ　／　around:20000＝各基準点から半径20,000m　／　[highway]＝highwayタグがあるway</text>
+  <text x="95" y="527" class="small">highwayの値は限定しません。4つの検索結果をまとめ、交差計算に使う全形状を要求します。</text>
+  <path d="M750 570V600" class="arrow"/>
+
+  <rect x="60" y="610" width="1380" height="220" rx="14" class="query"/>
+  <text x="90" y="650" class="head">2　送信するクエリと取得データ</text>
+  <text x="105" y="696" class="mono">[out:json][timeout:60];</text>
+  <text x="105" y="728" class="mono">(&lt;上記4行&gt;);</text>
+  <text x="105" y="760" class="mono">out geom;</text>
+  <text x="745" y="696" class="body">取得するもの</text>
+  <text x="745" y="729" class="small">・該当wayのID、タグ一式、道路形状（座標列）</text>
+  <text x="745" y="760" class="small">・中心点だけでなく、交差判定に使う線の全形状</text>
+  <text x="745" y="791" class="small">・検索順の上位選択や、道路件数の上限は設けない</text>
+  <path d="M750 830V860" class="arrow"/>
+
+  <rect x="60" y="870" width="1380" height="230" rx="14" class="box"/>
+  <text x="90" y="910" class="head">3　Overpass APIへ接続</text>
+  <text x="105" y="954" class="body">接続先を順番に試す：overpass-api.de → overpass.private.coffee → maps.mail.ru</text>
+  <text x="105" y="991" class="small">各接続先の待機上限は90秒。HTTPエラー・タイムアウト等なら次の接続先へ進みます。</text>
+  <text x="105" y="1025" class="small">応答に成功したら取得データへ進む。3接続先とも失敗したら検索失敗を表示して終了。</text>
+  <text x="105" y="1060" class="small">APIエラーは「道路がない」という意味ではありません。</text>
+  <path d="M750 1100V1135" class="arrow"/>
+
+  <rect x="60" y="1145" width="1380" height="150" rx="14" class="box"/>
+  <text x="90" y="1185" class="head">4　交差計算に必要な形状だけ確認</text>
+  <text x="105" y="1225" class="body">way要素で、座標が2点以上ある形状を交差計算へ渡す。</text>
+  <text x="105" y="1262" class="small">これは線分として交差を計算するための形式確認です。道路名・ref・道路種別・車線数による選別ではありません。</text>
+  <path d="M750 1295V1325" class="arrow"/>
+
+  <rect x="60" y="1335" width="1380" height="300" rx="14" class="query"/>
+  <text x="90" y="1375" class="head">5　各基準点・各回り方向で交差GPSを計算</text>
+  <text x="105" y="1418" class="body">A（北回り）またはB（南回り）の向きと、元ルートの局所方向から基準角を計算。</text>
+  <text x="105" y="1453" class="body">基準点から基準角の線を延ばし、取得したwayの全線分との交点を調べる（線の長さは最大20km）。</text>
+  <path d="M750 1466V1485" class="arrow"/>
+  <path d="M750 1490L865 1540L750 1590L635 1540Z" class="decision"/>
+  <text x="690" y="1535" class="small">基準角に</text>
+  <text x="690" y="1557" class="small">交点あり？</text>
+  <path d="M635 1540H445V1600" class="greenArrow"/>
+  <text x="535" y="1527" class="label" fill="#28794b">はい：基準角の交点を採用</text>
+  <path d="M865 1540H1055V1600" class="arrow"/>
+  <text x="890" y="1527" class="label">いいえ：前後30度を検索</text>
+  <text x="1075" y="1545" class="small">基準角で交点があれば</text>
+  <text x="1075" y="1571" class="small">±30度は追加しない。</text>
+  <text x="105" y="1612" class="small">交点は全件保持。routeSideScore × 回り方向 ＞ 0 の点を残し、同一way・同一位置の重複だけまとめる。</text>
+  <path d="M445 1600V1660H750" class="greenArrow"/>
+  <path d="M1055 1600V1660H750" class="arrow"/>
+
+  <rect x="60" y="1670" width="1380" height="135" rx="14" class="success"/>
+  <text x="90" y="1712" class="head">6　候補GPSを後段へ渡す</text>
+  <text x="105" y="1752" class="body">交差した道路名・ref（データにあれば）と交差GPSを、迂回経路の接続候補として使用。</text>
+  <text x="105" y="1783" class="small">②・③付近の候補から経路検索し、到達可能性と既存の幅チェックを確認します。</text>
+
+  <rect x="60" y="1830" width="1380" height="245" rx="14" class="warning"/>
+  <text x="90" y="1870" class="head">「独自の道路絞り込み」は入れない／データ上の限界</text>
+  <text x="105" y="1910" class="small">名前・refの有無、日本語の道路名、highwayの値、車線数、距離順、候補件数での追加除外はありません。</text>
+  <text x="105" y="1942" class="small">OSMの highway タグだけでは、その道路が公道か、国道・県道等かを公式に確定できません。</text>
+  <text x="105" y="1974" class="small">この取得では全 highway way を候補に含めます。公道種別を厳密に保証する公式道路データへの切替は別途必要です。</text>
+  <text x="105" y="2006" class="small">元ルートwayのIDを名前・距離で推定して除外する処理も外しました。交点の位置が指定側にあるかで判定します。</text>
+</svg>

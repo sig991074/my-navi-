@@ -854,6 +854,7 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
   $('status').textContent='ルート'+routeNo+'を計算し、道路データで狭隘チェックしています';
   try{
     const points=[plan.start,...plan.vias,plan.destination],routes=await getRoutes(points);
+    try{drawRoutes([routes[0]],routeNo);$('status').textContent='ルート'+routeNo+'を表示しました。狭隘チェック中です…'}catch(error){}
     const result=await findTrolleySafeRoute(points,routes,routeNo),route=result.route;
     if(!route){
       clearRouteCheckPreview();

@@ -828,7 +828,7 @@ async function findTrolleySafeRoute(points,routes,routeNo){
   const compareByPreference=(a,b)=>compareRoutes(a,b,routeNo);
   const route=routes.slice().sort(compareByPreference)[0]||preferredRoute(routes,routeNo);
   if(!route)return{route:null,detoured:false,originalRouteFailed:true,detourError:'元ルート候補がありません'};
-  const checkLabel=`ルート${routeNo} 元ルート（確認1/3・${(route.distance/1000).toFixed(1)}km・${formatDuration(route.duration)}）`;
+  const checkLabel=`ルート${routeNo}（${(route.distance/1000).toFixed(1)}km・${formatDuration(route.duration)}）`;
   showRouteCheckPreview(route,checkLabel);
   $('status').textContent='道路名・種別と国交省の車線数を確認し、対象道路の幅をチェックしています…';
   let ways=[],warning='';
@@ -872,7 +872,7 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     }
     chosenRouteGeometry[routeNo]=route.geometry;
     const originalRoute=result.originalRoute||route,usedSignatures=new Set([trolleyGeometrySignature(originalRoute)]),displayRoutes=[],detourErrors=[];
-    const detourEnabled=priorities[routeNo].includes('F')||!document.body.classList.contains('hide-narrow');
+    const detourEnabled=!document.body.classList.contains('hide-narrow');
     const detourSides=detourEnabled&&routeDetourTriggerSteps(originalRoute).length?[[1,'迂回路A（北回り）'],[-1,'迂回路B（南回り）']]:[];
     for(const[side,label]of detourSides){
       try{
@@ -892,7 +892,7 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     displayedRoutes.forEach((candidate,index)=>candidate._displayOption=index);
     drawRoutes(displayedRoutes,routeNo);
     styleRouteOptionLines(routeNo);
-    addRouteOptionMarkers(routeNo);
+    if(displayRoutes.length)addRouteOptionMarkers(routeNo);
     const failed=route.trolleyFailures.length,cautions=route.trolleyCautions?.length||0;
     let summary='通過確認 '+route.trolleyChecked+'区間、未判定 '+route.trolleyUnchecked+'区間、対象外 '+route.trolleyExcluded+'区間'+(failed?'、狭隘道路不可 '+failed+'区間':'')+(cautions?'、狭隘注意 '+cautions+'区間（設定距離未満の注意区間）':'');
     const unverifiedRoads=unverifiedTrolleyRoadNames(route);

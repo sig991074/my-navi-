@@ -420,7 +420,8 @@
   const makeStepResult = (stats, previous, name) => {
     if (!stats) return previous;
     if (!stats.samples && !stats.intersectionSkipped && !stats.censusExcludedSamples) stats.unknown = true;
-    let status = stats.fail ? 'fail' : !stats.samples && stats.censusExcludedSamples && !stats.unknown ? 'excluded' :
+    const mostlyMultilane = stats.censusExcludedSamples && stats.censusExcludedSamples >= (stats.censusExcludedSamples + (stats.samples || 0)) * .9;
+    let status = stats.fail ? 'fail' : mostlyMultilane || (!stats.samples && stats.censusExcludedSamples && !stats.unknown) ? 'excluded' :
       stats.unknown || !stats.samples ? 'unchecked' : stats.cautionPoints.length ? 'caution' : 'pass';
     const reason = status === 'fail' ? 'vector-footprint-collision' :
       status === 'excluded' ? 'census-multilane-road' :

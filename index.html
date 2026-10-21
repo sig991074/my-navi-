@@ -127,9 +127,11 @@ async function checkTrolleyRoute(route,sharedWays=null,sharedWarning=''){
   const dimensions=trolleyDimensions(),ways=sharedWays||[],steps=route.steps||[];
   route.trolleyDataWarning=sharedWarning;
   if(!sharedWays){
-    try{ways.push(...await getRouteOsmWays(route))}catch(error){route.trolleyDataWarning=error.message||'OpenStreetMapの道路情報を取得できませんでした'}
+    const isHighway=s=>['高速道路','無料高速'].includes(roadInfo(s).type),groups=[];let current=[];
+    for(const s of steps){if(isHighway(s)||s._endpointExcluded){if(current.length)groups.push(current);current=[]}else current.push(...(s.geometry?.coordinates||[]))}
+    if(current.length)groups.push(current);
+    try{for(const coordinates of groups)ways.push(...await getRouteOsmWays({geometry:{coordinates}}))}catch(error){route.trolleyDataWarning=error.message||'OpenStreetMapの道路情報を取得できませんでした'}
   }
-  try{await addCensusLaneIndexes(route,ways)}catch(error){route.trolleyCensusWarning=error.message||'国土交通省の道路交通センサス車線情報を取得できませんでした'}
   prepareTrolleyLegContexts(route);
   route._trolleyIntersections=findOsmIntersectionPoints(ways);
   for(const step of steps){
@@ -138,8 +140,13 @@ async function checkTrolleyRoute(route,sharedWays=null,sharedWarning=''){
       ?{status:'excluded',reason:notTargetRoadReason(step,tags)}
       :{status:'pending'};
   }
+  const pendingSteps=steps.filter(step=>step._trolleyCheck.status==='pending');
+  if(pendingSteps.length){
+    const censusRoute={steps:pendingSteps};
+    try{await addCensusLaneIndexes(censusRoute,ways);route._censusLaneAt=censusRoute._censusLaneAt}catch(error){route.trolleyCensusWarning=error.message||'国土交通省の道路交通センサス車線情報を取得できませんでした'}
+  }
   window.evNarrowRoadBridge?.hideCheckLayers?.();
-  const vector=await window.evNarrowRoadBridge?.checkRoute?.(route,dimensions);
+  const vector=pendingSteps.length?await window.evNarrowRoadBridge?.checkRoute?.(route,dimensions):null;
   route.trolleyVectorUsed=!!vector?.active;
   route.trolleyVectorWarning=vector?.warning||'';
   if(vector?.active){
@@ -926,7 +933,7 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
     if(route.trolleyVectorWarning)summary+='。道路中心線の取得エラー（標準地図画像で補助確認）：'+route.trolleyVectorWarning;
     if(route.trolleyDataWarning)summary+='。OpenStreetMapの道路情報を取得できませんでした（道路名・車線数の補助情報なし）：'+route.trolleyDataWarning;
     const candidateSummary=displayRoutes.map(candidate=>`${candidate._displayLabel||'迂回路'} ${(candidate.distance/1000).toFixed(1)}km・${formatDuration(candidate.duration)}`).join('、');
-    const narrowFound=routeDetourTriggerSteps(originalRoute).length;
+    const narrowFound=routeDetourTriggerSteps(originalRoute).filter(step=>step._trolleyCheck?.status!=='unchecked').length;
     const message=!detourEnabled&&narrowFound
       ?`狭隘道路があります。狭隘道路安全チェックを行ってください。`
       :originalRoute.trolleyFailures.length

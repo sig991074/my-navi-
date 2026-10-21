@@ -32,7 +32,7 @@
   const positionRouteStatus = () => {
     const routeStatus = document.getElementById('status');
     if (!routeStatus) return;
-    routeStatus.style.bottom = `${Math.max(10, window.innerHeight - panel.getBoundingClientRect().top + 8)}px`;
+    routeStatus.style.bottom = panel.getClientRects().length ? `${Math.max(10, window.innerHeight - panel.getBoundingClientRect().top + 8)}px` : '10px';
   };
   positionRouteStatus();
   window.addEventListener('resize', positionRouteStatus);

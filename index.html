@@ -48,7 +48,7 @@ function clientId(){return localStorage.getItem('ev_ms_client')||''}
 function showSetup(){
   $('msSetup').style.display='block';$('msUri').textContent=REDIRECT;$('msClient').value=clientId();$('msClient').focus()
 }
-$('msCopy').onclick=()=>{navigator.clipboard?.writeText(REDIRECT);$('msCopy').textContent='コピーしました'};
+$('msCopy').onclick=()=>{if(navigator.clipboard)navigator.clipboard.writeText(REDIRECT);$('msCopy').textContent='コピーしました'};
 $('msClientSave').onclick=()=>{const c=$('msClient').value.trim();if(!c)return;localStorage.setItem('ev_ms_client',c);$('msSetup').style.display='none';msg('クライアントIDを登録しました。もう一度プラン名でEnterを押してください')};
 function readTok(){try{return JSON.parse(localStorage.getItem('ev_ms_tok')||'{}')}catch(e){return{}}}
 async function tokenReq(params){

@@ -55,7 +55,7 @@ async function savePlan(silent){
   const data=collect(),text=JSON.stringify(data),undo=()=>{if(wasNew){$('saveUrl').value='';save()}};
   if(canDir){
     let h=await dirHandle(!silent);
-    if(!h&&!silent){await pickFolder();h=await dirHandle(true)}
+    if(!h&&!silent)h=await pickFolder();
     if(!h){undo();msg(silent?'保存先フォルダーの許可が切れています':'保存先フォルダーが選ばれていません。OneDriveのcarナビデータ保存フォルダーを選んでください');if(!silent)alert('保存されていません。OneDriveのcarナビデータ保存フォルダーを選んでください');return false}
     try{
       let old=null;try{old=await readJson(await h.getFileHandle(fn))}catch(e){}
@@ -84,7 +84,7 @@ function loadPlan(o){
 async function showList(){
   const p=$('planPanel');if(p.classList.contains('show')){p.classList.remove('show');return}
   if(!canDir){$('planFile').click();return}
-  const h=await dirHandle(true);if(!h){await pickFolder();return}
+  let h=await dirHandle(true);if(!h){h=await pickFolder();if(!h)return}
   const items=[];
   try{for await(const[n,e]of h.entries())if(e.kind==='file'&&/\.json$/i.test(n)){const o=await readJson(e);if(o)items.push(o)}}catch(e){msg('一覧を取得できませんでした：'+(e.message||e));return}
   items.sort((a,b)=>b.updatedAt-a.updatedAt);p.innerHTML='';
@@ -99,7 +99,12 @@ $('planList').onclick=()=>{showList()};
 $('planName').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();$('planName').blur();savePlan(false)}});
 async function pickFolder(){
   if(!canDir){msg('この端末は保存先フォルダーを固定できません。一覧のファイル選択で読み込み、保存時は共有メニューから保存してください');return}
-  try{const h=await showDirectoryPicker({mode:'readwrite',id:'evplans'});await idbSet('dir',h);msg('保存先フォルダー：'+h.name)}catch(e){if(e.name!=='AbortError')msg('フォルダーを選択できませんでした')}
+  try{
+    msg('OneDriveの「carナビデータ保存」フォルダーを開き、「フォルダーの選択」を押してください');
+    const h=await showDirectoryPicker({mode:'readwrite',id:'evplans'});
+    if(h.name!=='carナビデータ保存'&&!confirm('選んだフォルダーは「'+h.name+'」です。ここに保存しますか？'))return null;
+    await idbSet('dir',h);msg('保存先フォルダー：'+h.name);return h
+  }catch(e){if(e.name!=='AbortError')msg('フォルダーを選択できませんでした：'+(e.message||e));return null}
 }
 dirHandle(false).then(h=>{if(h)msg('保存先フォルダー：'+h.name)}).catch(()=>{});
 $('backMenu').onclick=async()=>{if($('saveUrl').value.trim())await savePlan(true);show('menu')};

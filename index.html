@@ -24,7 +24,7 @@ body.hide-narrow #source+.icInfo{display:none!important}body.hide-narrow .condit
 <button id="backMenu" type="button">≡ メニューへ戻る</button>
 <div id="scrMenu" class="scr"><div class="scrBox scrSetupBox"><h1>基礎データ入力</h1><p class="sub">プラン名と出発日時を入力します。入力内容は自動保存されます。</p>
 <div class="scrCard scrTight"><div class="topRow"><div style="position:relative"><label for="planName">プラン名</label><div class="planPick"><input id="planName" type="text" placeholder="例：和歌山・熊野温泉めぐり車中泊の旅"><button id="planList" type="button" title="保存済みプランの一覧">▽</button></div><div id="planPanel" class="planPanel"></div></div><div><label for="saveUrl">保存先URL</label><input id="saveUrl" type="text" placeholder="OneDrive共有フォルダーのURL"></div></div>
-<div class="depRow"><div><label for="dep1">1日目 出発日時</label><input id="dep1" type="datetime-local"></div><div><label for="dep2">2日目 出発日時</label><input id="dep2" type="datetime-local"></div><div><label for="dep3">3日目 出発日時</label><input id="dep3" type="datetime-local"></div></div><div id="saveMark"></div><div id="cloudMark"></div></div></div>
+<div class="depRow"><div><label for="dep1">1日目 出発日時</label><input id="dep1" type="datetime-local"></div><div><label for="dep2">2日目 出発日時</label><input id="dep2" type="datetime-local"></div><div><label for="dep3">3日目 出発日時</label><input id="dep3" type="datetime-local"></div></div><div id="saveMark"></div><div id="cloudMark"></div><div id="msSetup" style="display:none;font-size:12px;margin-top:6px;padding:6px;border:1px solid #9ab;border-radius:6px;background:#fff"><div>① リダイレクトURI（Microsoft登録用）：<button id="msCopy" type="button">コピー</button></div><div id="msUri" style="word-break:break-all;color:#163f56"></div><div style="margin-top:4px">② クライアントID：<input id="msClient" type="text" style="width:60%"> <button id="msClientSave" type="button">登録</button></div></div></div></div>
 <div class="frameArrow"><span>⇅</span><small>入力したプラン名・出発日時を引き継ぐ</small></div>
 <div class="scrBox"><h1>CARナビ ルートプランナー 総合メニュー</h1><p class="sub" id="menuPlan"></p>
 <div class="menuGrid"><button class="scrBtn" style="grid-area:1/1" data-go="planner" type="button">carナビ ルートプランナー<small>ルートの選定を行います。</small></button>
@@ -44,7 +44,12 @@ let loadedStamp=localStorage.getItem('ev_cloud_stamp')||'';
 const msg=t=>{$('cloudMark').textContent=t},fileOf=n=>n.replace(/[\\/:*?"<>|]/g,'_').trim()+'.json',when=t=>new Date(t).toLocaleString('ja-JP');
 const MS_AUTH='https://login.microsoftonline.com/consumers/oauth2/v2.0',GRAPH='https://graph.microsoft.com/v1.0',MS_SCOPE='Files.ReadWrite.All offline_access',REDIRECT=location.origin+location.pathname;
 const b64u=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-function clientId(){let c=localStorage.getItem('ev_ms_client')||'';if(!c){c=(prompt('Microsoftアプリの「アプリケーション(クライアント)ID」を入力してください（初回のみ）\n\nリダイレクトURIには次を登録：\n'+REDIRECT)||'').trim();if(c)localStorage.setItem('ev_ms_client',c)}return c}
+function clientId(){return localStorage.getItem('ev_ms_client')||''}
+function showSetup(){
+  $('msSetup').style.display='block';$('msUri').textContent=REDIRECT;$('msClient').value=clientId();$('msClient').focus()
+}
+$('msCopy').onclick=()=>{navigator.clipboard?.writeText(REDIRECT);$('msCopy').textContent='コピーしました'};
+$('msClientSave').onclick=()=>{const c=$('msClient').value.trim();if(!c)return;localStorage.setItem('ev_ms_client',c);$('msSetup').style.display='none';msg('クライアントIDを登録しました。もう一度プラン名でEnterを押してください')};
 function readTok(){try{return JSON.parse(localStorage.getItem('ev_ms_tok')||'{}')}catch(e){return{}}}
 async function tokenReq(params){
   const r=await fetch(MS_AUTH+'/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:clientId(),scope:MS_SCOPE,...params})}),j=await r.json();
@@ -54,9 +59,9 @@ async function tokenReq(params){
 async function token(interactive){
   const t=readTok();if(t.a&&t.e>Date.now())return t.a;
   let w=null;
+  if(!t.r&&!clientId()){if(!interactive)throw new Error('NEEDAUTH');showSetup();throw new Error('クライアントIDが未登録です。下の入力欄に入れてください')}
   if(!t.r){if(!interactive)throw new Error('NEEDAUTH');w=window.open('','evms','width=520,height=680');if(!w)throw new Error('ポップアップがブロックされました。許可してもう一度押してください')}
   else{try{return await tokenReq({grant_type:'refresh_token',refresh_token:t.r})}catch(e){localStorage.removeItem('ev_ms_tok');throw new Error(interactive?'サインインの有効期限が切れました。もう一度押してください':'NEEDAUTH')}}
-  if(!clientId()){w.close();throw new Error('クライアントIDが未入力です')}
   const ver=b64u(crypto.getRandomValues(new Uint8Array(32))),chal=b64u(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(ver)));
   w.location.href=MS_AUTH+'/authorize?'+new URLSearchParams({client_id:clientId(),response_type:'code',redirect_uri:REDIRECT,scope:MS_SCOPE,code_challenge:chal,code_challenge_method:'S256',prompt:'select_account'});
   return new Promise((ok,ng)=>{const iv=setInterval(async()=>{

@@ -54,8 +54,9 @@ async function savePlan(silent){
   if(wasNew){$('saveUrl').value=fn;save()}
   const data=collect(),text=JSON.stringify(data),undo=()=>{if(wasNew){$('saveUrl').value='';save()}};
   if(canDir){
-    const h=await dirHandle(!silent);
-    if(!h){undo();msg(silent?'保存先フォルダーの許可が切れています':'先に▽でOneDriveのcarナビデータ保存フォルダーを選んでください');return false}
+    let h=await dirHandle(!silent);
+    if(!h&&!silent){await pickFolder();h=await dirHandle(true)}
+    if(!h){undo();msg(silent?'保存先フォルダーの許可が切れています':'保存先フォルダーが選ばれていません。OneDriveのcarナビデータ保存フォルダーを選んでください');if(!silent)alert('保存されていません。OneDriveのcarナビデータ保存フォルダーを選んでください');return false}
     try{
       let old=null;try{old=await readJson(await h.getFileHandle(fn))}catch(e){}
       if(old&&old.updatedAt!==loadedStamp){

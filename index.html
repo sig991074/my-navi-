@@ -142,7 +142,11 @@ async function showList(){
   p.classList.add('show');msg('一覧から選ぶと読み込みます（'+items.length+'件）')
 }
 $('planList').onclick=()=>{showList()};
-$('saveUrl').addEventListener('keydown',e=>{const u=$('saveUrl').value.trim();if(e.key==='Enter'&&!e.isComposing&&/^https?:\/\//i.test(u)){e.preventDefault();$('saveUrl').blur();if(!window.open(u,'_blank'))msg('ポップアップが止められました。許可してもう一度Enterを押してください')}});
+$('saveUrl').addEventListener('keydown',e=>{const u=$('saveUrl').value.trim();if(e.key==='Enter'&&!e.isComposing&&/^https?:\/\//i.test(u)){e.preventDefault();$('saveUrl').blur();
+  const name=$('planName').value.trim();
+  if(name){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(collect())],{type:'application/json'}));a.download=fileOf(name);document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
+  if(!window.open(u,'_blank'))msg('ポップアップが止められました。許可してもう一度Enterを押してください');
+  else msg(name?'OneDriveを開きました。ダウンロードした「'+fileOf(name)+'」をOneDriveのフォルダーに置いてください':'OneDriveを開きました。プラン名を入れるとファイルも作成されます')}});
 $('planName').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();$('planName').blur();savePlan(false)}});
 $('backMenu').onclick=async()=>{if($('saveUrl').value.trim())await savePlan(true);show('menu')};
 document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{let g=b.dataset.go;if(g==='wip')$('wipTitle').textContent=b.dataset.title||'';show(g)}));

@@ -56,23 +56,28 @@ async function tokenReq(params){
   if(!r.ok)throw new Error(j.error_description||j.error||'認証に失敗しました');
   localStorage.setItem('ev_ms_tok',JSON.stringify({a:j.access_token,r:j.refresh_token||readTok().r,e:Date.now()+(j.expires_in-60)*1000}));return j.access_token
 }
+let curAction='list';
 async function token(interactive){
   const t=readTok();if(t.a&&t.e>Date.now())return t.a;
-  let w=null;
   if(!t.r&&!clientId()){if(!interactive)throw new Error('NEEDAUTH');showSetup();throw new Error('クライアントIDが未登録です。下の入力欄に入れてください')}
-  if(!t.r){if(!interactive)throw new Error('NEEDAUTH');w=window.open('','evms','width=520,height=680');if(!w)throw new Error('ポップアップがブロックされました。許可してもう一度押してください')}
-  else{try{return await tokenReq({grant_type:'refresh_token',refresh_token:t.r})}catch(e){localStorage.removeItem('ev_ms_tok');throw new Error(interactive?'サインインの有効期限が切れました。もう一度押してください':'NEEDAUTH')}}
+  if(t.r){try{return await tokenReq({grant_type:'refresh_token',refresh_token:t.r})}catch(e){localStorage.removeItem('ev_ms_tok');if(!interactive)throw new Error('NEEDAUTH')}}
+  if(!interactive)throw new Error('NEEDAUTH');
   const ver=b64u(crypto.getRandomValues(new Uint8Array(32))),chal=b64u(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(ver)));
-  w.location.href=MS_AUTH+'/authorize?'+new URLSearchParams({client_id:clientId(),response_type:'code',redirect_uri:REDIRECT,scope:MS_SCOPE,code_challenge:chal,code_challenge_method:'S256',prompt:'select_account'});
-  return new Promise((ok,ng)=>{const iv=setInterval(async()=>{
-    if(w.closed){clearInterval(iv);ng(new Error('サインインが中止されました'));return}
-    let u;try{u=new URL(w.location.href)}catch(e){return}
-    if(u.origin!==location.origin)return;
-    clearInterval(iv);const code=u.searchParams.get('code'),err=u.searchParams.get('error_description');w.close();
-    if(!code){ng(new Error(err||'許可されませんでした'));return}
-    try{ok(await tokenReq({grant_type:'authorization_code',code,redirect_uri:REDIRECT,code_verifier:ver}))}catch(e){ng(e)}
-  },400)})
+  sessionStorage.setItem('ev_ms_ver',ver);sessionStorage.setItem('ev_ms_act',curAction);
+  msg('Microsoftのサインイン画面へ移動します…');
+  location.href=MS_AUTH+'/authorize?'+new URLSearchParams({client_id:clientId(),response_type:'code',redirect_uri:REDIRECT,scope:MS_SCOPE,code_challenge:chal,code_challenge_method:'S256',prompt:'select_account'});
+  return new Promise(()=>{})
 }
+(async()=>{
+  const q=new URLSearchParams(location.search),code=q.get('code'),err=q.get('error_description')||q.get('error'),ver=sessionStorage.getItem('ev_ms_ver');
+  if(!code&&!err)return;
+  history.replaceState(null,'',REDIRECT);
+  if(err){msg('許可されませんでした：'+err);return}
+  if(!ver){msg('サインインをやり直してください');return}
+  const act=sessionStorage.getItem('ev_ms_act')||'list';sessionStorage.removeItem('ev_ms_ver');sessionStorage.removeItem('ev_ms_act');
+  try{await tokenReq({grant_type:'authorization_code',code,redirect_uri:REDIRECT,code_verifier:ver})}catch(e){msg('サインインできませんでした：'+(e.message||e));return}
+  msg('サインインしました');setTimeout(()=>{if(act==='save')savePlan(false);else showList()},300)
+})();
 async function api(path,interactive,opt={}){
   const go=async()=>fetch(path.startsWith('http')?path:GRAPH+path,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+await token(interactive)}});
   let r=await go();if(r.status===401){const t=readTok();localStorage.setItem('ev_ms_tok',JSON.stringify({r:t.r,e:0}));r=await go()}
@@ -90,6 +95,7 @@ async function folderOf(interactive){
 }
 function collect(){const s={};CLOUD_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!==null)s[k]=v});return{app:'ev-navi',version:1,planName:$('planName').value.trim(),updatedAt:Date.now(),storage:s}}
 async function savePlan(silent){
+  curAction='save';
   const name=$('planName').value.trim();if(!name){if(!silent)msg('プラン名を入力してください');return false}
   if(!$('saveUrl').value.trim()){if(!silent)msg('共有フォルダーのURLを入力してください');return false}
   const fn=fileOf(name),text=JSON.stringify(collect());
@@ -118,6 +124,7 @@ function loadPlan(o,stamp){
   localStorage.setItem('ev_cloud_stamp',stamp||'');location.reload()
 }
 async function showList(){
+  curAction='list';
   const p=$('planPanel');if(p.classList.contains('show')){p.classList.remove('show');return}
   if(!$('saveUrl').value.trim()){msg('共有フォルダーのURLを入力してください');return}
   let items=[];

@@ -44,7 +44,7 @@ let loadedStamp=localStorage.getItem('ev_cloud_stamp')||'';
 const msg=t=>{$('cloudMark').textContent=t},fileOf=n=>n.replace(/[\\/:*?"<>|]/g,'_').trim()+'.json',when=t=>new Date(t).toLocaleString('ja-JP');
 const MS_AUTH='https://login.microsoftonline.com/consumers/oauth2/v2.0',GRAPH='https://graph.microsoft.com/v1.0',MS_SCOPE='Files.ReadWrite.All offline_access',REDIRECT=location.origin+location.pathname;
 const b64u=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-function clientId(){return localStorage.getItem('ev_ms_client')||''}
+function clientId(){const c=localStorage.getItem('ev_ms_client')||'';return /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(c)?c:''}
 function showSetup(){
   $('msSetup').style.display='block';$('msUri').textContent=REDIRECT;$('msClient').value=clientId();$('msClient').focus()
 }
@@ -142,6 +142,7 @@ async function showList(){
   p.classList.add('show');msg('一覧から選ぶと読み込みます（'+items.length+'件）')
 }
 $('planList').onclick=()=>{showList()};
+$('saveUrl').addEventListener('keydown',e=>{const u=$('saveUrl').value.trim();if(e.key==='Enter'&&!e.isComposing&&/^https?:\/\//i.test(u)){e.preventDefault();$('saveUrl').blur();if(!window.open(u,'_blank'))msg('ポップアップが止められました。許可してもう一度Enterを押してください')}});
 $('planName').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();$('planName').blur();savePlan(false)}});
 $('backMenu').onclick=async()=>{if($('saveUrl').value.trim())await savePlan(true);show('menu')};
 document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{let g=b.dataset.go;if(g==='wip')$('wipTitle').textContent=b.dataset.title||'';show(g)}));

@@ -24,7 +24,7 @@ body.hide-narrow #source+.icInfo{display:none!important}body.hide-narrow .condit
 <button id="backMenu" type="button">≡ メニューへ戻る</button>
 <div id="scrMenu" class="scr"><div class="scrBox scrSetupBox"><h1>基礎データ入力</h1><p class="sub">プラン名と出発日時を入力します。入力内容は自動保存されます。</p>
 <div class="scrCard scrTight"><div class="topRow"><div style="position:relative"><label for="planName">プラン名</label><div class="planPick"><input id="planName" type="text" placeholder="例：和歌山・熊野温泉めぐり車中泊の旅"></div></div><div><label for="saveUrl">保存先URL</label><input id="saveUrl" type="text" placeholder="共有フォルダーのURLを貼る"></div></div>
-<div class="depRow"><div><label for="dep1">1日目 出発日時</label><input id="dep1" type="datetime-local"></div><div><label for="dep2">2日目 出発日時</label><input id="dep2" type="datetime-local"></div><div><label for="dep3">3日目 出発日時</label><input id="dep3" type="datetime-local"></div></div><div id="saveMark"></div><div id="cloudMark">🔗 <a id="saveLink" target="_blank" rel="noopener" style="display:none"></a></div></div></div>
+<div class="depRow"><div><label for="dep1">1日目 出発日時</label><input id="dep1" type="datetime-local"></div><div><label for="dep2">2日目 出発日時</label><input id="dep2" type="datetime-local"></div><div><label for="dep3">3日目 出発日時</label><input id="dep3" type="datetime-local"></div></div><div id="saveMark"></div><div id="cloudMark">🔗 <a id="saveLink" target="_blank" rel="noopener" style="display:none"></a> <span id="clickHint" style="display:none;background:#ff0;color:#e00000;font-weight:bold;padding:1px 6px">&lt;&lt;=右側へクリックしてください！</span></div></div></div>
 <div class="frameArrow"><span>⇅</span><small>入力したプラン名・出発日時を引き継ぐ</small></div>
 <div class="scrBox"><h1>CARナビ ルートプランナー 総合メニュー</h1><p class="sub" id="menuPlan"></p>
 <div class="menuGrid"><button class="scrBtn" style="grid-area:1/1" data-go="planner" type="button">carナビ ルートプランナー<small>ルートの選定を行います。</small></button>
@@ -39,7 +39,7 @@ function show(name){let mode=name;if(name==='narrow')name='planner';document.bod
 function save(){let d={};F.forEach(id=>d[id]=$(id).value);try{localStorage.setItem(KEY,JSON.stringify(d));$('saveMark').textContent='自動保存しました'}catch(e){$('saveMark').textContent='保存できませんでした'}}
 try{let d=JSON.parse(localStorage.getItem(KEY)||'{}');F.forEach(id=>{if(d[id])$(id).value=d[id]})}catch(e){}
 F.forEach(id=>{$(id).addEventListener('input',save);$(id).addEventListener('change',save)});
-function updateLink(){const u=$('saveUrl').value.trim(),a=$('saveLink');if(/^https?:\/\//i.test(u)){a.href=u;a.textContent=$('planName').value.trim()||u;a.style.display='inline'}else{a.removeAttribute('href');a.textContent='';a.style.display='none'}}
+function updateLink(){const u=$('saveUrl').value.trim(),a=$('saveLink');if(/^https?:\/\//i.test(u)){a.href=u;a.textContent=$('planName').value.trim()||u;a.style.display='inline';$('clickHint').style.display='inline'}else{a.removeAttribute('href');a.textContent='';a.style.display='none';$('clickHint').style.display='none'}}
 $('saveUrl').addEventListener('input',updateLink);$('planName').addEventListener('input',updateLink);updateLink();
 $('backMenu').onclick=()=>show('menu');
 document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{let g=b.dataset.go;if(g==='wip')$('wipTitle').textContent=b.dataset.title||'';show(g)}));

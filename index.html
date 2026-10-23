@@ -56,20 +56,21 @@ $('saveUrl').addEventListener('keydown',e=>{const u=$('saveUrl').value.trim();if
   else msg(name?'OneDriveを開きました。ダウンロードした「'+fileOf(name)+'」をOneDriveのフォルダーに置いてください':'OneDriveを開きました。プラン名を入れるとファイルも作成されます')}});
 const planPanel=$('planPanel');
 const planEntries=d=>d&&d.app==='ev-navi'&&d.storage?[d]:d&&Array.isArray(d.plans)?d.plans.filter(p=>p&&p.planName):[];
-function applyPlan(p){let pl={};try{pl=JSON.parse(p.storage.ev_plan||'{}')}catch(e){}
-  $('planName').value=p.planName||'';['dep1','dep2','dep3'].forEach(id=>{$(id).value=pl[id]||''});save()}
+function applyPlan(p){CLOUD_KEYS.forEach(k=>{try{if(p.storage[k]!==undefined)localStorage.setItem(k,p.storage[k]);else localStorage.removeItem(k)}catch(e){}});
+  msg('プランを読み込んでいます…');location.reload()}
 $('planList').addEventListener('click',async e=>{e.stopPropagation();
   if(planPanel.classList.contains('show')){planPanel.classList.remove('show');return}
+  if(syncTimer){clearTimeout(syncTimer);syncTimer=0;await syncDrive()}
   planPanel.innerHTML='<div class="none">読み込み中です…</div>';planPanel.classList.add('show');
   try{const res=await fetch(GAS_API_URL+'?action=get');const list=planEntries(await res.json());
     planPanel.innerHTML='';
     if(!list.length)planPanel.innerHTML='<div class="none">保存済みのプランはありません</div>';
     list.forEach(p=>{const row=document.createElement('div');row.textContent=p.planName;
       if(p.updatedAt){const s=document.createElement('small');s.textContent=new Date(p.updatedAt).toLocaleString('ja-JP');row.appendChild(s)}
-      row.addEventListener('click',()=>{applyPlan(p);planPanel.classList.remove('show');msg('プランを選びました')});planPanel.appendChild(row)})
+      row.addEventListener('click',()=>{planPanel.classList.remove('show');applyPlan(p)});planPanel.appendChild(row)})
   }catch(err){planPanel.innerHTML='<div class="none">一覧を読み込めませんでした</div>'}});
 document.addEventListener('click',e=>{if(!planPanel.contains(e.target))planPanel.classList.remove('show')});
-$('backMenu').onclick=()=>show('menu');
+$('backMenu').onclick=()=>{show('menu');syncDrive()};
 document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{let g=b.dataset.go;if(g==='wip')$('wipTitle').textContent=b.dataset.title||'';show(g)}));
 let start='menu';try{let s=localStorage.getItem(KEY+'_screen');if(s==='menu'||s==='planner')start=s;if(s==='planner'&&localStorage.getItem(KEY+'_mode')==='narrow')start='narrow'}catch(e){}
 if(new URLSearchParams(location.search).has('debugDetourCandidates'))start='narrow';show(start)})();</script><script>

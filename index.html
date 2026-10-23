@@ -37,14 +37,23 @@ body.hide-narrow #source+.icInfo{display:none!important}body.hide-narrow .condit
 <div id="scrWip" class="scr"><div class="scrBox"><h1 id="wipTitle"></h1><p class="sub">この画面は準備中です。</p><button class="scrGo" data-go="menu" type="button">メニューへ戻る</button></div></div>
 <script>(function(){const $=id=>document.getElementById(id),KEY='ev_plan',F=['planName','saveUrl','dep1','dep2','dep3'];
 function show(name){let mode=name;if(name==='narrow')name='planner';document.body.classList.toggle('hide-narrow',name==='planner'&&mode!=='narrow');let tt=mode==='narrow'?'狭隘道路安全チェック':'CARナビ　ルートプランナー';if(title)title.textContent=tt;document.title=tt;try{localStorage.setItem(KEY+'_mode',mode)}catch(e){}['scrMenu','scrWip'].forEach(id=>$(id).classList.remove('show'));$('backMenu').classList.toggle('show',name==='planner');if(name==='menu'){$('menuPlan').textContent=$('planName').value?'プラン名：'+$('planName').value:'';$('scrMenu').classList.add('show')}if(name==='wip')$('scrWip').classList.add('show');try{localStorage.setItem(KEY+'_screen',name==='wip'?'menu':name)}catch(e){}if(name==='planner')[50,300,800].forEach(t=>setTimeout(()=>{try{if(map&&map.invalidateSize)map.invalidateSize()}catch(e){}},t))}
-let syncTimer=0;
-function save(){let d={};F.forEach(id=>d[id]=$(id).value);try{localStorage.setItem(KEY,JSON.stringify(d));$('saveMark').textContent='自動保存しました';clearTimeout(syncTimer);syncTimer=setTimeout(syncDrive,3000)}catch(e){$('saveMark').textContent='保存できませんでした'}}
+let dirty=false,driveList=null;
+function save(){let d={};F.forEach(id=>d[id]=$(id).value);try{localStorage.setItem(KEY,JSON.stringify(d));dirty=true;$('saveMark').textContent=''}catch(e){$('saveMark').textContent='保存できませんでした'}}
+function postDrive(list,keep){return fetch(GAS_API_URL,{method:'POST',keepalive:!!keep,body:JSON.stringify({action:'save',content:JSON.stringify({plans:list})})})}
 async function syncDrive(){const name=$('planName').value.trim();if(!name)return;
-  try{const res=await fetch(GAS_API_URL+'?action=get');const list=planEntries(await res.json()).filter(p=>p.planName!==name);
-    list.push(collect());
-    const r=await(await fetch(GAS_API_URL,{method:'POST',body:JSON.stringify({action:'save',content:JSON.stringify({plans:list})})})).json();
-    msg(r.success?'自動保存しました(Googleドライブにも保存)':'Googleドライブへの保存に失敗しました')}
+  try{msg('Googleドライブへ更新中…');const res=await fetch(GAS_API_URL+'?action=get');if(!res.ok)throw new Error(res.status);const list=planEntries(await res.json()).filter(p=>p.planName!==name);
+    list.push(collect());driveList=list;
+    const r=await(await postDrive(list)).json();
+    if(r.success)dirty=false;
+    msg(r.success?'更新完了(Googleドライブ)':'Googleドライブへの保存に失敗しました')}
   catch(e){msg('Googleドライブへ接続できませんでした')}}
+function closeSync(){const name=$('planName').value.trim();if(!dirty||!name||!driveList)return;
+  const list=driveList.filter(p=>p.planName!==name);list.push(collect());driveList=list;dirty=false;try{postDrive(list,true)}catch(e){}}
+window.addEventListener('DOMContentLoaded',()=>{fetch(GAS_API_URL+'?action=get').then(r=>r.json()).then(d=>{driveList=planEntries(d)}).catch(()=>{})});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')closeSync()});
+window.addEventListener('pagehide',closeSync);
+F.forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();$(id).blur();save();syncDrive()}}));
+document.querySelector('.scrSetupBox').addEventListener('dblclick',()=>{save();syncDrive()});
 try{let d=JSON.parse(localStorage.getItem(KEY)||'{}');F.forEach(id=>{if(d[id])$(id).value=d[id]})}catch(e){}
 F.forEach(id=>{$(id).addEventListener('input',save);$(id).addEventListener('change',save)});
 function weekdays(){[1,2,3].forEach(n=>{const v=$('dep'+n).value,e=$('wd'+n);e.textContent=v?'('+'日月火水木金土'[new Date(v).getDay()]+')':''})}
@@ -58,7 +67,7 @@ function applyPlan(p){CLOUD_KEYS.forEach(k=>{try{if(p.storage[k]!==undefined)loc
   msg('プランを読み込んでいます…');location.reload()}
 $('planList').addEventListener('click',async e=>{e.stopPropagation();
   if(planPanel.classList.contains('show')){planPanel.classList.remove('show');return}
-  if(syncTimer){clearTimeout(syncTimer);syncTimer=0;await syncDrive()}
+  if(dirty)await syncDrive();
   planPanel.innerHTML='<div class="none">読み込み中です…</div>';planPanel.classList.add('show');
   try{const res=await fetch(GAS_API_URL+'?action=get');if(!res.ok)throw new Error('通信エラー '+res.status);const list=planEntries(await res.json());
     planPanel.innerHTML='';

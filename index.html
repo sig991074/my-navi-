@@ -1185,4 +1185,49 @@ function drawRouteNarrow(r,routeNo=1,showCallout=true){let group=L.featureGroup(
  routeLayers.push({routeNo,route:r,layer:group,roadSections:sections,distance:r.distance,duration:r.duration,motorway:r.motorway,route27:r.route27||0});try{let gc=r.geometry&&r.geometry.coordinates,mid=gc&&gc[Math.floor(gc.length/2)];if(mid){let routePoint=L.latLng(mid[1],mid[0]),labelPoint=L.latLng(routePoint.lat+(routeNo===1?.06:-.06),routePoint.lng+.08),namedSteps=(r.steps||[]).filter(x=>{let t=roadInfo(x).type,n=(x.name||'').trim();return n&&n!=='道路名なし'&&(t==='高速道路'||t==='無料高速')}).sort((a,b)=>b.distance-a.distance),routeName=(namedSteps[0]?.name||'').trim()||(r.steps||[]).map(x=>(x.name||'').trim()).find(x=>x&&x!=='道路名なし')||'採用経路',infoHtml='<b>'+(['','①','②'][routeNo]||routeNo)+' '+esc(routeName)+'</b>'+formatDuration(r.duration)+' '+(r.distance/1000).toFixed(1)+'km 料金未設定<div class="routeHint">経路線をダブルクリックで経由地追加</div>';let guideLine=L.polyline([routePoint,labelPoint],{color:routeNo===1?'#176fa7':'#f28c28',weight:2,opacity:.95,interactive:false}).addTo(group);guideLine._isCallout=true;let guideMarker=L.marker(labelPoint,{interactive:false,icon:L.divIcon({className:'route-callout '+(routeNo===2?'route2':''),html:infoHtml,iconSize:null,iconAnchor:[88,29]})}).addTo(group);dynamicCallouts.push({routeNo,kind:'main',anchors:[routePoint],marker:guideMarker,lines:[guideLine],dx:routeNo===1?90:-190,dy:routeNo===1?-85:85});setTimeout(refreshDynamicCallouts,0)}}catch(_e){}}
 function renderPlaces(){let plan=routePlans[selectedRoute],h='<div class="routeResult"><b>'+(['','①','②'][selectedRoute]||selectedRoute)+' 選択中</b></div>';if(plan.start)h+=placeHtml(plan.start);let current=routeLayers.find(x=>x.routeNo===selectedRoute),items=current?.roadSections||[];h+=items.length?'<div class="roadSectionList">'+items.map(x=>'<div class="roadSection"><i class="roadDot" style="background:'+x.color+'"></i><div><b>'+esc(x.label)+'</b><div class="roadType">'+x.type+'</div></div><span class="roadKm">'+(x.distance/1000).toFixed(1)+' km</span></div>').join('')+'</div>':'<div class="roadEmpty">道路区間は経路計算後に表示されます</div>';plan.vias.forEach(v=>h+=placeHtml(v));if(plan.destination)h+=placeHtml(plan.destination);routeLayers.filter(x=>x.routeNo===selectedRoute).forEach(x=>{let checked=x.route._narrowCheckedAt?'<br>狭隘道路チェック済み：幅不足 '+(x.route.trolleyFailures?.length||0)+'区間、狭隘注意 '+(x.route.trolleyCautions?.length||0)+'区間、未判定 '+(x.route.trolleyUnchecked||0)+'区間':'';h+='<div class="routeResult"><b>'+(['','①','②'][x.routeNo]||x.routeNo)+'</b><br>距離 '+(x.distance/1000).toFixed(1)+' km　時間 '+formatDuration(x.duration)+'<br>高速区間 '+(x.motorway/1000).toFixed(1)+' km<br>国道27号 '+((x.route27||0)/1000).toFixed(1)+' km'+checked+'</div>'});$('list').innerHTML=h}
 function placeHtml(p){return'<div class="placeRow"><b>'+esc(p.type)+'</b>：'+esc(p.name)+'<div class="addr">'+esc(p.address||'')+'</div></div>'}function drawMarkers(){placeMarkers.forEach(m=>map.removeLayer(m));placeMarkers=[];let plan=routePlans[selectedRoute];if(plan.start)placeMarkers.push(L.marker([plan.start.lat,plan.start.lon]).addTo(map));plan.vias.forEach((p,i)=>{let labels=['①','②','③','④','⑤','⑥','⑦','⑧','⑨'],icon=L.divIcon({className:'',html:'<div class="point-label"><span class="pin"></span><span class="tag">'+(labels[i]||i+1)+'</span></div>',iconSize:[54,26],iconAnchor:[11,25]});placeMarkers.push(L.marker([p.lat,p.lon],{icon}).addTo(map))});if(plan.destination){let icon=L.divIcon({className:'',html:'<div class="point-label"><span class="pin"></span><span class="tag">G</span></div>',iconSize:[54,26],iconAnchor:[11,25]});placeMarkers.push(L.marker([plan.destination.lat,plan.destination.lon],{icon}).addTo(map))}}function formatDuration(s){let t=Math.round(s/60),h=Math.floor(t/60),m=t%60;return h?h+'時間'+m+'分':m+'分'}function getHistory(){try{return JSON.parse(localStorage.getItem('carNaviSearchHistory')||'[]')}catch(e){return[]}}function loadHistory(){$('searchHistory').innerHTML=getHistory().map(x=>'<option value="'+esc(x)+'"></option>').join('')}function saveHistory(q){let h=getHistory().filter(x=>x!==q);h.unshift(q);localStorage.setItem('carNaviSearchHistory',JSON.stringify(h.slice(0,20)));loadHistory()}function clearCandidates(){candidateMarkers.forEach(m=>map.removeLayer(m));candidateMarkers=[];$('candidates').style.display='none'}function esc(v){return String(v||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}
-</script><script>window.evNarrowRoadBridge={getMap:()=>map,getRouteLayers:()=>routeLayers,getDimensions:()=>trolleyDimensions(),isExclusionActive:routeNo=>priorities[routeNo]?.includes('F'),classifyFailureRuns:samples=>classifyTrolleyFailureRuns(samples)};</script><script src="./narrow-road-overlay.js"></script></body></html>
+</script><script>window.evNarrowRoadBridge={getMap:()=>map,getRouteLayers:()=>routeLayers,getDimensions:()=>trolleyDimensions(),isExclusionActive:routeNo=>priorities[routeNo]?.includes('F'),classifyFailureRuns:samples=>classifyTrolleyFailureRuns(samples)};</script><script src="./narrow-road-overlay.js"></script><script>
+// ⚠️ 手順2でコピーした「GASのウェブアプリURL」に書き換えてください
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyS_P1fAlJ3CZK_hni6PXUTxQE31nUjesYZWj7okjmgw2B0C-dBy09FgSRP1GKoe3Y6/exec";
+
+// 🔄 1. ページを開いた瞬間にGoogleドライブからデータを「自動取得」する
+async function autoLoadData() {
+    try {
+        // GASへGETリクエストを送る
+        const response = await fetch(`${GAS_API_URL}?action=get`);
+        const jsonData = await response.json();
+        
+        console.log("クラウドから取得したデータ:", jsonData);
+        // 💡 ここで jsonData を使って画面に反映させてください
+        // 例: document.getElementById('textarea').value = JSON.stringify(jsonData);
+        
+    } catch (error) {
+        console.error("データの自動取得に失敗しました:", error);
+    }
+}
+
+// 💾 2. ボタンを押した時などにデータを「自動バックアップ（更新）」する
+async function autoBackupData(dataToSave) {
+    try {
+        // GASへPOSTリクエストでJSONデータを送る
+        const response = await fetch(GAS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'save',
+                content: JSON.stringify(dataToSave) // 保存したいオブジェクト
+            })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert("Googleドライブへのバックアップが完了しました！");
+        } else {
+            alert("バックアップに失敗しました。");
+        }
+    } catch (error) {
+        console.error("通信エラーが発生しました:", error);
+    }
+}
+
+// ページ読み込み時に自動取得を実行
+window.addEventListener('DOMContentLoaded', autoLoadData);
+</script></body></html>

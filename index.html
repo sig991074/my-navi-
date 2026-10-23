@@ -1253,7 +1253,7 @@ function legListHtml(items,plan,no){let runs=legRuns(items),pts=[],vias=plan.via
   loadIcNames(pts);
   let isHw=q=>q&&HWY_TYPES.includes(q.type),
     nameOf=r=>{let a=[...(r?.names||[])];return a.find(x=>/[ぁ-ヿ一-鿿]/.test(x))||a[0]||''},
-    pointName=(p,a,b)=>(p&&icNames.get(pkey(p)))||(isHw(b)&&!isHw(a)?(nameOf(b)||'高速')+'入口':isHw(a)&&!isHw(b)?(nameOf(a)||'高速')+'出口':(nameOf(b)||nameOf(a)||'道路')+'の分岐'),
+    pointName=(p,a,b)=>(p&&icNames.get(pkey(p)))||((nameOf(a)||nameOf(b)||'道路')+'の分岐'),
     viaName=l=>vias[l-1]?.name||'経由地';
   return runs.map((r,i)=>{let viaFrom=i>0&&r.leg!==runs[i-1].leg,last=i===runs.length-1,viaTo=!last&&runs[i+1].leg!==r.leg,
       from=i===0?(plan.start?.name||'出発地'):viaFrom?viaName(r.leg):pointName(r.p0,runs[i-1],r),

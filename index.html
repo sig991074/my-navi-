@@ -57,13 +57,13 @@ $('planList').addEventListener('click',async e=>{e.stopPropagation();
   if(planPanel.classList.contains('show')){planPanel.classList.remove('show');return}
   if(syncTimer){clearTimeout(syncTimer);syncTimer=0;await syncDrive()}
   planPanel.innerHTML='<div class="none">読み込み中です…</div>';planPanel.classList.add('show');
-  try{const res=await fetch(GAS_API_URL+'?action=get');const list=planEntries(await res.json());
+  try{const res=await fetch(GAS_API_URL+'?action=get');if(!res.ok)throw new Error('通信エラー '+res.status);const list=planEntries(await res.json());
     planPanel.innerHTML='';
     if(!list.length)planPanel.innerHTML='<div class="none">保存済みのプランはありません</div>';
     list.forEach(p=>{const row=document.createElement('div');row.textContent=p.planName;
       if(p.updatedAt){const s=document.createElement('small');s.textContent=new Date(p.updatedAt).toLocaleString('ja-JP');row.appendChild(s)}
       row.addEventListener('click',()=>{planPanel.classList.remove('show');applyPlan(p)});planPanel.appendChild(row)})
-  }catch(err){planPanel.innerHTML='<div class="none">一覧を読み込めませんでした</div>'}});
+  }catch(err){planPanel.innerHTML='';const d=document.createElement('div');d.className='none';d.textContent='一覧を読み込めませんでした(原因: '+(err&&err.message?err.message:err)+')';planPanel.appendChild(d)}});
 document.addEventListener('click',e=>{if(!planPanel.contains(e.target))planPanel.classList.remove('show')});
 $('backMenu').onclick=()=>{show('menu');syncDrive()};
 document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{let g=b.dataset.go;if(g==='wip')$('wipTitle').textContent=b.dataset.title||'';show(g)}));

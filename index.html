@@ -25,7 +25,7 @@ body.hide-narrow #source+.icInfo{display:none!important}body.hide-narrow .condit
 <button id="backMenu" type="button">≡ メニューへ戻る</button>
 <div id="scrMenu" class="scr"><div class="scrBox scrSetupBox"><h1>基礎データ入力</h1><p class="sub">プラン名と出発日時を入力します。入力内容は自動保存されます。</p>
 <div class="scrCard scrTight"><div class="topRow"><div style="position:relative"><label for="planName">プラン名</label><div class="planPick"><input id="planName" type="text" placeholder="例：和歌山・熊野温泉めぐり車中泊の旅"><button id="planList" type="button" title="保存済みプランの一覧">▽</button></div><div id="planPanel" class="planPanel"></div></div><div><label for="saveUrl">Web検索URL</label><input id="saveUrl" type="url" placeholder="https://"></div></div>
-<div class="depRow"><div><label for="dep1">1日目 出発日時</label><input id="dep1" type="datetime-local"></div><div><label for="dep2">2日目 出発日時</label><input id="dep2" type="datetime-local"></div><div><label for="dep3">3日目 出発日時</label><input id="dep3" type="datetime-local"></div></div><div id="saveMark"></div></div></div>
+<div class="depRow"><div><label for="dep1">1日目 出発日時<span id="wd1"></span></label><input id="dep1" type="datetime-local"></div><div><label for="dep2">2日目 出発日時<span id="wd2"></span></label><input id="dep2" type="datetime-local"></div><div><label for="dep3">3日目 出発日時<span id="wd3"></span></label><input id="dep3" type="datetime-local"></div></div><div id="saveMark"></div></div></div>
 <div class="frameArrow"><span>⇅</span><small>入力したプラン名・出発日時を引き継ぐ</small></div>
 <div class="scrBox"><h1>CARナビ ルートプランナー 総合メニュー</h1><p class="sub" id="menuPlan"></p>
 <div class="menuGrid"><button class="scrBtn" style="grid-area:1/1" data-go="planner" type="button">carナビ ルートプランナー<small>ルートの選定を行います。</small></button>
@@ -47,6 +47,8 @@ async function syncDrive(){const name=$('planName').value.trim();if(!name)return
   catch(e){msg('Googleドライブへ接続できませんでした')}}
 try{let d=JSON.parse(localStorage.getItem(KEY)||'{}');F.forEach(id=>{if(d[id])$(id).value=d[id]})}catch(e){}
 F.forEach(id=>{$(id).addEventListener('input',save);$(id).addEventListener('change',save)});
+function weekdays(){[1,2,3].forEach(n=>{const v=$('dep'+n).value,e=$('wd'+n);e.textContent=v?'('+'日月火水木金土'[new Date(v).getDay()]+')':''})}
+['dep1','dep2','dep3'].forEach(id=>{$(id).addEventListener('input',weekdays);$(id).addEventListener('change',weekdays)});weekdays();
 const CLOUD_KEYS=['ev_plan','ev_route_workspace','ev_narrowWidth','ev_trolleyWidth','ev_trolleyLength','ev_trolleyNarrowLimit','ev_trolleyFailLength'];
 const msg=t=>{$('saveMark').textContent=t};
 function collect(){const s={};CLOUD_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!==null)s[k]=v});return{app:'ev-navi',version:1,planName:$('planName').value.trim(),updatedAt:Date.now(),storage:s}}

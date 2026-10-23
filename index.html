@@ -135,6 +135,7 @@ function persistRouteWorkspace(routeNo=null,routes=null){
 function getSavedRouteResult(routeNo,requireChecked=false){
   const result=savedRouteResults[routeNo];
   if(!result||result.signature!==routeWorkspaceSignature(routeNo)||requireChecked&&!result.checked)return null;
+  if(routePlans[routeNo]?.vias?.length&&result.routes.some(r=>(r.steps||[]).some(s=>s._routeLegIndex===undefined)))return null;
   const routes=result.routes.map(route=>restoreSavedRouteData({...route,steps:(route.steps||[]).map(step=>({...step}))}));
   return routes.length?{routes,checked:result.checked}:null;
 }

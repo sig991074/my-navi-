@@ -1139,7 +1139,7 @@ async function calculateBothRoutes(){
 }
 
 function roadInfo(s){let name=(s.name||'').trim(),ref=(s.ref||'').trim(),text=(name+' '+ref).toLowerCase();if(/(^|[\s;,])e\d+[a-z]?(?=$|[\s;,])/i.test(text))return{type:'高速道路',color:'#d32f2f'};if(/無料|新直轄/.test(text))return{type:'無料高速',color:'#1976d2'};if(/高速|自動車道|expressway|motorway/i.test(text))return{type:'高速道路',color:'#d32f2f'};if(/バイパス|bypass/i.test(text))return{type:'バイパス',color:'#2e9d50'};if(/国道|route\s*\d+/i.test(text)||/^r?\d+$/i.test(ref)||/^\d{1,3}$/.test(name))return{type:'国道',color:'#f28c28'};return{type:'その他',color:'#6f7780'}}
-function roadLabel(s){let r=(s.ref||'').trim(),n=(s.name||'').trim();if(/^e\d+/i.test(r))return r.toUpperCase();if(/県道|府道|都道|道道|市道|町道|村道/.test(n))return n;if(/^\d+$/.test(r))return'国道'+r+'号';return r||n||'道路名なし'}
+function roadLabel(s){let r=(s.ref||'').trim(),n=(s.name||'').trim();if(/^e\d+/i.test(r))return r.toUpperCase();if(/県道|府道|都道|道道|市道|町道|村道/.test(n))return n;if(r==='69'&&/城陽宇治線/.test(n))return'府道69号';if(/^\d+$/.test(r))return'国道'+r+'号';return r||n||'道路名なし'}
 function resetRouteCallouts(){clearTimeout(routeHoverTimer);routeHoverNo=0;dynamicCallouts.forEach(c=>{if(c.kind==='main')setCalloutVisible(c,true);else if(c.kind==='section')setCalloutVisible(c,false)});$('routeInfoMini')?.classList.remove('show');refreshDynamicCallouts()}
 function refreshDynamicCallouts(){
   if(!map)return;
@@ -1259,7 +1259,7 @@ function legListHtml(items,plan,no){let runs=legRuns(items),pts=[],vias=plan.via
       from=i===0?(plan.start?.name||'出発地'):viaFrom?viaName(r.leg):pointName(r.p0,runs[i-1],r),
       to=last?(plan.destination?.name||'目的地'):viaTo?viaName(runs[i+1].leg):pointName(runs[i+1].p0,r,runs[i+1]),
       key=no+'-'+i,off=legOff.has(key),priorityOrder=pri.filter(Boolean).concat('その他').join(' ≧ '),
-      nm=[...r.names].slice(0,2).join('・')+(r.names.size>2?'他':''),
+      nm=[...r.names].map(x=>x==='国道69号'?'府道69号':x).slice(0,2).join('・')+(r.names.size>2?'他':''),
       mark='<span class="legMark" data-key="'+key+'" title="この区間の道路を使わない(○→●)">'+(off?'●':'○')+'</span>';
     return'<div class="legRow'+(off?' legOff':'')+'" data-leg-key="'+key+'">'+mark+'<div class="legBody"><div class="legName">'+esc(from)+'→'+esc(to)+(nm?'('+esc(nm)+')':'')+'</div><div class="legInfo"><i class="roadDot" style="background:'+r.color+'"></i>'+esc(r.type)+' '+(r.distance/1000).toFixed(1)+'km '+formatDuration(r.duration)+'<br>走行条件 '+esc(priorityOrder)+'</div></div></div>'}).join('')
     +([...legOff].some(k=>k.startsWith(no+'-'))?'<div class="legDel" data-no="'+no+'">●の区間の道路を使わずに、計算し直す</div>':'')}

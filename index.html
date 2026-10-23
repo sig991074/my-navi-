@@ -47,13 +47,8 @@ async function syncDrive(){const name=$('planName').value.trim();if(!name)return
 try{let d=JSON.parse(localStorage.getItem(KEY)||'{}');F.forEach(id=>{if(d[id])$(id).value=d[id]})}catch(e){}
 F.forEach(id=>{$(id).addEventListener('input',save);$(id).addEventListener('change',save)});
 const CLOUD_KEYS=['ev_plan','ev_route_workspace','ev_narrowWidth','ev_trolleyWidth','ev_trolleyLength','ev_trolleyNarrowLimit','ev_trolleyFailLength'];
-const msg=t=>{$('saveMark').textContent=t},fileOf=n=>n.replace(/[\\/:*?"<>|]/g,'_').trim()+'.json';
+const msg=t=>{$('saveMark').textContent=t};
 function collect(){const s={};CLOUD_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!==null)s[k]=v});return{app:'ev-navi',version:1,planName:$('planName').value.trim(),updatedAt:Date.now(),storage:s}}
-$('saveUrl').addEventListener('keydown',e=>{const u=$('saveUrl').value.trim();if(e.key==='Enter'&&!e.isComposing&&/^https?:\/\//i.test(u)){e.preventDefault();$('saveUrl').blur();
-  const name=$('planName').value.trim();
-  if(name){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(collect())],{type:'application/json'}));a.download=fileOf(name);document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
-  if(!window.open(u,'_blank'))msg('ポップアップが止められました。許可してもう一度Enterを押してください');
-  else msg(name?'OneDriveを開きました。ダウンロードした「'+fileOf(name)+'」をOneDriveのフォルダーに置いてください':'OneDriveを開きました。プラン名を入れるとファイルも作成されます')}});
 const planPanel=$('planPanel');
 const planEntries=d=>d&&d.app==='ev-navi'&&d.storage?[d]:d&&Array.isArray(d.plans)?d.plans.filter(p=>p&&p.planName):[];
 function applyPlan(p){CLOUD_KEYS.forEach(k=>{try{if(p.storage[k]!==undefined)localStorage.setItem(k,p.storage[k]);else localStorage.removeItem(k)}catch(e){}});

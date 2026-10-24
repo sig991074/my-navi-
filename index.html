@@ -87,6 +87,7 @@ if(new URLSearchParams(location.search).has('debugDetourCandidates'))start='narr
 const $=id=>document.getElementById(id);let chosenRouteGeometry={1:null,2:null};let routeHoverNo=0,routeHoverTimer=null,routeCheckPreview=null,routeCheckProgress=null;let map,kind='出発地',mode='A',pick=false,dragCode='',candidateMarkers=[],placeMarkers=[],routeLayers=[],dynamicCallouts=[],trolleyDetourCandidateLayer=null,trolleyDetourCandidateMarkers=new Map(),selectedRoute=1,routePlans={1:{start:null,destination:null,vias:[]},2:{start:null,destination:null,vias:[]}},routeMeta=null;const defaults={1:['B','A','C','F','D','E'],2:['B','A','','','','']};let priorities={1:[...defaults[1]],2:[...defaults[2]]};
 const showDetourCandidateMarkers=new URLSearchParams(location.search).get('debugDetourCandidates')==='1';
 const ROUTE_WORKSPACE_KEY='ev_route_workspace';
+// 古い巨大な経路保存データは読み込み時に破棄し、地点・設定だけ保持する
 let savedRouteResults={1:null,2:null},routeWorkspaceLoadError='',savedVehicle='EV車';
 function validSavedPlace(point){return point&&typeof point==='object'&&Number.isFinite(Number(point.lat))&&Number.isFinite(Number(point.lon))&&typeof point.name==='string'}
 try{
@@ -99,7 +100,8 @@ try{
       const order=saved.priorities?.[routeNo];
       if(Array.isArray(order))priorities[routeNo]=Array.from({length:6},(_,index)=>/^[A-F]$/.test(order[index]||'')?order[index]:'');
       const result=saved.routeResults?.[routeNo];
-      if(result&&typeof result.signature==='string'&&Array.isArray(result.routes))savedRouteResults[routeNo]=result;
+      // 2026-10-24 メモリ不足防止: 保存済みの巨大な経路線は起動時に復元しない
+      savedRouteResults[routeNo]=null;
     }
     if(saved.selectedRoute===1||saved.selectedRoute===2)selectedRoute=saved.selectedRoute;
   }
@@ -117,7 +119,7 @@ function restoreSavedRouteData(route){
   return route;
 }
 function persistRouteWorkspace(routeNo=null,routes=null){
-  if(routeNo&&routes)savedRouteResults[routeNo]={signature:routeWorkspaceSignature(routeNo),checked:routes.every(route=>Number.isFinite(route._narrowCheckedAt)),routes:routes.map(savedRouteData)};
+  if(routeNo&&routes)savedRouteResults[routeNo]=null; // メモリ不足防止: 経路線は保存しない
   const state={version:1,routePlans,priorities,selectedRoute,vehicle:$('vs')?.textContent||'EV車',routeResults:savedRouteResults};
   try{localStorage.setItem(ROUTE_WORKSPACE_KEY,JSON.stringify(state));return true}
   catch(error){

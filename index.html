@@ -50,7 +50,8 @@ async function syncDrive(){const name=$('planName').value.trim();if(!name)return
   catch(e){msg('Googleドライブへ接続できませんでした')}}
 function closeSync(){const name=$('planName').value.trim();if(!dirty||!name||!driveList)return;
   const list=driveList.filter(p=>p.planName!==name);list.push(collect());driveList=list;dirty=false;try{postDrive(list,true)}catch(e){}}
-window.addEventListener('DOMContentLoaded',()=>{fetch(GAS_API_URL+'?action=get').then(r=>r.json()).then(d=>{driveList=planEntries(d)}).catch(()=>{})});
+// 2026-10-24 起動時のGoogle自動取得を停止。地図表示を優先する。
+window.addEventListener('DOMContentLoaded',()=>{driveList=null});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')closeSync()});
 window.addEventListener('pagehide',closeSync);
 F.forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();$(id).blur();save();syncDrive()}}));
@@ -87,7 +88,6 @@ if(new URLSearchParams(location.search).has('debugDetourCandidates'))start='narr
 const $=id=>document.getElementById(id);let chosenRouteGeometry={1:null,2:null};let routeHoverNo=0,routeHoverTimer=null,routeCheckPreview=null,routeCheckProgress=null;let map,kind='出発地',mode='A',pick=false,dragCode='',candidateMarkers=[],placeMarkers=[],routeLayers=[],dynamicCallouts=[],trolleyDetourCandidateLayer=null,trolleyDetourCandidateMarkers=new Map(),selectedRoute=1,routePlans={1:{start:null,destination:null,vias:[]},2:{start:null,destination:null,vias:[]}},routeMeta=null;const defaults={1:['B','A','C','F','D','E'],2:['B','A','','','','']};let priorities={1:[...defaults[1]],2:[...defaults[2]]};
 const showDetourCandidateMarkers=new URLSearchParams(location.search).get('debugDetourCandidates')==='1';
 const ROUTE_WORKSPACE_KEY='ev_route_workspace';
-// 古い巨大な経路保存データは読み込み時に破棄し、地点・設定だけ保持する
 let savedRouteResults={1:null,2:null},routeWorkspaceLoadError='',savedVehicle='EV車';
 function validSavedPlace(point){return point&&typeof point==='object'&&Number.isFinite(Number(point.lat))&&Number.isFinite(Number(point.lon))&&typeof point.name==='string'}
 try{
@@ -100,8 +100,7 @@ try{
       const order=saved.priorities?.[routeNo];
       if(Array.isArray(order))priorities[routeNo]=Array.from({length:6},(_,index)=>/^[A-F]$/.test(order[index]||'')?order[index]:'');
       const result=saved.routeResults?.[routeNo];
-      // 2026-10-24 メモリ不足防止: 保存済みの巨大な経路線は起動時に復元しない
-      savedRouteResults[routeNo]=null;
+      if(result&&typeof result.signature==='string'&&Array.isArray(result.routes))savedRouteResults[routeNo]=result;
     }
     if(saved.selectedRoute===1||saved.selectedRoute===2)selectedRoute=saved.selectedRoute;
   }
@@ -119,7 +118,7 @@ function restoreSavedRouteData(route){
   return route;
 }
 function persistRouteWorkspace(routeNo=null,routes=null){
-  if(routeNo&&routes)savedRouteResults[routeNo]=null; // メモリ不足防止: 経路線は保存しない
+  if(routeNo&&routes)savedRouteResults[routeNo]={signature:routeWorkspaceSignature(routeNo),checked:routes.every(route=>Number.isFinite(route._narrowCheckedAt)),routes:routes.map(savedRouteData)};
   const state={version:1,routePlans,priorities,selectedRoute,vehicle:$('vs')?.textContent||'EV車',routeResults:savedRouteResults};
   try{localStorage.setItem(ROUTE_WORKSPACE_KEY,JSON.stringify(state));return true}
   catch(error){
@@ -163,7 +162,7 @@ function clearRouteCheckPreview(){if(routeCheckPreview&&map?.hasLayer(routeCheck
 function showRouteCheckPreview(route,label,waypoints=[]){clearRouteCheckPreview();const coordinates=route.geometry?.coordinates||[];if(coordinates.length<2)return;routeCheckPreview=L.layerGroup().addTo(map);const previewLine=L.polyline(coordinates.map(point=>[point[1],point[0]]),routeLayers.length?{opacity:0,weight:0,interactive:false}:{color:'#263f52',weight:4,opacity:.9,interactive:false}).addTo(routeCheckPreview);waypoints.filter(point=>point.type==='迂回検索点').forEach((point,index)=>L.circleMarker([point.lat,point.lon],{radius:8,color:'#263f52',weight:2,fillColor:'#fff',fillOpacity:1,interactive:false}).bindTooltip('迂回検索点 '+(index+1)).addTo(routeCheckPreview));routeCheckProgress=L.marker([coordinates[0][1],coordinates[0][0]],{interactive:false,zIndexOffset:10000,icon:L.divIcon({className:'route-check-progress',html:'●',iconSize:[24,24],iconAnchor:[12,12]})}).addTo(routeCheckPreview);map.fitBounds(previewLine.getBounds(),{padding:[45,45],maxZoom:12});$('status').textContent=label+'を確認中（赤丸が進行位置）'}
 function moveRouteCheckProgress(point){if(routeCheckProgress&&point){routeCheckProgress.setLatLng([point[1],point[0]]);routeCheckProgress.setZIndexOffset(10000)}}
 function cleanRouteView(){clearTimeout(routeHoverTimer);routeHoverNo=0;clearRouteCheckPreview();$('routeInfoMini')?.classList.remove('show');document.querySelector('.route-legend')?.classList.remove('show');dynamicCallouts.forEach(callout=>setCalloutVisible(callout,false));document.body.classList.add('route-view-clean');window.evNarrowRoadBridge?.hideCheckLayers?.()}
-addEventListener('DOMContentLoaded',()=>{map=L.map('map').setView([34.85,135.78],10);map.on('mousemove',event=>updateMapLegHighlight(event.latlng));map.getContainer().addEventListener('mouseleave',()=>setMapLegHover());let osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}),gsi=L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',{maxZoom:18,attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">GSI Tiles</a>'}).addTo(map);L.control.layers({'GSI Standard Map':gsi,'OpenStreetMap':osm}).addTo(map);L.control.scale({metric:true,imperial:false}).addTo(map);map.on('zoomend moveend',refreshDynamicCallouts);addTrolleyControls();bind();$('rs').textContent='ルート'+selectedRoute;document.querySelectorAll('[data-r]').forEach(b=>b.addEventListener('click',resetRouteCallouts));document.querySelectorAll('.head').forEach(h=>h.addEventListener('click',()=>requestAnimationFrame(refreshDynamicCallouts)));document.addEventListener('click',()=>setTimeout(refreshDynamicCallouts,0));bindConditions();loadHistory();renderAll();$('vs').textContent=savedVehicle;drawMarkers();renderPlaces();restoreRouteWorkspace()});
+addEventListener('DOMContentLoaded',()=>{map=L.map('map').setView([34.85,135.78],10);map.on('mousemove',event=>updateMapLegHighlight(event.latlng));map.getContainer().addEventListener('mouseleave',()=>setMapLegHover());let osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map),gsi=L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',{maxZoom:18,attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">GSI Tiles</a>'});L.control.layers({'GSI Standard Map':gsi,'OpenStreetMap':osm}).addTo(map);L.control.scale({metric:true,imperial:false}).addTo(map);map.on('zoomend moveend',refreshDynamicCallouts);addTrolleyControls();bind();$('rs').textContent='ルート'+selectedRoute;document.querySelectorAll('[data-r]').forEach(b=>b.addEventListener('click',resetRouteCallouts));document.querySelectorAll('.head').forEach(h=>h.addEventListener('click',()=>requestAnimationFrame(refreshDynamicCallouts)));document.addEventListener('click',()=>setTimeout(refreshDynamicCallouts,0));bindConditions();loadHistory();renderAll();$('vs').textContent=savedVehicle;drawMarkers();renderPlaces();restoreRouteWorkspace()});
 function clearSearch(){let q=$('q');q.value='';q.removeAttribute('list');q.dispatchEvent(new Event('input',{bubbles:true}));requestAnimationFrame(()=>{q.value='';q.setAttribute('list','searchHistory');q.focus();setTimeout(()=>q.value='',100)})}
 function bind(){document.querySelectorAll('.head').forEach(h=>h.onclick=e=>{e.stopPropagation();let m=h.parentElement;document.querySelectorAll('.menu').forEach(x=>{if(x!==m)x.classList.remove('open')});m.classList.toggle('open');document.body.classList.toggle('menu-popup-open',!!document.querySelector('.menu.open'))});document.addEventListener('click',()=>{document.querySelectorAll('.menu').forEach(x=>x.classList.remove('open'));document.body.classList.remove('menu-popup-open')});document.querySelectorAll('.pop').forEach(p=>p.onclick=e=>e.stopPropagation());document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{$('vs').textContent=b.dataset.v;persistRouteWorkspace()});document.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{kind=b.dataset.k;$('ks').textContent=kind;clearCandidates();clearSearch()});$('rs').ondblclick=e=>{e.preventDefault();e.stopPropagation();$('routeCalc').textContent='ルート決定';$('status').textContent='ルート'+selectedRoute+'を決定対象にしました'};document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{selectedRoute=+b.dataset.r;if(selectedRoute===2)copyCourse1EndpointsToCourse2();$('rs').textContent='ルート'+selectedRoute;$('routeCalc').textContent='ルート選定';updateRouteVisibility();drawMarkers();renderPlaces();persistRouteWorkspace();$('status').textContent='ルート'+selectedRoute+'を選択しました'});$('mapPick').onclick=()=>{pick=true;map.getContainer().style.cursor='crosshair'};document.addEventListener('keydown',e=>{if(e.key==='Escape'&&pick){pick=false;map.getContainer().style.cursor='';$('status').textContent='地図上から選択を解除しました';e.preventDefault()}});map.on('click',e=>{if(!pick)return;pick=false;map.getContainer().style.cursor='';let n=prompt('地点名',kind);if(n)setPlace({name:n,address:'地図上から設定',lat:e.latlng.lat,lon:e.latlng.lng})});$('gps').onclick=()=>navigator.geolocation?.getCurrentPosition(p=>setPlace({name:'現在地',address:'GPS',lat:p.coords.latitude,lon:p.coords.longitude}),()=>{$('status').textContent='GPS取得に失敗しました'});$('q').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();searchPlace()}};$('search').onclick=searchPlace;$('historyBtn').onclick=()=>{loadHistory();clearSearch()};$('routeCalc').onclick=()=>calculateRoutes(selectedRoute)}
 function bindConditions(){document.querySelectorAll('.condition-card').forEach(c=>{c.ondragstart=e=>{if(['SELECT','INPUT'].includes(e.target.tagName)){e.preventDefault();return}dragCode=c.dataset.code;c.classList.add('dragging');e.dataTransfer.setData('text/plain',dragCode)};c.ondragend=()=>c.classList.remove('dragging')});let nw=$('narrowWidth');if(nw){['mousedown','click','dragstart'].forEach(ev=>nw.addEventListener(ev,e=>e.stopPropagation()));nw.onchange=()=>{let v=Math.max(1,Math.min(9.9,Number(nw.value)||4.1));nw.value=v.toFixed(1);try{localStorage.setItem('ev_narrowWidth',nw.value)}catch(error){console.error('狭隘道路の基準を保存できませんでした',error)}persistRouteWorkspace();$('status').textContent='狭隘道路の除外基準を'+v.toFixed(1)+'m未満に変更しました'}}document.querySelectorAll('[data-clear]').forEach(b=>b.onclick=()=>{let r=b.dataset.clear;priorities[r]=[...defaults[r]];renderAll()})}
@@ -1362,7 +1361,8 @@ async function autoBackupData(dataToSave) {
 }
 
 // ページ読み込み時に自動取得を実行
-window.addEventListener('DOMContentLoaded', autoLoadData);
+// 2026-10-24 起動時の重複Google自動取得を停止
+// window.addEventListener('DOMContentLoaded', autoLoadData);
 </script><script>
 (function(){
   function removeRoadSectionExplanations(){

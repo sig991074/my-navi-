@@ -1263,12 +1263,12 @@ function legListHtml(items,plan,no){let runs=legRuns(items),pts=[],vias=plan.via
     return'<div class="legRow'+(off?' legOff':'')+'" data-leg-key="'+key+'">'+mark+'<div class="legBody"><div class="legName">'+esc(from)+'→'+esc(to)+(nm?'('+esc(nm)+')':'')+'</div><div class="legInfo"><i class="roadDot" style="background:'+r.color+'"></i>'+esc(r.type)+' '+(r.distance/1000).toFixed(1)+'km '+formatDuration(r.duration)+'<br>走行条件 '+esc(priorityOrder)+'</div></div></div>'}).join('')
     +([...legOff].some(k=>k.startsWith(no+'-'))?'<div class="legDel" data-no="'+no+'">●の区間の道路を使わずに、計算し直す</div>':'')}
 function renderPlaces(){let h='',layers=[1,2].map(n=>routeLayers.find(x=>x.routeNo===n)).filter(Boolean),best=layers.slice().sort((a,b)=>a.duration-b.duration)[0];
-  let planNow=routePlans[selectedRoute],registered=[];if(planNow?.start)registered.push(placeHtml(planNow.start));(planNow?.vias||[]).forEach(p=>registered.push(placeHtml(p)));if(planNow?.destination)registered.push(placeHtml(planNow.destination));if(registered.length)h+='<div class="legHead sel">登録地点</div>'+registered.join('');
   if(best){let dv=($('dep'+best.routeNo)||$('dep1'))?.value||'',d=dv?new Date(dv):null,ok=d&&!isNaN(d),p2=n=>String(n).padStart(2,'0'),
       day=ok?d.getFullYear()+'/'+p2(d.getMonth()+1)+'/'+p2(d.getDate())+'('+'日月火水木金土'[d.getDay()]+') ':'',
       st=ok?p2(d.getHours())+':'+p2(d.getMinutes()):'',e=ok?new Date(d.getTime()+best.duration*1000):null;
     h+='<div class="legBest"><b>最短ルート(決定後)　'+(['','①','②'][best.routeNo])+'</b><br>'+(ok?day+st+' → '+p2(e.getHours())+':'+p2(e.getMinutes())+' 着<br>':'')+'全体 '+(best.distance/1000).toFixed(1)+'km　'+formatDuration(best.duration)+'</div>'}
   else h+='<div class="legBest">経路計算後に、最短ルートが出ます</div>';
+  let planNow=routePlans[selectedRoute],registered=[];if(planNow?.start)registered.push(placeHtml(planNow.start));(planNow?.vias||[]).forEach(p=>registered.push(placeHtml(p)));if(planNow?.destination)registered.push(placeHtml(planNow.destination));if(registered.length)h+='<div class="legHead sel">ルート'+(['','①','②'][selectedRoute])+'（登録地点）</div>'+registered.join('');
   [1,2].forEach(n=>{let x=routeLayers.find(y=>y.routeNo===n);if(!x)return;let plan=routePlans[n]||routePlans[selectedRoute];
     h+='<div class="legHead'+(n===selectedRoute?' sel':'')+'">ルート'+(['','①','②'][n])+(n===selectedRoute?'(選択中)':'')+' '+(x.distance/1000).toFixed(1)+'km '+formatDuration(x.duration)+'</div>'+(x.roadSections?.length?legListHtml(x.roadSections,plan,n):'<div class="roadEmpty">道路区間はありません</div>')});
   $('list').innerHTML=h||'<div class="roadEmpty">経路計算後に表示されます</div>';updateMapLegHighlight()}

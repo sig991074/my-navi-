@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BUILD: 2026-10-24-complete-fix-browser-tested --><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CARナビ ルートプランナー</title><style data-local-leaflet="1.9.4">/* required styles */
+<!-- BUILD: 2026-10-24-free-expressway-blue-fix --><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CARナビ ルートプランナー</title><style data-local-leaflet="1.9.4">/* required styles */
 
 .leaflet-pane,
 .leaflet-tile,
@@ -1805,7 +1805,7 @@ async function calculateBothRoutes(){
   $('status').textContent=warnings.length?'一部のルートで道路幅を確認できませんでした。詳細は右側の区間表示をご確認ください。':'ルート1・ルート2を同時表示しました。色の説明は経路線にカーソルを合わせて確認できます。';
 }
 
-function roadInfo(s){let name=(s.name||'').trim(),ref=(s.ref||'').trim(),highway=String(s.highway||s.road_class||'').toLowerCase(),text=(name+' '+ref).toLowerCase();if(/(^|[^a-z0-9])e\d+[a-z]?(?=$|[^a-z0-9])/i.test(text)||/高速|自動車道|expressway|motorway/i.test(text)||/^motorway/.test(highway))return{type:'高速道路',color:'#d32f2f'};if(/無料|新直轄/.test(text))return{type:'無料高速',color:'#1976d2'};if(/バイパス|bypass/i.test(text))return{type:'バイパス',color:'#2e9d50'};if(/都道|道道|府道|県道|主要地方道|一般地方道/.test(name))return{type:'県道',color:'#7b5aa6'};if(/国道/.test(name)||highway==='trunk'||highway==='trunk_link')return{type:'国道',color:'#f28c28'};if(/市道|町道|村道/.test(name))return{type:'市町村道',color:'#6f7780'};return{type:'その他',color:'#6f7780'}}
+function roadInfo(s){let name=(s.name||'').trim(),ref=(s.ref||'').trim(),highway=String(s.highway||s.road_class||'').toLowerCase(),text=(name+' '+ref).toLowerCase();if(/無料|新直轄/.test(text))return{type:'無料高速',color:'#1976d2'};if(/(^|[^a-z0-9])e\d+[a-z]?(?=$|[^a-z0-9])/i.test(text)||/高速|自動車道|expressway|motorway/i.test(text)||/^motorway/.test(highway))return{type:'高速道路',color:'#d32f2f'};if(/バイパス|bypass/i.test(text))return{type:'バイパス',color:'#2e9d50'};if(/都道|道道|府道|県道|主要地方道|一般地方道/.test(name))return{type:'県道',color:'#7b5aa6'};if(/国道/.test(name)||highway==='trunk'||highway==='trunk_link')return{type:'国道',color:'#f28c28'};if(/市道|町道|村道/.test(name))return{type:'市町村道',color:'#6f7780'};return{type:'その他',color:'#6f7780'}}
 function roadLabel(s){let r=(s.ref||'').trim(),n=(s.name||'').trim(),i=roadInfo(s);if(i.type==='高速道路'&&/^e\d+/i.test(r))return r.toUpperCase();if(/国道|都道|道道|府道|県道|市道|町道|村道/.test(n))return n;if(i.type==='国道'&&/^\d+$/.test(r))return'国道'+r+'号';if(i.type==='県道'&&/^\d+$/.test(r))return'県道'+r+'号';return n||r||'道路名なし'}
 function resetRouteCallouts(){clearTimeout(routeHoverTimer);routeHoverNo=0;dynamicCallouts.forEach(c=>{if(c.kind==='main')setCalloutVisible(c,true);else if(c.kind==='section')setCalloutVisible(c,false)});$('routeInfoMini')?.classList.remove('show');refreshDynamicCallouts()}
 function refreshDynamicCallouts(){

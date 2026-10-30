@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- BUILD: 2026-10-30-motorway-entrance-explicit-condition-fix -->
 <!-- BUILD: 2026-10-24-free-expressway-blue-fix --><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CARナビ ルートプランナー</title><style data-local-leaflet="1.9.4">/* required styles */
 
 .leaflet-pane,
@@ -898,10 +899,15 @@ async function motorwayEntranceRouteExists(start,entrance,destination){
 }
 async function applyPreferredMotorwayEntrance(plan,routeNo){
   if(!plan?.start||!plan?.destination)return false;
-  const order=(priorities[routeNo]||[]).filter(code=>code==='A'||code==='B');
-  if(!order.length)return false;
   const automaticIndex=(plan.vias||[]).findIndex(v=>v?._nearbyMotorwayEntrance===true);
   if(automaticIndex>=0)plan.vias.splice(automaticIndex,1);
+  const current=(priorities[routeNo]||[]);
+  const order=current.filter(code=>code==='A'||code==='B');
+  const explicitlyChanged=current.some((code,index)=>code!==(defaults[routeNo]||[])[index]);
+  if(!order.length||!explicitlyChanged){
+    if(automaticIndex>=0){savedRouteResults[routeNo]=null;persistRouteWorkspace();drawMarkers();renderPlaces()}
+    return automaticIndex>=0;
+  }
   let entrance=null,preference='';
   for(const code of order){
     const nearby=await findICs(plan.start,code);

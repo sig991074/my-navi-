@@ -844,54 +844,80 @@ async function searchPlace(){let q=$('q').value.trim();if(!q)return;saveHistory(
 function showCandidates(a){let box=$('candidates');box.innerHTML='';a.forEach((x,i)=>{let n=i+1,icon=L.divIcon({className:'',html:'<div class="searchpin">'+n+'</div>',iconSize:[24,24],iconAnchor:[12,12]}),m=L.marker([x.lat,x.lon],{icon}).addTo(map);candidateMarkers.push(m);let d=document.createElement('div');d.className='cand';d.innerHTML='<div class="num">'+n+'</div><div><b>'+esc(x.name)+'</b></div>';d.onclick=()=>setPlace(x);box.appendChild(d)});box.style.display=a.length?'block':'none';if(a.length)map.fitBounds(L.featureGroup(candidateMarkers).getBounds(),{padding:[40,40]})}
 function setPlace(x){let plan=routePlans[selectedRoute],p={type:kind,name:x.name,address:x.address,lat:+x.lat,lon:+x.lon};if(kind==='出発地')plan.start=p;else if(kind==='目的地')plan.destination=p;else plan.vias.push(p);clearCandidates();drawMarkers();persistRouteWorkspace();renderPlaces();let registered=[];if(plan.start)registered.push(placeHtml(plan.start));plan.vias.forEach(v=>registered.push(placeHtml(v)));if(plan.destination)registered.push(placeHtml(plan.destination));if(!routeLayers.some(r=>r.routeNo===selectedRoute))$('list').innerHTML='<div class="legBest">経路計算後に、最短ルートが出ます</div><div class="legHead sel">ルート'+(['','①','②'][selectedRoute])+'（登録地点）</div>'+registered.join('');map.setView([p.lat,p.lon],16);$('status').textContent='ルート'+selectedRoute+'に'+kind+'を設定しました'}
 function rad(x){return x*Math.PI/180}function dist(a,b){let R=6371,dLat=rad(b.lat-a.lat),dLon=rad(b.lon-a.lon),v=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(v))}function bearing(a,b){let y=Math.sin(rad(b.lon-a.lon))*Math.cos(rad(b.lat)),x=Math.cos(rad(a.lat))*Math.sin(rad(b.lat))-Math.sin(rad(a.lat))*Math.cos(rad(b.lat))*Math.cos(rad(b.lon-a.lon));return(Math.atan2(y,x)*180/Math.PI+360)%360}function angleDiff(a,b){let d=Math.abs(a-b)%360;return d>180?360-d:d}
+function motorwayPreferenceOrder(routeNo){
+  return (priorities[routeNo]||[]).filter(code=>code==='A'||code==='B');
+}
+function motorwayCandidateToll(tags={}){
+  const toll=String(tags.toll||tags['toll:motorcar']||'').toLowerCase();
+  if(['yes','true','1'].includes(toll))return'paid';
+  if(['no','false','0'].includes(toll))return'free';
+  return'unknown';
+}
 async function findICs(p,preference='A'){
+  if(preference!=='A'&&preference!=='B')return[];
   const urls=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.nchc.org.tw/api/interpreter'];
-  const paid=preference==='A',free=preference==='B';
-  if(!paid&&!free)return[];
   for(const radius of[10000,20000,40000,70000]){
-    const query='[out:json][timeout:15];(node(around:'+radius+','+p.lat+','+p.lon+')[highway=motorway_junction];way(around:'+radius+','+p.lat+','+p.lon+')[highway=motorway_link];);out center tags;';
+    const query='[out:json][timeout:20];(node(around:'+radius+','+p.lat+','+p.lon+')[highway=motorway_junction];way(around:'+radius+','+p.lat+','+p.lon+')[highway=motorway_link];way(around:'+radius+','+p.lat+','+p.lon+')[highway=motorway];);out center tags;';
     for(const base of urls){
+      let timer;
       try{
-        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);
-        const response=await fetch(base+'?data='+encodeURIComponent(query),{signal:controller.signal});
-        clearTimeout(timer);
+        const controller=new AbortController();timer=setTimeout(()=>controller.abort(),22000);
+        const response=await fetch(base,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:'data='+encodeURIComponent(query),signal:controller.signal});
         if(!response.ok)continue;
-        const data=await response.json(),seen=new Set(),list=[];
+        const data=await response.json(),motorways=[],raw=[];
         for(const item of(data.elements||[])){
-          const point=item.type==='node'?item:item.center;
+          const point=item.type==='node'?item:item.center,tags=item.tags||{};
           if(!point)continue;
-          const tags=item.tags||{},toll=String(tags.toll||'').toLowerCase();
-          if(free&&toll!=='no')continue;
-          if(paid&&toll==='no')continue;
-          const name=(tags.name||tags['name:ja']||tags.destination||tags.ref||'高速入口ランプ').trim();
-          const candidate={lat:+point.lat,lon:+point.lon,name,ref:tags.ref||'',toll,junction:item.type==='node'};
+          const record={lat:+point.lat,lon:+point.lon,tags,tollClass:motorwayCandidateToll(tags)};
+          if(tags.highway==='motorway')motorways.push(record);
+          else if(item.type==='node'||tags.highway==='motorway_link')raw.push({...record,junction:item.type==='node'});
+        }
+        const seen=new Set(),list=[];
+        for(const item of raw){
+          let tollClass=item.tollClass;
+          if(tollClass==='unknown'&&motorways.length){
+            const nearest=motorways.slice().sort((a,b)=>dist(item,a)-dist(item,b))[0];
+            if(nearest&&dist(item,nearest)<=2)tollClass=nearest.tollClass;
+          }
+          if(preference==='A'&&tollClass==='free')continue;
+          if(preference==='B'&&tollClass!=='free')continue;
+          const tags=item.tags,name=(tags.name||tags['name:ja']||tags.destination||tags.ref||'高速入口ランプ').trim();
+          const candidate={lat:item.lat,lon:item.lon,name,ref:tags.ref||'',tollClass,junction:item.junction};
           const key=candidate.lat.toFixed(4)+','+candidate.lon.toFixed(4);
           if(seen.has(key))continue;
           seen.add(key);list.push(candidate);
         }
         list.sort((a,b)=>dist(p,a)-dist(p,b));
         if(list.length)return list.slice(0,12);
-      }catch(error){}
+      }catch(error){}finally{if(timer)clearTimeout(timer)}
     }
   }
   return[]
 }
+function removeAutomaticMotorwayEntrance(plan){
+  if(!Array.isArray(plan?.vias))return false;
+  const count=plan.vias.length;
+  plan.vias=plan.vias.filter(v=>v?._nearbyMotorwayEntrance!==true);
+  return plan.vias.length!==count;
+}
 async function applyPreferredMotorwayEntrance(plan,routeNo){
   if(!plan?.start)return false;
-  const order=(priorities[routeNo]||[]).filter(code=>code==='A'||code==='B');
-  if(!order.length)return false;
+  const order=motorwayPreferenceOrder(routeNo);
+  const removed=removeAutomaticMotorwayEntrance(plan);
+  if(!order.length){
+    if(removed){savedRouteResults[routeNo]=null;persistRouteWorkspace();drawMarkers();renderPlaces()}
+    return removed
+  }
   let entrance=null,preference='';
   for(const code of order){
     const nearby=await findICs(plan.start,code);
     if(nearby.length){entrance=nearby[0];preference=code;break}
   }
-  const automaticIndex=(plan.vias||[]).findIndex(v=>v?._nearbyMotorwayEntrance===true);
   if(!entrance){
-    if(automaticIndex>=0){plan.vias.splice(automaticIndex,1);savedRouteResults[routeNo]=null;persistRouteWorkspace();drawMarkers();renderPlaces();return true}
-    return false
+    if(removed){savedRouteResults[routeNo]=null;persistRouteWorkspace();drawMarkers();renderPlaces()}
+    return removed
   }
-  const via={type:'経由地.その他',name:entrance.name||'高速入口ランプ',address:(preference==='B'?'無料高速':'高速道路')+'の近場入口',lat:+entrance.lat,lon:+entrance.lon,ref:entrance.ref||'',_nearbyMotorwayEntrance:true,_motorwayPreference:preference};
-  if(automaticIndex>=0)plan.vias[automaticIndex]=via;else plan.vias.unshift(via);
+  plan.vias.unshift({type:'経由地.その他',name:entrance.name||'高速入口ランプ',address:(preference==='B'?'無料高速':'有料高速')+'の近場入口',lat:+entrance.lat,lon:+entrance.lon,ref:entrance.ref||'',_nearbyMotorwayEntrance:true,_motorwayPreference:preference});
   savedRouteResults[routeNo]=null;persistRouteWorkspace();drawMarkers();renderPlaces();return true
 }
 function forwardPoint(p,dir,meters=800){let d=meters/111320,br=rad(dir);return{lat:p.lat+d*Math.cos(br),lon:p.lon+d*Math.sin(br)/Math.cos(rad(p.lat)),name:'進行方向確認点'}}

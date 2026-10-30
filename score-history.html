@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#101418">
+<title>得点表示 操作履歴版</title>
+<style>
+:root{color-scheme:dark;--bg:#101418;--panel:#1b2229;--line:#35414c;--blue:#075bd8;--red:#d82929;--green:#179b4a;--amber:#f1ad16}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{margin:0;background:var(--bg);color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:1100px;margin:auto;padding:14px}.top{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{background:var(--panel);padding:12px;border-radius:14px}.field label{display:block;font-size:16px;margin-bottom:7px}.field input{width:100%;font-size:22px;padding:13px;border:2px solid var(--line);border-radius:10px;background:white;color:#111}.board{display:grid;grid-template-columns:1fr 90px 1fr;gap:12px;align-items:center;margin:14px 0}.score{height:190px;border:0;border-radius:20px;color:white;font-size:90px;font-weight:800;touch-action:manipulation}.blue{background:var(--blue)}.red{background:var(--red)}.vs{text-align:center;font-weight:900;font-size:40px}.minus,.controls,.exports{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}button,.linkButton{min-height:66px;border:0;border-radius:13px;font-size:23px;font-weight:750;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center}.minus button{background:#f0f1f2;color:#111}.start{background:var(--green);color:#fff}.stop{background:#cf2626;color:#fff}.undo{background:var(--amber);color:#111}.reset{background:#5f6972;color:#fff}.linkButton{background:#2676df;color:#fff}.info{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}.pill{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;font-size:18px}.elapsed{font-variant-numeric:tabular-nums;font-size:25px;font-weight:800}.log{margin-top:14px;background:var(--panel);border-radius:14px;padding:12px}.log h2{font-size:20px;margin:0 0 10px}.logbox{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px}.row{display:grid;grid-template-columns:105px 1fr 105px;padding:10px;border-bottom:1px solid #303a43;font-variant-numeric:tabular-nums}.row:last-child{border-bottom:0}.hint{font-size:14px;line-height:1.5;color:#c9d1d9;margin-top:10px}canvas{position:fixed;left:-9999px;top:-9999px}.warn{display:none;background:#7b241c;padding:12px;border-radius:12px;margin-bottom:12px}@media(max-width:700px){main{padding:9px}.board{grid-template-columns:1fr 52px 1fr;gap:7px}.score{height:150px;font-size:68px}.vs{font-size:27px}.info{grid-template-columns:1fr}.row{grid-template-columns:88px 1fr 82px}.exports{grid-template-columns:1fr}.field input{font-size:19px}}
+</style>
+</head>
+<body>
+<main>
+<div id="warn" class="warn"></div>
+<div class="top">
+ <div class="field"><label for="teamA">チームA</label><input id="teamA" autocomplete="off" placeholder="チームA"></div>
+ <div class="field"><label for="teamB">チームB</label><input id="teamB" autocomplete="off" placeholder="チームB"></div>
+</div>
+<div class="field" style="margin-top:12px"><label for="matchName">試合名・出力名</label><input id="matchName" autocomplete="off" placeholder="例：第1試合"></div>
+<div class="board">
+ <button id="scoreA" class="score blue" aria-label="Aチーム1点追加">0</button>
+ <div class="vs">VS</div>
+ <button id="scoreB" class="score red" aria-label="Bチーム1点追加">0</button>
+</div>
+<div class="minus"><button id="minusA">A -1</button><button id="minusB">B -1</button></div>
+<div class="controls">
+ <button id="start" class="start">記録開始</button><button id="stop" class="stop">記録停止</button>
+ <button id="undo" class="undo">直前操作を戻す</button><button id="reset" class="reset">新しい試合</button>
+</div>
+<div class="info">
+ <div class="pill">状態<br><strong id="status">待機中</strong></div>
+ <div class="pill">経過時間<br><span id="elapsed" class="elapsed">00:00:00.000</span></div>
+ <div class="pill">操作履歴<br><strong id="eventCount">0件</strong></div>
+</div>
+<div class="exports">
+ <a id="saveJson" class="linkButton" href="#">操作履歴JSONを保存</a>
+ <a id="saveCsv" class="linkButton" href="#">操作履歴CSVを保存</a>
+ <a id="savePng" class="linkButton" href="#">現在画面PNGを保存</a>
+ <label class="linkButton" style="cursor:pointer">履歴JSONを読込<input id="loadJson" type="file" accept="application/json,.json" hidden></label>
+</div>
+<section class="log"><h2>操作履歴（これを原本として保持）</h2><div id="logbox" class="logbox"></div>
+<div class="hint">得点操作は端末時刻ではなく、記録開始からの経過ミリ秒で保存します。画面更新に遅れが出ても、履歴上の操作時刻と得点状態は保持されます。データはこのiPadのブラウザー内にも自動保存されます。</div></section>
+<canvas id="canvas" width="960" height="520"></canvas>
+</main>
+<script>
+'use strict';
+const STORAGE_KEY='score_event_source_v1';
+const $=id=>document.getElementById(id);
+const ui={teamA:$('teamA'),teamB:$('teamB'),matchName:$('matchName'),scoreA:$('scoreA'),scoreB:$('scoreB'),status:$('status'),elapsed:$('elapsed'),eventCount:$('eventCount'),logbox:$('logbox'),warn:$('warn')};
+let model={version:1,matchName:'',teamA:'',teamB:'',scoreA:0,scoreB:0,running:false,startedAtEpochMs:null,stoppedElapsedMs:0,events:[]};
+let tickId=null;
+function nowElapsed(){return model.running?Math.max(0,performance.timeOrigin+performance.now()-model.startedAtEpochMs):model.stoppedElapsedMs||0}
+function fmt(ms){ms=Math.max(0,Math.round(ms));const h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000),s=Math.floor(ms%60000/1000),x=ms%1000;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(x).padStart(3,'0')}`}
+function safeName(s){return (s||'得点表示').replace(/[\\/:*?"<>|]/g,'_').trim()||'得点表示'}
+function snapshot(){return {scoreA:model.scoreA,scoreB:model.scoreB,teamA:model.teamA,teamB:model.teamB}}
+function addEvent(type,detail={}){const e={seq:model.events.length+1,elapsedMs:Math.round(nowElapsed()),type,...detail,...snapshot()};model.events.push(e);persist();render();return e}
+function persist(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(model))}catch(e){showWarn('ブラウザー内保存に失敗しました。JSONを保存してください。')}}
+function hydrate(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY));if(x&&x.version===1){model=x;if(model.running){model.running=false;model.stoppedElapsedMs=Math.max(model.stoppedElapsedMs||0,Date.now()-model.startedAtEpochMs);model.events.push({seq:model.events.length+1,elapsedMs:Math.round(model.stoppedElapsedMs),type:'RECOVERED_STOP',scoreA:model.scoreA,scoreB:model.scoreB,teamA:model.teamA,teamB:model.teamB});persist()}}}catch(e){}}
+function showWarn(s){ui.warn.textContent=s;ui.warn.style.display='block'}
+function syncInputs(){model.teamA=ui.teamA.value.trim();model.teamB=ui.teamB.value.trim();model.matchName=ui.matchName.value.trim();persist()}
+function start(){if(model.running)return;syncInputs();model.scoreA=0;model.scoreB=0;model.events=[];model.startedAtEpochMs=Date.now();model.stoppedElapsedMs=0;model.running=true;addEvent('START',{label:'記録開始'});scheduleTick()}
+function stop(){if(!model.running)return;const elapsed=Math.round(nowElapsed());addEvent('STOP',{label:'記録停止'});model.stoppedElapsedMs=elapsed;model.running=false;persist();render();cancelAnimationFrame(tickId)}
+function score(team,delta){if(!model.running){showWarn('先に「記録開始」を押してください。');return}if(team==='A')model.scoreA=Math.max(0,model.scoreA+delta);else model.scoreB=Math.max(0,model.scoreB+delta);addEvent(delta>0?`${team}_PLUS`:`${team}_MINUS`,{label:`${team} ${delta>0?'+1':'-1'}`,delta})}
+function undo(){if(!model.running||model.events.length<=1)return;const last=model.events[model.events.length-1];if(!['A_PLUS','A_MINUS','B_PLUS','B_MINUS'].includes(last.type)){showWarn('直前の得点操作だけ戻せます。');return}model.events.pop();const prev=[...model.events].reverse().find(e=>['START','A_PLUS','A_MINUS','B_PLUS','B_MINUS'].includes(e.type));model.scoreA=prev?prev.scoreA:0;model.scoreB=prev?prev.scoreB:0;addEvent('UNDO',{label:`取消：${last.label}`,cancelledSeq:last.seq})}
+function resetAll(){if(model.running){showWarn('記録中です。先に記録停止してください。');return}if(!confirm('現在の履歴を消して新しい試合を開始しますか？'))return;model={version:1,matchName:'',teamA:'',teamB:'',scoreA:0,scoreB:0,running:false,startedAtEpochMs:null,stoppedElapsedMs:0,events:[]};localStorage.removeItem(STORAGE_KEY);ui.teamA.value='';ui.teamB.value='';ui.matchName.value='';render()}
+function scheduleTick(){cancelAnimationFrame(tickId);const loop=()=>{ui.elapsed.textContent=fmt(nowElapsed());drawCanvas();if(model.running)tickId=requestAnimationFrame(loop)};tickId=requestAnimationFrame(loop)}
+function render(){ui.scoreA.textContent=model.scoreA;ui.scoreB.textContent=model.scoreB;ui.status.textContent=model.running?'記録中':'待機・停止';ui.elapsed.textContent=fmt(nowElapsed());ui.eventCount.textContent=`${model.events.length}件`;ui.logbox.innerHTML=model.events.slice().reverse().map(e=>`<div class="row"><span>${fmt(e.elapsedMs)}</span><span>${escapeHtml(e.label||e.type)}</span><strong>${e.scoreA} - ${e.scoreB}</strong></div>`).join('')||'<div class="row"><span>--</span><span>履歴なし</span><strong>0 - 0</strong></div>';drawCanvas()}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function drawCanvas(){const c=$('canvas'),x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,c.width,c.height);x.fillStyle='#075bd8';x.fillRect(40,70,280,150);x.fillRect(40,250,280,190);x.fillStyle='#d82929';x.fillRect(640,70,280,150);x.fillRect(640,250,280,190);x.fillStyle='#fff';x.textAlign='center';x.textBaseline='middle';x.font='bold 54px sans-serif';x.fillText(model.teamA||'チームA',180,145);x.fillText(model.teamB||'チームB',780,145);x.font='bold 150px sans-serif';x.fillText(model.scoreA,180,345);x.fillText(model.scoreB,780,345);x.font='bold 75px sans-serif';x.fillText('VS',480,320);x.font='bold 36px monospace';x.fillText(fmt(nowElapsed()).slice(0,8),480,480)}
+function download(name,type,textOrBlob){const blob=textOrBlob instanceof Blob?textOrBlob:new Blob([textOrBlob],{type});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+function saveJSON(){syncInputs();download(`${safeName(model.matchName)}_得点操作履歴.json`,'application/json',JSON.stringify(model,null,2))}
+function saveCSV(){const head=['seq','elapsed_ms','time','type','label','score_a','score_b','team_a','team_b','cancelled_seq'];const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;const rows=model.events.map(e=>[e.seq,e.elapsedMs,fmt(e.elapsedMs),e.type,e.label,e.scoreA,e.scoreB,e.teamA,e.teamB,e.cancelledSeq].map(q).join(','));download(`${safeName(model.matchName)}_得点操作履歴.csv`,'text/csv;charset=utf-8','\ufeff'+head.join(',')+'\n'+rows.join('\n'))}
+function savePNG(){drawCanvas();$('canvas').toBlob(b=>download(`${safeName(model.matchName)}_${fmt(nowElapsed()).replace(/[:.]/g,'-')}.png`,'image/png',b),'image/png')}
+async function loadJSON(file){try{const x=JSON.parse(await file.text());if(x.version!==1||!Array.isArray(x.events))throw Error();model=x;model.running=false;model.stoppedElapsedMs=model.stoppedElapsedMs||Math.max(0,...model.events.map(e=>e.elapsedMs||0));ui.teamA.value=model.teamA||'';ui.teamB.value=model.teamB||'';ui.matchName.value=model.matchName||'';persist();render()}catch(e){showWarn('履歴JSONを読み込めませんでした。')}}
+ui.scoreA.onclick=()=>score('A',1);ui.scoreB.onclick=()=>score('B',1);$('minusA').onclick=()=>score('A',-1);$('minusB').onclick=()=>score('B',-1);$('start').onclick=start;$('stop').onclick=stop;$('undo').onclick=undo;$('reset').onclick=resetAll;$('saveJson').onclick=e=>{e.preventDefault();saveJSON()};$('saveCsv').onclick=e=>{e.preventDefault();saveCSV()};$('savePng').onclick=e=>{e.preventDefault();savePNG()};$('loadJson').onchange=e=>e.target.files[0]&&loadJSON(e.target.files[0]);[ui.teamA,ui.teamB,ui.matchName].forEach(el=>el.addEventListener('change',syncInputs));
+hydrate();ui.teamA.value=model.teamA||'';ui.teamB.value=model.teamB||'';ui.matchName.value=model.matchName||'';render();
+</script>
+</body>
+</html>

@@ -8,6 +8,8 @@
 <style>
 :root{color-scheme:dark;--bg:#101418;--panel:#1b2229;--line:#35414c;--blue:#075bd8;--red:#d82929;--green:#179b4a;--amber:#f1ad16}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{margin:0;background:var(--bg);color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:1100px;margin:auto;padding:14px}.top{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{background:var(--panel);padding:12px;border-radius:14px}.field label{display:block;font-size:16px;margin-bottom:7px}.field input{width:100%;font-size:22px;padding:13px;border:2px solid var(--line);border-radius:10px;background:white;color:#111}.board{display:grid;grid-template-columns:1fr 90px 1fr;gap:12px;align-items:center;margin:14px 0}.score{height:190px;border:0;border-radius:20px;color:white;font-size:90px;font-weight:800;touch-action:manipulation}.blue{background:var(--blue)}.red{background:var(--red)}.vs{text-align:center;font-weight:900;font-size:40px}.minus,.controls,.exports{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}button,.linkButton{min-height:66px;border:0;border-radius:13px;font-size:23px;font-weight:750;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center}.minus button{background:#f0f1f2;color:#111}.start{background:var(--green);color:#fff}.stop{background:#cf2626;color:#fff}.undo{background:var(--amber);color:#111}.reset{background:#5f6972;color:#fff}.linkButton{background:#2676df;color:#fff}.info{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}.pill{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;font-size:18px}.elapsed{font-variant-numeric:tabular-nums;font-size:25px;font-weight:800}.log{margin-top:14px;background:var(--panel);border-radius:14px;padding:12px}.log h2{font-size:20px;margin:0 0 10px}.logbox{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px}.row{display:grid;grid-template-columns:105px 1fr 105px;padding:10px;border-bottom:1px solid #303a43;font-variant-numeric:tabular-nums}.row:last-child{border-bottom:0}.hint{font-size:14px;line-height:1.5;color:#c9d1d9;margin-top:10px}canvas{position:fixed;left:-9999px;top:-9999px}.warn{display:none;background:#7b241c;padding:12px;border-radius:12px;margin-bottom:12px}@media(max-width:700px){main{padding:9px}.board{grid-template-columns:1fr 52px 1fr;gap:7px}.score{height:150px;font-size:68px}.vs{font-size:27px}.info{grid-template-columns:1fr}.row{grid-template-columns:88px 1fr 82px}.exports{grid-template-columns:1fr}.field input{font-size:19px}}
+
+.mp4panel{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}.mp4panel h2{font-size:21px;margin:0 0 10px}.mp4controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}.mp4select{width:100%;font-size:18px;padding:12px;border-radius:10px;background:#fff;color:#111}.mp4button{background:#8b5cf6;color:#fff}.mp4button:disabled{opacity:.45;cursor:not-allowed}.progressWrap{display:none;margin-top:12px}.progressOuter{height:24px;border-radius:12px;background:#0d1115;overflow:hidden;border:1px solid var(--line)}.progressInner{height:100%;width:0;background:#24a866;transition:width .15s}.progressText{margin-top:7px;font-size:16px;text-align:center}.mp4note{font-size:14px;line-height:1.55;color:#d4dbe1;margin-top:10px}@media(max-width:700px){.mp4controls{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -39,9 +41,25 @@
  <a id="savePng" class="linkButton" href="#">現在画面PNGを保存</a>
  <label class="linkButton" style="cursor:pointer">履歴JSONを読込<input id="loadJson" type="file" accept="application/json,.json" hidden></label>
 </div>
+<section class="mp4panel">
+<h2>操作履歴からMP4を生成</h2>
+<div class="mp4controls">
+  <select id="mp4Fps" class="mp4select" aria-label="MP4フレームレート">
+    <option value="1" selected>1 fps（推奨・時間表示は1秒単位）</option>
+    <option value="2">2 fps（少し滑らか）</option>
+  </select>
+  <button id="makeMp4" class="mp4button">MP4生成開始</button>
+</div>
+<div id="mp4ProgressWrap" class="progressWrap">
+  <div class="progressOuter"><div id="mp4Progress" class="progressInner"></div></div>
+  <div id="mp4ProgressText" class="progressText">準備中</div>
+</div>
+<div class="mp4note">記録停止後に使用します。得点変更時刻は操作履歴を原本として再現します。出力は480×260・H.264 MP4・音声なしです。生成中はSafariを前面に保ち、画面をロックしないでください。</div>
+</section>
 <section class="log"><h2>操作履歴（これを原本として保持）</h2><div id="logbox" class="logbox"></div>
 <div class="hint">得点操作は端末時刻ではなく、記録開始からの経過ミリ秒で保存します。画面更新に遅れが出ても、履歴上の操作時刻と得点状態は保持されます。データはこのiPadのブラウザー内にも自動保存されます。</div></section>
 <canvas id="canvas" width="960" height="520"></canvas>
+<canvas id="mp4Canvas" width="480" height="260"></canvas>
 </main>
 <script>
 'use strict';
@@ -76,5 +94,142 @@ async function loadJSON(file){try{const x=JSON.parse(await file.text());if(x.ver
 ui.scoreA.onclick=()=>score('A',1);ui.scoreB.onclick=()=>score('B',1);$('minusA').onclick=()=>score('A',-1);$('minusB').onclick=()=>score('B',-1);$('start').onclick=start;$('stop').onclick=stop;$('undo').onclick=undo;$('reset').onclick=resetAll;$('saveJson').onclick=e=>{e.preventDefault();saveJSON()};$('saveCsv').onclick=e=>{e.preventDefault();saveCSV()};$('savePng').onclick=e=>{e.preventDefault();savePNG()};$('loadJson').onchange=e=>e.target.files[0]&&loadJSON(e.target.files[0]);[ui.teamA,ui.teamB,ui.matchName].forEach(el=>el.addEventListener('change',syncInputs));
 hydrate();ui.teamA.value=model.teamA||'';ui.teamB.value=model.teamB||'';ui.matchName.value=model.matchName||'';render();
 </script>
+
+<script type="module">
+import { Output, Mp4OutputFormat, BufferTarget, CanvasSource } from 'https://cdn.jsdelivr.net/npm/mediabunny@1.55.4/+esm';
+
+const mp4Button = document.getElementById('makeMp4');
+const mp4ProgressWrap = document.getElementById('mp4ProgressWrap');
+const mp4Progress = document.getElementById('mp4Progress');
+const mp4ProgressText = document.getElementById('mp4ProgressText');
+const mp4Canvas = document.getElementById('mp4Canvas');
+const mp4Ctx = mp4Canvas.getContext('2d', { alpha: false });
+
+function mp4FormatTime(totalSeconds) {
+  const sec = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function centeredText(ctx, text, x1, y1, x2, y2, font) {
+  ctx.font = font;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fff';
+  let value = String(text || '');
+  while (value.length > 1 && ctx.measureText(value).width > (x2 - x1 - 8)) value = value.slice(0, -1);
+  ctx.fillText(value, (x1 + x2) / 2, (y1 + y2) / 2);
+}
+
+function drawMp4Frame(seconds, state) {
+  const c = mp4Ctx;
+  c.fillStyle = '#000';
+  c.fillRect(0, 0, 480, 260);
+  c.fillStyle = '#075bd8';
+  c.fillRect(20, 35, 150, 70);
+  c.fillRect(20, 115, 150, 100);
+  c.fillStyle = '#d82929';
+  c.fillRect(310, 35, 150, 70);
+  c.fillRect(310, 115, 150, 100);
+  centeredText(c, state.teamA || 'チームA', 20, 35, 170, 105, 'bold 25px sans-serif');
+  centeredText(c, state.teamB || 'チームB', 310, 35, 460, 105, 'bold 25px sans-serif');
+  centeredText(c, state.scoreA, 20, 115, 170, 215, 'bold 67px sans-serif');
+  centeredText(c, state.scoreB, 310, 115, 460, 215, 'bold 67px sans-serif');
+  centeredText(c, 'VS', 190, 100, 290, 190, 'bold 40px sans-serif');
+  centeredText(c, `TIME ${mp4FormatTime(seconds)}`, 120, 222, 360, 258, 'bold 21px monospace');
+}
+
+function exportDurationMs() {
+  const stop = [...model.events].reverse().find(e => e.type === 'STOP');
+  return Math.max(0, Math.round(stop?.elapsedMs ?? model.stoppedElapsedMs ?? 0));
+}
+
+function stateAt(ms, orderedEvents) {
+  let state = { scoreA: 0, scoreB: 0, teamA: model.teamA || '', teamB: model.teamB || '' };
+  for (const e of orderedEvents) {
+    if ((e.elapsedMs || 0) > ms) break;
+    if (Number.isFinite(e.scoreA)) state.scoreA = e.scoreA;
+    if (Number.isFinite(e.scoreB)) state.scoreB = e.scoreB;
+    if (typeof e.teamA === 'string') state.teamA = e.teamA;
+    if (typeof e.teamB === 'string') state.teamB = e.teamB;
+  }
+  return state;
+}
+
+async function generateMp4() {
+  if (model.running) {
+    showWarn('MP4生成前に「記録停止」を押してください。');
+    return;
+  }
+  const durationMs = exportDurationMs();
+  if (!model.events.length || durationMs < 1000) {
+    showWarn('1秒以上の操作履歴が必要です。');
+    return;
+  }
+  if (typeof VideoEncoder === 'undefined') {
+    showWarn('このSafariはMP4生成機能に対応していません。iPadOSを更新してください。');
+    return;
+  }
+
+  const fps = Number(document.getElementById('mp4Fps').value || 1);
+  const durationSec = durationMs / 1000;
+  const totalFrames = Math.max(1, Math.ceil(durationSec * fps));
+  const frameDuration = 1 / fps;
+  const orderedEvents = [...model.events].sort((a,b) => (a.elapsedMs || 0) - (b.elapsedMs || 0));
+
+  mp4Button.disabled = true;
+  mp4ProgressWrap.style.display = 'block';
+  mp4Progress.style.width = '0%';
+  mp4ProgressText.textContent = `準備中 0 / ${totalFrames}フレーム`;
+
+  try {
+    const target = new BufferTarget();
+    const output = new Output({ format: new Mp4OutputFormat(), target });
+    const source = new CanvasSource(mp4Canvas, {
+      codec: 'avc',
+      bitrate: 300000,
+      bitrateMode: 'variable',
+      keyFrameInterval: 10,
+      latencyMode: 'quality',
+      contentHint: 'detail'
+    });
+    output.addVideoTrack(source);
+    await output.start();
+
+    for (let i = 0; i < totalFrames; i++) {
+      const t = i / fps;
+      drawMp4Frame(t, stateAt(t * 1000, orderedEvents));
+      const remain = Math.max(0.001, Math.min(frameDuration, durationSec - t));
+      await source.add(t, remain, { keyFrame: i === 0 || i % (fps * 10) === 0 });
+      if (i % 20 === 0 || i === totalFrames - 1) {
+        const percent = Math.round(((i + 1) / totalFrames) * 100);
+        mp4Progress.style.width = `${percent}%`;
+        mp4ProgressText.textContent = `MP4生成中 ${percent}%（${i + 1} / ${totalFrames}フレーム）`;
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    }
+
+    source.close();
+    mp4ProgressText.textContent = 'MP4を仕上げています。';
+    await output.finalize();
+    const blob = new Blob([target.buffer], { type: 'video/mp4' });
+    const fileName = `${safeName(model.matchName)}得点表示ファイル.mp4`;
+    download(fileName, 'video/mp4', blob);
+    mp4Progress.style.width = '100%';
+    mp4ProgressText.textContent = `完了：${fileName}（${(blob.size / 1024 / 1024).toFixed(1)} MB）`;
+  } catch (error) {
+    console.error(error);
+    showWarn(`MP4生成に失敗しました：${error?.message || error}`);
+    mp4ProgressText.textContent = 'MP4生成失敗';
+  } finally {
+    mp4Button.disabled = false;
+  }
+}
+
+mp4Button.addEventListener('click', generateMp4);
+</script>
+
 </body>
 </html>

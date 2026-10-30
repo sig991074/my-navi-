@@ -54,7 +54,7 @@
   <div class="progressOuter"><div id="mp4Progress" class="progressInner"></div></div>
   <div id="mp4ProgressText" class="progressText">準備中</div>
 </div>
-<div class="mp4note">記録停止後に使用します。得点変更時刻は操作履歴を原本として再現します。出力は480×260・H.264 MP4・音声なしです。生成中はSafariを前面に保ち、画面をロックしないでください。</div>
+<div class="mp4note">記録停止を押すと、この欄へ移動してMP4生成を自動開始します。得点変更時刻は操作履歴を原本として再現します。出力は480×260・H.264 MP4・音声なしです。生成中はSafariを前面に保ち、画面をロックしないでください。</div>
 </section>
 <section class="log"><h2>操作履歴（これを原本として保持）</h2><div id="logbox" class="logbox"></div>
 <div class="hint">得点操作は端末時刻ではなく、記録開始からの経過ミリ秒で保存します。画面更新に遅れが出ても、履歴上の操作時刻と得点状態は保持されます。データはこのiPadのブラウザー内にも自動保存されます。</div></section>
@@ -78,7 +78,7 @@ function hydrate(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY));if(
 function showWarn(s){ui.warn.textContent=s;ui.warn.style.display='block'}
 function syncInputs(){model.teamA=ui.teamA.value.trim();model.teamB=ui.teamB.value.trim();model.matchName=ui.matchName.value.trim();persist()}
 function start(){if(model.running)return;syncInputs();model.scoreA=0;model.scoreB=0;model.events=[];model.startedAtEpochMs=Date.now();model.stoppedElapsedMs=0;model.running=true;addEvent('START',{label:'記録開始'});scheduleTick()}
-function stop(){if(!model.running)return;const elapsed=Math.round(nowElapsed());addEvent('STOP',{label:'記録停止'});model.stoppedElapsedMs=elapsed;model.running=false;persist();render();cancelAnimationFrame(tickId)}
+function stop(){if(!model.running)return;const elapsed=Math.round(nowElapsed());addEvent('STOP',{label:'記録停止'});model.stoppedElapsedMs=elapsed;model.running=false;persist();render();cancelAnimationFrame(tickId);window.dispatchEvent(new CustomEvent('score-recording-stopped'))}
 function score(team,delta){if(!model.running){showWarn('先に「記録開始」を押してください。');return}if(team==='A')model.scoreA=Math.max(0,model.scoreA+delta);else model.scoreB=Math.max(0,model.scoreB+delta);addEvent(delta>0?`${team}_PLUS`:`${team}_MINUS`,{label:`${team} ${delta>0?'+1':'-1'}`,delta})}
 function undo(){if(!model.running||model.events.length<=1)return;const last=model.events[model.events.length-1];if(!['A_PLUS','A_MINUS','B_PLUS','B_MINUS'].includes(last.type)){showWarn('直前の得点操作だけ戻せます。');return}model.events.pop();const prev=[...model.events].reverse().find(e=>['START','A_PLUS','A_MINUS','B_PLUS','B_MINUS'].includes(e.type));model.scoreA=prev?prev.scoreA:0;model.scoreB=prev?prev.scoreB:0;addEvent('UNDO',{label:`取消：${last.label}`,cancelledSeq:last.seq})}
 function resetAll(){if(model.running){showWarn('記録中です。先に記録停止してください。');return}if(!confirm('現在の履歴を消して新しい試合を開始しますか？'))return;model={version:1,matchName:'',teamA:'',teamB:'',scoreA:0,scoreB:0,running:false,startedAtEpochMs:null,stoppedElapsedMs:0,events:[]};localStorage.removeItem(STORAGE_KEY);ui.teamA.value='';ui.teamB.value='';ui.matchName.value='';render()}
@@ -96,8 +96,6 @@ hydrate();ui.teamA.value=model.teamA||'';ui.teamB.value=model.teamB||'';ui.match
 </script>
 
 <script type="module">
-import { Output, Mp4OutputFormat, BufferTarget, CanvasSource } from 'https://cdn.jsdelivr.net/npm/mediabunny@1.55.4/+esm';
-
 const mp4Button = document.getElementById('makeMp4');
 const mp4ProgressWrap = document.getElementById('mp4ProgressWrap');
 const mp4Progress = document.getElementById('mp4Progress');
@@ -185,6 +183,8 @@ async function generateMp4() {
   mp4ProgressText.textContent = `準備中 0 / ${totalFrames}フレーム`;
 
   try {
+    mp4ProgressText.textContent = 'MP4生成機能を読み込んでいます。';
+    const { Output, Mp4OutputFormat, BufferTarget, CanvasSource } = await import('https://cdn.jsdelivr.net/npm/mediabunny@1.55.4/+esm');
     const target = new BufferTarget();
     const output = new Output({ format: new Mp4OutputFormat(), target });
     const source = new CanvasSource(mp4Canvas, {
@@ -229,6 +229,12 @@ async function generateMp4() {
 }
 
 mp4Button.addEventListener('click', generateMp4);
+window.addEventListener('score-recording-stopped', () => {
+  document.querySelector('.mp4panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  mp4ProgressWrap.style.display = 'block';
+  mp4ProgressText.textContent = '記録停止を確認しました。MP4生成を開始します。';
+  setTimeout(generateMp4, 500);
+});
 </script>
 
 </body>

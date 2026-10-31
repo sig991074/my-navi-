@@ -124,6 +124,8 @@ hydrate();setSelectField(ui.teamA,model.teamA,'チームAを選択');setSelectFi
 </script>
 
 <script type="module">
+import { Output, Mp4OutputFormat, BufferTarget, CanvasSource } from 'https://cdn.jsdelivr.net/npm/mediabunny@1.55.4/+esm';
+
 const mp4Button = document.getElementById('makeMp4');
 const mp4ProgressWrap = document.getElementById('mp4ProgressWrap');
 const mp4Progress = document.getElementById('mp4Progress');
@@ -194,79 +196,67 @@ async function generateMp4() {
     showWarn('1秒以上の操作履歴が必要です。');
     return;
   }
-  if (typeof MediaRecorder === 'undefined' || typeof mp4Canvas.captureStream !== 'function') {
-    showWarn('このSafariでは端末内MP4生成を利用できません。');
+  if (typeof VideoEncoder === 'undefined') {
+    showWarn('このSafariはMP4生成機能に対応していません。iPadOSを更新してください。');
     return;
   }
-  const mimeCandidates = [
-    'video/mp4;codecs=avc1.42E01E',
-    'video/mp4;codecs=avc1',
-    'video/mp4'
-  ];
-  const mimeType = mimeCandidates.find(t => !MediaRecorder.isTypeSupported || MediaRecorder.isTypeSupported(t));
-  if (!mimeType) {
-    showWarn('このSafariではMP4(H.264)録画形式を利用できません。');
-    return;
-  }
+
   const fps = Number(document.getElementById('mp4Fps').value || 1);
   const durationSec = durationMs / 1000;
+  const totalFrames = Math.max(1, Math.ceil(durationSec * fps));
+  const frameDuration = 1 / fps;
   const orderedEvents = [...model.events].sort((a,b) => (a.elapsedMs || 0) - (b.elapsedMs || 0));
-  const chunks = [];
-  let recorder;
+
   mp4Button.disabled = true;
   mp4ProgressWrap.style.display = 'block';
   mp4Progress.style.width = '0%';
-  mp4ProgressText.textContent = 'MP4生成を開始しています。';
+  mp4ProgressText.textContent = `準備中 0 / ${totalFrames}フレーム`;
+
   try {
-    drawMp4Frame(0, stateAt(0, orderedEvents));
-    const stream = mp4Canvas.captureStream(fps);
-    recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 500000 });
-    recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-    const stopped = new Promise((resolve, reject) => {
-      recorder.onstop = resolve;
-      recorder.onerror = e => reject(e.error || new Error('録画処理でエラーが発生しました。'));
+    const target = new BufferTarget();
+    const output = new Output({ format: new Mp4OutputFormat(), target });
+    const source = new CanvasSource(mp4Canvas, {
+      codec: 'avc',
+      bitrate: 300000,
+      bitrateMode: 'variable',
+      keyFrameInterval: 10,
+      latencyMode: 'quality',
+      contentHint: 'detail'
     });
-    recorder.start(1000);
-    const started = performance.now();
-    await new Promise((resolve, reject) => {
-      const step = () => {
-        try {
-          const elapsed = Math.min(durationSec, (performance.now() - started) / 1000);
-          drawMp4Frame(elapsed, stateAt(elapsed * 1000, orderedEvents));
-          const percent = Math.min(100, Math.round((elapsed / durationSec) * 100));
-          mp4Progress.style.width = `${percent}%`;
-          mp4ProgressText.textContent = `MP4生成中 ${percent}%`;
-          if (elapsed >= durationSec) { resolve(); return; }
-          setTimeout(step, Math.max(50, Math.round(1000 / Math.max(1, fps))));
-        } catch (e) { reject(e); }
-      };
-      step();
-    });
-    recorder.stop();
-    await stopped;
-    stream.getTracks().forEach(t => t.stop());
-    if (!chunks.length) throw new Error('MP4データを作成できませんでした。');
-    const blob = new Blob(chunks, { type: mimeType });
+    output.addVideoTrack(source);
+    await output.start();
+
+    for (let i = 0; i < totalFrames; i++) {
+      const t = i / fps;
+      drawMp4Frame(t, stateAt(t * 1000, orderedEvents));
+      const remain = Math.max(0.001, Math.min(frameDuration, durationSec - t));
+      await source.add(t, remain, { keyFrame: i === 0 || i % (fps * 10) === 0 });
+      if (i % 20 === 0 || i === totalFrames - 1) {
+        const percent = Math.round(((i + 1) / totalFrames) * 100);
+        mp4Progress.style.width = `${percent}%`;
+        mp4ProgressText.textContent = `MP4生成中 ${percent}%（${i + 1} / ${totalFrames}フレーム）`;
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    }
+
+    source.close();
+    mp4ProgressText.textContent = 'MP4を仕上げています。';
+    await output.finalize();
+    const blob = new Blob([target.buffer], { type: 'video/mp4' });
     const fileName = `${safeName(model.matchName)}得点表示ファイル.mp4`;
     download(fileName, 'video/mp4', blob);
     mp4Progress.style.width = '100%';
     mp4ProgressText.textContent = `完了：${fileName}（${(blob.size / 1024 / 1024).toFixed(1)} MB）`;
   } catch (error) {
-    try { if (recorder && recorder.state !== 'inactive') recorder.stop(); } catch (_) {}
     console.error(error);
     showWarn(`MP4生成に失敗しました：${error?.message || error}`);
-    mp4ProgressText.textContent = `MP4生成失敗：${error?.message || error}`;
+    mp4ProgressText.textContent = 'MP4生成失敗';
   } finally {
     mp4Button.disabled = false;
   }
 }
+
 mp4Button.addEventListener('click', generateMp4);
-window.addEventListener('score-recording-stopped', () => {
-  document.querySelector('.mp4panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  mp4ProgressWrap.style.display = 'block';
-  mp4ProgressText.textContent = '記録停止を確認しました。MP4生成を開始します。';
-  setTimeout(generateMp4, 500);
-});
 </script>
 
 </body>

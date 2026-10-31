@@ -14,6 +14,7 @@
 
 /* iPad compact layout v20261031-2 */main{max-width:980px;padding:10px}.field{padding:9px}.field label{font-size:15px;margin-bottom:5px}.selectField{min-height:50px;font-size:19px;padding:10px}.board{margin:10px 0}.score{height:160px;font-size:78px}.minus,.controls,.exports{gap:9px;margin-top:9px}button,.linkButton{min-height:56px;font-size:20px}.info{margin-top:9px}.pill{padding:9px;font-size:16px}.elapsed{font-size:22px}.log,.mp4panel{margin-top:10px;padding:10px}@media(max-width:700px){main{padding:7px}.score{height:132px;font-size:62px}.selectField{font-size:18px}.pickerCard{max-height:92vh}.pickerChoice{min-height:52px;font-size:19px}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/mediabunny@1.55.2/dist/mediabunny.cjs"></script>
 </head>
 <body>
 <main>
@@ -100,46 +101,7 @@ function historyValues(kind){const list=getJsonHistory().slice().reverse(),out=[
 function closePicker(){ui.pickerOverlay.classList.remove('open');ui.pickerOverlay.style.display='none';pickerTargetId=''}
 function selectPickerValue(value){const target=document.getElementById(pickerTargetId);if(!target)return;const placeholder=pickerTargetId==='matchName'?'試合名・出力名を選択 ▼':pickerTargetId==='teamA'?'チームAを選択 ▼':'チームBを選択 ▼';setSelectField(target,value,placeholder);if(pickerTargetId==='teamA')model.teamA=value;else if(pickerTargetId==='teamB')model.teamB=value;else if(pickerTargetId==='matchName')model.matchName=value;persist();ui.pickerOverlay.classList.remove('open');pickerTargetId=''}
 function chooseHistoryValue(targetId,value){const v=String(value||'').trim();if(targetId==='teamA')model.teamA=v;else if(targetId==='teamB')model.teamB=v;else if(targetId==='matchName')model.matchName=v;const target=document.getElementById(targetId);if(target){target.value=v;target.textContent=v}persist();ui.pickerOverlay.classList.remove('open');ui.pickerOverlay.style.display='none';pickerTargetId='';render()}
-function openPicker(target,kind,title){
-  const targetId=target.id;
-  pickerTargetId=targetId;
-  ui.pickerTitle.textContent=title;
-  const vals=historyValues(kind);
-  ui.pickerList.replaceChildren();
-  if(!vals.length){
-    const msg=document.createElement('div');
-    msg.className='hint';
-    msg.textContent='保存済みの履歴はありません。「新規入力」を押してください。';
-    ui.pickerList.appendChild(msg);
-  }else{
-    vals.forEach(v=>{
-      const b=document.createElement('button');
-      b.type='button';
-      b.className='pickerChoice';
-      b.textContent=v;
-      b.setAttribute('data-target',targetId);
-      b.setAttribute('data-value',v);
-      b.onclick=function(){
-        const id=this.getAttribute('data-target');
-        const value=this.getAttribute('data-value')||'';
-        if(id==='teamA')model.teamA=value;
-        if(id==='teamB')model.teamB=value;
-        if(id==='matchName')model.matchName=value;
-        const field=document.getElementById(id);
-        if(field){field.value=value;field.textContent=value;}
-        persist();
-        ui.pickerOverlay.classList.remove('open');
-        ui.pickerOverlay.style.display='none';
-        pickerTargetId='';
-        drawCanvas();
-        return false;
-      };
-      ui.pickerList.appendChild(b);
-    });
-  }
-  ui.pickerOverlay.style.display='flex';
-  ui.pickerOverlay.classList.add('open');
-}
+function openPicker(target,kind,title){const targetId=target.id;pickerTargetId=targetId;ui.pickerTitle.textContent=title;const vals=historyValues(kind);ui.pickerList.replaceChildren();if(!vals.length){const msg=document.createElement('div');msg.className='hint';msg.textContent='保存済みの履歴はありません。「新規入力」を押してください。';ui.pickerList.appendChild(msg)}else{for(const v of vals){const b=document.createElement('button');b.type='button';b.className='pickerChoice';b.textContent=v;b.onclick=function(e){e.preventDefault();e.stopPropagation();chooseHistoryValue(targetId,v)};ui.pickerList.appendChild(b)}}ui.pickerOverlay.style.display='flex';ui.pickerOverlay.classList.add('open')}
 function newPickerInput(){const targetId=pickerTargetId;const target=document.getElementById(targetId);if(!target)return;const current=target.value||'';const title=targetId==='matchName'?'試合名・出力名を入力':'チーム名を入力';ui.pickerOverlay.classList.remove('open');ui.pickerOverlay.style.display='none';const value=window.prompt(title,current);if(value===null){pickerTargetId='';return}chooseHistoryValue(targetId,value)}
 function syncInputs(){model.teamA=ui.teamA.value.trim();model.teamB=ui.teamB.value.trim();model.matchName=ui.matchName.value.trim();persist()}
 function start(){if(model.running)return;syncInputs();model.scoreA=0;model.scoreB=0;model.events=[];model.startedAtEpochMs=Date.now();model.stoppedElapsedMs=0;model.jsonSaved=false;model.jsonSavedAt=null;model.jsonFileName=null;model.running=true;addEvent('START',{label:'記録開始'});scheduleTick()}
@@ -262,12 +224,8 @@ async function generateMp4() {
 
   try {
     mp4ProgressText.textContent = 'MP4生成機能を読み込んでいます。';
-    let mediaModule;
-    try {
-      mediaModule = await import('https://cdn.jsdelivr.net/npm/mediabunny@1.55.2/+esm');
-    } catch (cdnError) {
-      mediaModule = await import('https://esm.sh/mediabunny@1.55.2');
-    }
+    const mediaModule = window.Mediabunny;
+    if (!mediaModule) throw new Error('MP4生成機能の読み込みに失敗しました。Safariを再読み込みしてください。');
     const { Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality } = mediaModule;
     const target = new BufferTarget();
     const output = new Output({ format: new Mp4OutputFormat(), target });

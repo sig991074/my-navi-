@@ -100,7 +100,46 @@ function historyValues(kind){const list=getJsonHistory().slice().reverse(),out=[
 function closePicker(){ui.pickerOverlay.classList.remove('open');ui.pickerOverlay.style.display='none';pickerTargetId=''}
 function selectPickerValue(value){const target=document.getElementById(pickerTargetId);if(!target)return;const placeholder=pickerTargetId==='matchName'?'試合名・出力名を選択 ▼':pickerTargetId==='teamA'?'チームAを選択 ▼':'チームBを選択 ▼';setSelectField(target,value,placeholder);if(pickerTargetId==='teamA')model.teamA=value;else if(pickerTargetId==='teamB')model.teamB=value;else if(pickerTargetId==='matchName')model.matchName=value;persist();ui.pickerOverlay.classList.remove('open');pickerTargetId=''}
 function chooseHistoryValue(targetId,value){const v=String(value||'').trim();if(targetId==='teamA')model.teamA=v;else if(targetId==='teamB')model.teamB=v;else if(targetId==='matchName')model.matchName=v;const target=document.getElementById(targetId);if(target){target.value=v;target.textContent=v}persist();ui.pickerOverlay.classList.remove('open');ui.pickerOverlay.style.display='none';pickerTargetId='';render()}
-function openPicker(target,kind,title){const targetId=target.id;pickerTargetId=targetId;ui.pickerTitle.textContent=title;const vals=historyValues(kind);ui.pickerList.replaceChildren();if(!vals.length){const msg=document.createElement('div');msg.className='hint';msg.textContent='保存済みの履歴はありません。「新規入力」を押してください。';ui.pickerList.appendChild(msg)}else{for(const v of vals){const b=document.createElement('button');b.type='button';b.className='pickerChoice';b.textContent=v;b.onclick=function(e){e.preventDefault();e.stopPropagation();chooseHistoryValue(targetId,v)};ui.pickerList.appendChild(b)}}ui.pickerOverlay.style.display='flex';ui.pickerOverlay.classList.add('open')}
+function openPicker(target,kind,title){
+  const targetId=target.id;
+  pickerTargetId=targetId;
+  ui.pickerTitle.textContent=title;
+  const vals=historyValues(kind);
+  ui.pickerList.replaceChildren();
+  if(!vals.length){
+    const msg=document.createElement('div');
+    msg.className='hint';
+    msg.textContent='保存済みの履歴はありません。「新規入力」を押してください。';
+    ui.pickerList.appendChild(msg);
+  }else{
+    vals.forEach(v=>{
+      const b=document.createElement('button');
+      b.type='button';
+      b.className='pickerChoice';
+      b.textContent=v;
+      b.setAttribute('data-target',targetId);
+      b.setAttribute('data-value',v);
+      b.onclick=function(){
+        const id=this.getAttribute('data-target');
+        const value=this.getAttribute('data-value')||'';
+        if(id==='teamA')model.teamA=value;
+        if(id==='teamB')model.teamB=value;
+        if(id==='matchName')model.matchName=value;
+        const field=document.getElementById(id);
+        if(field){field.value=value;field.textContent=value;}
+        persist();
+        ui.pickerOverlay.classList.remove('open');
+        ui.pickerOverlay.style.display='none';
+        pickerTargetId='';
+        drawCanvas();
+        return false;
+      };
+      ui.pickerList.appendChild(b);
+    });
+  }
+  ui.pickerOverlay.style.display='flex';
+  ui.pickerOverlay.classList.add('open');
+}
 function newPickerInput(){const targetId=pickerTargetId;const target=document.getElementById(targetId);if(!target)return;const current=target.value||'';const title=targetId==='matchName'?'試合名・出力名を入力':'チーム名を入力';ui.pickerOverlay.classList.remove('open');ui.pickerOverlay.style.display='none';const value=window.prompt(title,current);if(value===null){pickerTargetId='';return}chooseHistoryValue(targetId,value)}
 function syncInputs(){model.teamA=ui.teamA.value.trim();model.teamB=ui.teamB.value.trim();model.matchName=ui.matchName.value.trim();persist()}
 function start(){if(model.running)return;syncInputs();model.scoreA=0;model.scoreB=0;model.events=[];model.startedAtEpochMs=Date.now();model.stoppedElapsedMs=0;model.jsonSaved=false;model.jsonSavedAt=null;model.jsonFileName=null;model.running=true;addEvent('START',{label:'記録開始'});scheduleTick()}

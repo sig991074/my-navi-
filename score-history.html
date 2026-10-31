@@ -17,10 +17,11 @@
 <div id="warn" class="warn"></div>
 <div id="notice" class="notice"></div>
 <div class="top">
- <div class="field"><label for="teamA">チームA</label><input id="teamA" autocomplete="off" placeholder="チームA"></div>
- <div class="field"><label for="teamB">チームB</label><input id="teamB" autocomplete="off" placeholder="チームB"></div>
+ <div class="field"><label for="teamA">チームA</label><input id="teamA" list="teamHistory" autocomplete="off" placeholder="チームA"></div>
+ <div class="field"><label for="teamB">チームB</label><input id="teamB" list="teamHistory" autocomplete="off" placeholder="チームB"></div>
 </div>
-<div class="field" style="margin-top:12px"><label for="matchName">試合名・出力名</label><input id="matchName" autocomplete="off" placeholder="例：第1試合"></div>
+<div class="field" style="margin-top:12px"><label for="matchName">試合名・出力名</label><input id="matchName" list="matchHistory" autocomplete="off" placeholder="例：第1試合">
+<datalist id="teamHistory"></datalist><datalist id="matchHistory"></datalist></div>
 <div class="board">
  <button id="scoreA" class="score blue" aria-label="Aチーム1点追加">0</button>
  <div class="vs">VS</div>
@@ -68,7 +69,7 @@
 const STORAGE_KEY='score_event_source_v1';
 const JSON_HISTORY_KEY='score_json_saved_history_v1';
 const $=id=>document.getElementById(id);
-const ui={teamA:$('teamA'),teamB:$('teamB'),matchName:$('matchName'),scoreA:$('scoreA'),scoreB:$('scoreB'),status:$('status'),elapsed:$('elapsed'),eventCount:$('eventCount'),logbox:$('logbox'),warn:$('warn'),notice:$('notice'),jsonStatus:$('jsonStatus')};
+const ui={teamA:$('teamA'),teamB:$('teamB'),matchName:$('matchName'),scoreA:$('scoreA'),scoreB:$('scoreB'),status:$('status'),elapsed:$('elapsed'),eventCount:$('eventCount'),logbox:$('logbox'),warn:$('warn'),notice:$('notice'),jsonStatus:$('jsonStatus'),teamHistory:$('teamHistory'),matchHistory:$('matchHistory')};
 let model={version:1,matchName:'',teamA:'',teamB:'',scoreA:0,scoreB:0,running:false,startedAtEpochMs:null,stoppedElapsedMs:0,events:[],jsonSaved:false,jsonSavedAt:null,jsonFileName:null};
 let tickId=null;
 function nowElapsed(){return model.running?Math.max(0,performance.timeOrigin+performance.now()-model.startedAtEpochMs):model.stoppedElapsedMs||0}
@@ -82,7 +83,8 @@ function showWarn(s){ui.warn.textContent=s;ui.warn.style.display='block'}
 function showNotice(s){ui.notice.textContent=s;ui.notice.style.display='block';setTimeout(()=>{ui.notice.style.display='none'},5000)}
 function getJsonHistory(){try{return JSON.parse(localStorage.getItem(JSON_HISTORY_KEY))||[]}catch(e){return []}}
 function addJsonHistory(fileName){const list=getJsonHistory();list.push({fileName,matchName:model.matchName||'',teamA:model.teamA||'',teamB:model.teamB||'',savedAt:new Date().toISOString(),eventCount:model.events.length,durationMs:model.stoppedElapsedMs||0});localStorage.setItem(JSON_HISTORY_KEY,JSON.stringify(list.slice(-100)))}
-function updateJsonStatus(){const count=getJsonHistory().length;if(model.jsonSaved){ui.jsonStatus.textContent=`✓ JSON保存済み（保存履歴 ${count}件）`}else{ui.jsonStatus.textContent=`JSON未保存（保存履歴 ${count}件）`}}
+function updateInputHistory(){const list=getJsonHistory(),teams=[],matches=[];for(const h of list.slice().reverse()){for(const v of [h.teamA,h.teamB]){const x=String(v||'').trim();if(x&&!teams.includes(x))teams.push(x)}const m=String(h.matchName||'').trim();if(m&&!matches.includes(m))matches.push(m)}ui.teamHistory.innerHTML=teams.slice(0,100).map(v=>`<option value="${escapeHtml(v)}"></option>`).join('');ui.matchHistory.innerHTML=matches.slice(0,100).map(v=>`<option value="${escapeHtml(v)}"></option>`).join('')}
+function updateJsonStatus(){const count=getJsonHistory().length;if(model.jsonSaved){ui.jsonStatus.textContent=`✓ JSON保存済み（保存履歴 ${count}件）`}else{ui.jsonStatus.textContent=`JSON未保存（保存履歴 ${count}件）`}updateInputHistory()}
 function deleteJsonSavedHistory(){const count=getJsonHistory().length;if(count===0){showNotice('削除するJSON保存履歴はありません。');return}if(!confirm(`JSONの保存履歴 ${count}件を削除しますか？\n保存済みのJSONファイル自体は削除されません。`))return;localStorage.removeItem(JSON_HISTORY_KEY);updateJsonStatus();showNotice('JSON保存履歴を削除しました。保存済みファイルは残っています。')}
 function syncInputs(){model.teamA=ui.teamA.value.trim();model.teamB=ui.teamB.value.trim();model.matchName=ui.matchName.value.trim();persist()}
 function start(){if(model.running)return;syncInputs();model.scoreA=0;model.scoreB=0;model.events=[];model.startedAtEpochMs=Date.now();model.stoppedElapsedMs=0;model.jsonSaved=false;model.jsonSavedAt=null;model.jsonFileName=null;model.running=true;addEvent('START',{label:'記録開始'});scheduleTick()}
@@ -180,6 +182,17 @@ async function generateMp4() {
     return;
   }
 
+  let codecSupport;
+  try {
+    codecSupport = await VideoEncoder.isConfigSupported({codec:'avc1.42001f',width:480,height:260,bitrate:300000,framerate:Number(document.getElementById('mp4Fps').value || 1)});
+  } catch (e) {
+    showWarn(`H.264対応確認に失敗しました：${e?.message || e}`);
+    return;
+  }
+  if (!codecSupport?.supported) {
+    showWarn('このiPad/SafariではH.264 MP4の生成に対応していません。');
+    return;
+  }
   const fps = Number(document.getElementById('mp4Fps').value || 1);
   const durationSec = durationMs / 1000;
   const totalFrames = Math.max(1, Math.ceil(durationSec * fps));
@@ -193,7 +206,13 @@ async function generateMp4() {
 
   try {
     mp4ProgressText.textContent = 'MP4生成機能を読み込んでいます。';
-    const { Output, Mp4OutputFormat, BufferTarget, CanvasSource } = await import('https://cdn.jsdelivr.net/npm/mediabunny@1.55.4/+esm');
+    let mediaModule;
+    try {
+      mediaModule = await import('https://cdn.jsdelivr.net/npm/mediabunny@1.55.2/+esm');
+    } catch (cdnError) {
+      mediaModule = await import('https://esm.sh/mediabunny@1.55.2');
+    }
+    const { Output, Mp4OutputFormat, BufferTarget, CanvasSource } = mediaModule;
     const target = new BufferTarget();
     const output = new Output({ format: new Mp4OutputFormat(), target });
     const source = new CanvasSource(mp4Canvas, {

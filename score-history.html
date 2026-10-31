@@ -257,6 +257,12 @@ async function generateMp4() {
 }
 
 mp4Button.addEventListener('click', generateMp4);
+window.addEventListener('score-recording-stopped', () => {
+  document.querySelector('.mp4panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  mp4ProgressWrap.style.display = 'block';
+  mp4ProgressText.textContent = '記録停止を確認しました。MP4生成を開始します。';
+  setTimeout(generateMp4, 500);
+});
 </script>
 
 </body>

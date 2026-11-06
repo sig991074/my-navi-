@@ -2316,7 +2316,7 @@ async function nearIcBeforeRoute(){
   let nodes=[];try{const probe=await fetchNearbyIcNodes(plan.start);nodes=probe.items.filter(x=>x.name&&x.name!=='名前なし'&&!/事業中|建設中/i.test(x.name));log('IC取得: '+nodes.length+'件 / '+probe.seconds+'秒')}catch(error){log('IC取得エラー:\n'+(error?.message||error));nearIcShow([]);return}
   const norm=x=>String(x.name||'').replace(/（.*?）|\(.*?\)|入口|出口|上り|下り|方面/g,'').replace(/\s+/g,'').trim().toLowerCase(),isJct=x=>/JCT|ジャンクション/i.test(String(x.name||''));
   const sorted=[];for(const n of nodes.filter(n=>!isJct(n)).sort((a,b)=>dist(plan.start,a)-dist(plan.start,b))){const k=norm(n);if(sorted.some(x=>(k&&norm(x)===k)||dist(x,n)<0.30))continue;sorted.push(n)}
-  log('処理対象IC: '+sorted.length+'件（JCT除外・距離順）');sorted.forEach((x,i)=>log(' '+(i+1)+'. '+x.name+' ('+x.ref+') / '+dist(plan.start,x).toFixed(2)+'km'));
+  log('処理対象IC: '+sorted.length+'件（JCT除外・距離順）');sorted.forEach((x,i)=>log(' '+(i+1)+'. '+x.name+' ('+x.ref+') / '+dist(plan.start,x).toFixed(2)+'km / '+x.lat.toFixed(5)+', '+x.lon.toFixed(5)));
   let entrances=[];try{entrances=await resolveIcEntrances(sorted,plan.start);log('実入口ランプ取得: '+entrances.length+'件')}catch(error){log('実入口ランプ取得エラー:\n'+(error?.message||error));nearIcShow([]);return}
   const baseRoute=savedRouteResults[selectedRoute]?.routes?.[0]||routeLayers.find(x=>x.routeNo===selectedRoute&&x.route?._displayOption===0)?.route||routeLayers.find(x=>x.routeNo===selectedRoute)?.route||null;if(!baseRoute){log('基準ルート未計算');nearIcShow([]);return}
   const baseDuration=baseRoute.duration;log('基準ルート: '+(baseRoute.distance/1000).toFixed(1)+'km / '+formatDuration(baseDuration));

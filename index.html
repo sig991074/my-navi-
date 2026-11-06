@@ -2324,7 +2324,8 @@ async function nearIcBeforeRoute(){
   for(const ic of sorted){
     if(accepted.length>=2)break;const linked=(byIc.get(ic)||[]).sort((a,b)=>dist(ic,a)-dist(ic,b));log('確認: '+ic.name+' / 入口'+linked.length+'件');if(!linked.length){log(' -> 入口なし');continue}
     for(const candidate of linked){const road=String(candidate.roadName||'高速道路').trim(),roadKey=road.toLowerCase();if(acceptedRoads.has(roadKey)){log(' -> '+road+' は採用済み同一路線');break}
-      const temporaryVia={type:'経由地.その他',name:ic.name+' 仮入口',address:road+' 仮経由地',lat:candidate.lat,lon:candidate.lon,ref:ic.ref||'',_nearbyMotorwayEntrance:true,_motorwayHeading:candidate.heading};let route=null;try{route=await getNearIcRoute([plan.start,...plan.vias,temporaryVia,plan.destination],6000)}catch(_){route=null}if(!route){log(' -> ルートNG');continue}
+      const temporaryVia={type:'経由地.その他',name:ic.name+' 仮入口',address:road+' 仮経由地',lat:candidate.lat,lon:candidate.lon,ref:ic.ref||'',_nearbyMotorwayEntrance:true,_motorwayHeading:candidate.heading};let route=null;try{route=await getNearIcRoute([plan.start,temporaryVia,...plan.vias,plan.destination],6000)}catch(_){route=null}if(!route){log(' -> ルートNG');continue}
+      const toViaKm=(route.legs?.[0]?.distance||0)/1000;if(toViaKm>10){log(' -> 経由地まで'+toViaKm.toFixed(1)+'km（10km超）で除外');continue}
       const delta=Math.round((route.duration-baseDuration)/60);log(' -> '+road+' / '+(route.distance/1000).toFixed(1)+'km / '+formatDuration(route.duration)+' / '+(delta>=0?'+':'')+delta+'分');if(delta>20){log(' -> +20分超で除外');break}
       accepted.push({...candidate,name:ic.name,icName:ic.name,ref:ic.ref,road,code:nearIcCode(ic.ref),distance:nearIcDistance(plan.start.lat,plan.start.lon,candidate.lat,candidate.lon),totalDistance:route.distance,totalDuration:route.duration,deltaMinutes:delta,_candidateRoute:route});acceptedRoads.add(roadKey);break
     }

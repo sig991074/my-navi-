@@ -757,7 +757,7 @@ $('planList').addEventListener('click',async e=>{e.stopPropagation();
 document.addEventListener('click',e=>{if(!planPanel.contains(e.target))planPanel.classList.remove('show')});
 $('backMenu').onclick=()=>{show('menu');syncDrive()};
 document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{let g=b.dataset.go;if(g==='wip')$('wipTitle').textContent=b.dataset.title||'';show(g)}));
-let start='menu';try{let s=localStorage.getItem(KEY+'_screen');if(s==='menu'||s==='planner')start=s;if(s==='planner'&&localStorage.getItem(KEY+'_mode')==='narrow')start='narrow'}catch(e){}
+let start='menu';
 if(new URLSearchParams(location.search).has('debugDetourCandidates'))start='narrow';show(start)})();</script><script>
 </script>
 <script>

@@ -1035,6 +1035,17 @@ function showJoyoIcComparison(normalRoutes,joyoRoute,preference,joyoError='',exc
     (joyoRoute?.uturnCount?'／Uターン '+joyoRoute.uturnCount+'か所を検出・不採用':joyoRoute?'／Uターンなし':'')+
     (joyoError?'<br>検索失敗：'+esc(joyoError):'');
 }
+function showNearbyIcRouteResult(entranceName,route,preference,error=''){
+  let box=$('osrmCandidatesBox');
+  if(!box){box=document.createElement('div');box.id='osrmCandidatesBox';box.style.cssText='position:absolute;z-index:4500;left:10px;bottom:48px;max-width:460px;padding:8px 10px;background:#fff;border:2px solid #176fa7;border-radius:7px;box-shadow:0 2px 8px #0005;color:#222;font:12px Meiryo,sans-serif';$('mapbox').appendChild(box)}
+  const confirmed=route&&nearIcRouteUsesRoad(route,route._nearbyIcRoad);
+  box.innerHTML='<b>'+esc(entranceName)+'経由確認（Valhalla）</b><br>'+
+    '走行条件：'+esc(preference.label)+'<br>'+
+    '経路：'+(route?(route.distance/1000).toFixed(1)+'km / '+formatDuration(route.duration):'未確認')+'<br>'+
+    '対象高速への進入：'+(confirmed?'確認しました':'確認できません')+
+    (route?.uturnCount?'／Uターン '+route.uturnCount+'か所':route?'／Uターンなし':'')+
+    (error?'<br>検索失敗：'+esc(error):'')
+}
 function routeHasUturn(route){
   return(route.steps||[]).some(step=>{
     const maneuver=step.maneuver||{},type=String(maneuver.type||'').toLowerCase(),modifier=String(maneuver.modifier||'').toLowerCase(),instruction=String(maneuver.instruction||'');
@@ -1085,6 +1096,17 @@ async function fetchValhallaRouteForPoints(points,preference){
   return{distance:route,duration,geometry:{type:'LineString',coordinates},legs:response.trip.legs,steps,joyoEntryConfirmed:e24Steps.some(step=>step.distance>0),uturnCount,routeProvider:'Valhalla'};
 }
 async function getRoutes(points){
+  const nearbyIcVia=points.find(point=>point?._nearbyIcApproach);
+  if(nearbyIcVia){
+    const preference=valhallaRoutePreference(selectedRoute);let route=null,error='';
+    try{route=await fetchValhallaRouteForPoints(points,preference)}catch(caught){error=caught?.message||'経路を取得できませんでした'}
+    if(route?.uturnCount)error='Uターンを含む経路のため採用できません';
+    else if(route&&!nearIcRouteUsesRoad(route,nearbyIcVia._motorwayName))error='指定した高速道路への進入を確認できません';
+    if(error){showNearbyIcRouteResult(nearbyIcVia.name,route,preference,error);throw Error(error)}
+    route._nearbyIcRoad=nearbyIcVia._motorwayName;
+    showNearbyIcRouteResult(nearbyIcVia.name,route,preference);
+    return[route].map(r=>{let motorway=r.steps.filter(s=>['高速道路','無料高速'].includes(roadInfo(s).type)).reduce((n,s)=>n+(s.distance||0),0),route27=r.steps.filter(s=>{let t=((s.name||'')+' '+(s.ref||'')).toLowerCase();return /(^|[^0-9])27([^0-9]|$)|国道27号/.test(t)}).reduce((n,s)=>n+(s.distance||0),0);return{...r,motorway,route27}})
+  }
   let normalRoutes=[],joyoRoute=null,joyoError='';
   const preference=valhallaRoutePreference(selectedRoute);
   const joyoEntrance={type:'経由地.その他',name:'城陽IC入口（国道24号側・比較用）',address:'京奈和自動車道 城陽IC入口（国道24号側）',lat:34.8565414,lon:135.7622174,_joyoIcTest:true};
@@ -1917,6 +1939,7 @@ async function calculateRoutes(routeNo=selectedRoute,batch=false){
   window.evNarrowRoadBridge?.hideCheckLayers?.();
   if(routeNo===2)copyCourse1EndpointsToCourse2();
   const plan=routePlans[routeNo];
+  if(plan.vias.some(via=>via?._nearbyIcApproach))$('status').textContent='走行条件に合わせてIC経由ルートを確認しています…';
   
   const detourEnabled=(priorities[routeNo]||[]).includes('F')&&!document.body.classList.contains('hide-narrow');
   if(!plan.start||!plan.destination){
@@ -2373,7 +2396,7 @@ async function nearIcDrawCandidateRoutes(list){
     nearIcRouteLayers.push(layer)
   }));
 }
-function nearIcShow(list){nearIcClear();let modal=$('nearIcModal'),box=$('nearIcList'),panel=$('nearIcBox');panel.classList.toggle('compact',list.length<=2);$('nearIcState').textContent=list.length?`${list.length}件の候補から選択してください。`:'7.5km圏内に利用候補がありません。';box.innerHTML='';list.forEach((ic,i)=>{const no=i+1,lat=ic.approachLat,lon=ic.approachLon;let row=document.createElement('div');row.className='nearIcRow';row.innerHTML=`<div><b><span class="nearIcNo">${no}</span>${esc(ic.road)}（${esc(ic.code)}）</b><br>${esc(ic.name)}<div class="nearIcMeta">登録地点：${esc(ic.approachRoadName)}（IC入口手前の一般道）</div><div class="nearIcMeta">出発地から直線 ${(ic.distance/1000).toFixed(2)}km</div><div class="nearIcMeta">目的地まで総距離：${Number.isFinite(ic.totalDistance)?(ic.totalDistance/1000).toFixed(1)+'km':'不明'}</div><div class="nearIcMeta">時間：${Number.isFinite(ic.totalDuration)?formatDuration(ic.totalDuration):'不明'} ／ 基準差：${Number.isFinite(ic.deltaMinutes)?(ic.deltaMinutes>=0?'+':'')+ic.deltaMinutes+'分':'不明'}</div></div><button type="button">IC手前の道路を経由地に設定</button>`;row.querySelector('button').onclick=async()=>{routePlans[selectedRoute].vias.unshift({type:'経由地',name:ic.name+'手前',address:ic.approachRoadName+'（'+ic.name+'入口手前）',lat,lon,ref:ic.ref||''});modal.classList.remove('show');nearIcClear();drawMarkers();renderPlaces();persistRouteWorkspace();await calculateRoutes(selectedRoute)};box.appendChild(row);let icon=L.divIcon({className:'',html:`<div style="width:28px;height:28px;border-radius:50%;background:#176fa7;color:#fff;border:2px solid #fff;box-shadow:0 1px 5px #0008;display:flex;align-items:center;justify-content:center;font:bold 13px Meiryo,sans-serif">${no}</div>`,iconSize:[32,32],iconAnchor:[16,16]});let m=L.marker([lat,lon],{icon}).addTo(map).bindPopup(`No.${no}<br>${ic.road}<br>${ic.name}入口手前`);nearIcMarkers.push(m)});if(list.length){let bounds=L.latLngBounds(list.map(ic=>[ic.approachLat,ic.approachLon]));let start=routePlans[selectedRoute]?.start;if(start)bounds.extend([start.lat,start.lon]);map.fitBounds(bounds,{padding:[45,45],maxZoom:12})}modal.classList.add('show');modal.setAttribute('aria-hidden','false')}
+function nearIcShow(list){nearIcClear();let modal=$('nearIcModal'),box=$('nearIcList'),panel=$('nearIcBox');panel.classList.toggle('compact',list.length<=2);$('nearIcState').textContent=list.length?`${list.length}件の候補から選択してください。`:'7.5km圏内に利用候補がありません。';box.innerHTML='';list.forEach((ic,i)=>{const no=i+1,lat=ic.approachLat,lon=ic.approachLon;let row=document.createElement('div');row.className='nearIcRow';row.innerHTML=`<div><b><span class="nearIcNo">${no}</span>${esc(ic.road)}（${esc(ic.code)}）</b><br>${esc(ic.name)}<div class="nearIcMeta">登録地点：${esc(ic.approachRoadName)}（IC入口手前の一般道）</div><div class="nearIcMeta">出発地から直線 ${(ic.distance/1000).toFixed(2)}km</div><div class="nearIcMeta">目的地まで総距離：${Number.isFinite(ic.totalDistance)?(ic.totalDistance/1000).toFixed(1)+'km':'不明'}</div><div class="nearIcMeta">時間：${Number.isFinite(ic.totalDuration)?formatDuration(ic.totalDuration):'不明'} ／ 基準差：${Number.isFinite(ic.deltaMinutes)?(ic.deltaMinutes>=0?'+':'')+ic.deltaMinutes+'分':'不明'}</div></div><button type="button">IC手前の道路を経由地に設定</button>`;row.querySelector('button').onclick=async()=>{routePlans[selectedRoute].vias.unshift({type:'経由地',name:ic.name+'手前',address:ic.approachRoadName+'（'+ic.name+'入口手前）',lat,lon,ref:ic.ref||'',_nearbyIcApproach:true,_motorwayName:ic.road});savedRouteResults[selectedRoute]=null;modal.classList.remove('show');nearIcClear();drawMarkers();renderPlaces();persistRouteWorkspace();await calculateRoutes(selectedRoute)};box.appendChild(row);let icon=L.divIcon({className:'',html:`<div style="width:28px;height:28px;border-radius:50%;background:#176fa7;color:#fff;border:2px solid #fff;box-shadow:0 1px 5px #0008;display:flex;align-items:center;justify-content:center;font:bold 13px Meiryo,sans-serif">${no}</div>`,iconSize:[32,32],iconAnchor:[16,16]});let m=L.marker([lat,lon],{icon}).addTo(map).bindPopup(`No.${no}<br>${ic.road}<br>${ic.name}入口手前`);nearIcMarkers.push(m)});if(list.length){let bounds=L.latLngBounds(list.map(ic=>[ic.approachLat,ic.approachLon]));let start=routePlans[selectedRoute]?.start;if(start)bounds.extend([start.lat,start.lon]);map.fitBounds(bounds,{padding:[45,45],maxZoom:12})}modal.classList.add('show');modal.setAttribute('aria-hidden','false')}
 function nearIcShowError(message){nearIcShow([]);$('nearIcState').textContent=message;$('status').textContent=message}
 async function nearIcBeforeRoute(){
   const plan=routePlans[selectedRoute],dbg=$('nearIcDebug'),out=$('nearIcDebugText'),log=t=>{if(dbg&&out){dbg.classList.add('show');out.textContent+=(out.textContent?'\n':'')+t}};if(out)out.textContent='';

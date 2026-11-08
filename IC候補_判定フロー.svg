@@ -74,25 +74,25 @@
 <path class="l" d="M500,1008 V1036"/>
 
 <rect class="q" x="300" y="1036" width="400" height="56" rx="8"/>
-<text x="500" y="1060" text-anchor="middle" class="t">IC入口へ向かう一般道の地点を決める</text>
-<text x="500" y="1080" text-anchor="middle" class="s">入口ランプに入る直前の道路上に経由地点を置く</text>
+<text x="500" y="1060" text-anchor="middle" class="t">入口ランプ手前の一般道の地点を決める</text>
+<text x="500" y="1080" text-anchor="middle" class="s">ランプへつなぐための補助地点（画面には登録しない）</text>
 <text x="730" y="1070" class="r">特定できない → 除外</text>
 <path class="l" d="M500,1092 V1120"/>
 
 <rect class="q" x="300" y="1120" width="400" height="56" rx="8"/>
-<text x="500" y="1144" text-anchor="middle" class="t">入口手前の道路から一方通行ランプへ</text>
-<text x="500" y="1164" text-anchor="middle" class="s">ランプを経由点に加え、走行条件で計算する</text>
+<text x="500" y="1144" text-anchor="middle" class="t">入口ランプ座標を経由地として登録</text>
+<text x="500" y="1164" text-anchor="middle" class="s">手前の補助地点→入口ランプ座標を通り、走行条件で計算</text>
 <text x="730" y="1154" class="r">道路・経路確認</text>
 <path class="l" d="M500,1176 V1204"/>
 
 <rect class="b" x="300" y="1204" width="400" height="66" rx="8"/>
-<text x="500" y="1228" text-anchor="middle" class="t">⑨入口手前の道路から目的地まで確認</text>
-<text x="500" y="1249" text-anchor="middle" class="s">出発地 → 一般道 → 入口ランプ → 既存経由地 → 目的地</text>
+<text x="500" y="1228" text-anchor="middle" class="t">⑨入口ランプから目的地まで確認</text>
+<text x="500" y="1249" text-anchor="middle" class="s">出発地 → 手前の補助地点 → 登録した入口ランプ → 既存経由地 → 目的地</text>
 <text x="500" y="1263" text-anchor="middle" class="s">対象の高速道路に進み、Uターンがないこと</text>
 <path class="l" d="M500,1270 V1298"/>
 
 <rect class="q" x="300" y="1298" width="400" height="66" rx="8"/>
-<text x="500" y="1322" text-anchor="middle" class="t">ルートは引けたか？入口手前まで10km以内か？</text>
+<text x="500" y="1322" text-anchor="middle" class="t">ルートは引けたか？入口ランプまで10km以内か？</text>
 <text x="500" y="1343" text-anchor="middle" class="s">高速進入が確認できない／Uターンありも除外</text>
 <text x="730" y="1322" class="r">引けない → 除外</text>
 <text x="730" y="1343" class="r">10km超 → 除外</text>
@@ -105,5 +105,5 @@
 
 <rect class="g" x="300" y="1476" width="400" height="56" rx="8"/>
 <text x="500" y="1500" text-anchor="middle" class="t">候補を表示（近い順・最大2件）</text>
-<text x="500" y="1520" text-anchor="middle" class="s">選ぶとIC手前の一般道地点を経由地に登録する</text>
+<text x="500" y="1520" text-anchor="middle" class="s">選ぶと入口ランプの座標を経由地に登録する</text>
 </svg>

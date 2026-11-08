@@ -15,7 +15,7 @@
 
 <rect class="b" x="300" y="70" width="400" height="56" rx="8"/>
 <text x="500" y="95" text-anchor="middle" class="t">①ICの取得</text>
-<text x="500" y="114" text-anchor="middle" class="s">出発地から7.5km以内の「高速の出入口の印」を集める</text>
+<text x="500" y="114" text-anchor="middle" class="s">高速優先(A/B)で、出発地から7.5km以内を検索</text>
 <path class="l" d="M500,126 V150"/>
 
 <rect class="q" x="300" y="150" width="400" height="66" rx="8"/>
@@ -80,14 +80,14 @@
 <path class="l" d="M500,1092 V1120"/>
 
 <rect class="q" x="300" y="1120" width="400" height="56" rx="8"/>
-<text x="500" y="1144" text-anchor="middle" class="t">入口手前の道路を経由してルート確認</text>
-<text x="500" y="1164" text-anchor="middle" class="s">選択中の走行条件と同じ条件で計算する</text>
+<text x="500" y="1144" text-anchor="middle" class="t">入口手前の道路から一方通行ランプへ</text>
+<text x="500" y="1164" text-anchor="middle" class="s">ランプを経由点に加え、走行条件で計算する</text>
 <text x="730" y="1154" class="r">道路・経路確認</text>
 <path class="l" d="M500,1176 V1204"/>
 
 <rect class="b" x="300" y="1204" width="400" height="66" rx="8"/>
 <text x="500" y="1228" text-anchor="middle" class="t">⑨入口手前の道路から目的地まで確認</text>
-<text x="500" y="1249" text-anchor="middle" class="s">出発地 → 入口手前の一般道 → 既存経由地 → 目的地</text>
+<text x="500" y="1249" text-anchor="middle" class="s">出発地 → 一般道 → 入口ランプ → 既存経由地 → 目的地</text>
 <text x="500" y="1263" text-anchor="middle" class="s">対象の高速道路に進み、Uターンがないこと</text>
 <path class="l" d="M500,1270 V1298"/>
 

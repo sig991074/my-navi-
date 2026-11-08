@@ -15,7 +15,7 @@
 
 <rect class="b" x="300" y="70" width="400" height="56" rx="8"/>
 <text x="500" y="95" text-anchor="middle" class="t">①ICの取得</text>
-<text x="500" y="114" text-anchor="middle" class="s">出発地から10km以内の「高速の出入口の印」を集める</text>
+<text x="500" y="114" text-anchor="middle" class="s">出発地から7.5km以内の「高速の出入口の印」を集める</text>
 <path class="l" d="M500,126 V150"/>
 
 <rect class="q" x="300" y="150" width="400" height="66" rx="8"/>
@@ -30,7 +30,7 @@
 <path class="l" d="M500,300 V328"/>
 
 <rect class="b" x="300" y="328" width="400" height="56" rx="8"/>
-<text x="500" y="352" text-anchor="middle" class="t">③道路データの取得（10km四方）</text>
+<text x="500" y="352" text-anchor="middle" class="t">③道路データの取得（出発地から7.5km圏）</text>
 <text x="500" y="372" text-anchor="middle" class="s">高速本線 ＋ ランプ（出入口の道）をすべて取る</text>
 <path class="l" d="M500,384 V412"/>
 
@@ -63,47 +63,47 @@
 <text x="500" y="834" text-anchor="middle" class="s">ランプの向き（一方通行の向き）をそろえて、次をすべて満たすもの</text>
 <text x="250" y="860" class="t">・始まりの点が、本線ではない（一般道側）</text>
 <text x="250" y="882" class="t">・始まりの点は、かたまりの中で他のランプとつながっていない</text>
-<text x="250" y="904" class="t">・終わりの点が高速本線に合流し、始まりは出発地から10km以内</text>
+<text x="250" y="904" class="t">・終わりの点が高速本線に合流し、始まりは出発地から7.5km以内</text>
 <text x="790" y="860" class="r">1つでも外れる</text>
 <text x="790" y="880" class="r">→ 除外</text>
 <path class="l" d="M500,924 V952"/>
 
 <rect class="b" x="300" y="952" width="400" height="56" rx="8"/>
 <text x="500" y="976" text-anchor="middle" class="t">⑧入口を、いちばん近いICに割り当てる</text>
-<text x="500" y="996" text-anchor="middle" class="s">入口の位置はそのまま使う（同じ位置は1つにする）</text>
+<text x="500" y="996" text-anchor="middle" class="s">入口とICを結びつけ、IC名・高速道路名を付ける</text>
 <path class="l" d="M500,1008 V1036"/>
 
 <rect class="q" x="300" y="1036" width="400" height="56" rx="8"/>
-<text x="500" y="1060" text-anchor="middle" class="t">ICごとに、入口は1件以上あるか？</text>
-<text x="500" y="1080" text-anchor="middle" class="s">近いICから順に確認（最大2件まで採用）</text>
-<text x="730" y="1070" class="r">0件 → 入口なし</text>
+<text x="500" y="1060" text-anchor="middle" class="t">IC入口へ向かう一般道の地点を決める</text>
+<text x="500" y="1080" text-anchor="middle" class="s">入口ランプに入る直前の道路上に経由地点を置く</text>
+<text x="730" y="1070" class="r">特定できない → 除外</text>
 <path class="l" d="M500,1092 V1120"/>
 
 <rect class="q" x="300" y="1120" width="400" height="56" rx="8"/>
-<text x="500" y="1144" text-anchor="middle" class="t">同じ高速道路は、すでに採用済みか？</text>
-<text x="500" y="1164" text-anchor="middle" class="s">1つの道路名は、1件まで</text>
-<text x="730" y="1154" class="r">採用済み → 除外</text>
+<text x="500" y="1144" text-anchor="middle" class="t">入口手前の道路を経由してルート確認</text>
+<text x="500" y="1164" text-anchor="middle" class="s">選択中の走行条件と同じ条件で計算する</text>
+<text x="730" y="1154" class="r">道路・経路確認</text>
 <path class="l" d="M500,1176 V1204"/>
 
 <rect class="b" x="300" y="1204" width="400" height="66" rx="8"/>
-<text x="500" y="1228" text-anchor="middle" class="t">⑨ルートで確認</text>
-<text x="500" y="1249" text-anchor="middle" class="s">出発地 → 入口 → 既存の経由地 → 目的地（6秒で応答なしは不可）</text>
+<text x="500" y="1228" text-anchor="middle" class="t">⑨入口手前の道路から目的地まで確認</text>
+<text x="500" y="1249" text-anchor="middle" class="s">出発地 → 入口手前の一般道 → 既存経由地 → 目的地</text>
+<text x="500" y="1263" text-anchor="middle" class="s">対象の高速道路に進み、Uターンがないこと</text>
 <path class="l" d="M500,1270 V1298"/>
 
 <rect class="q" x="300" y="1298" width="400" height="66" rx="8"/>
-<text x="500" y="1322" text-anchor="middle" class="t">ルートは引けたか？</text>
-<text x="500" y="1343" text-anchor="middle" class="t">入口までは10km以内か？</text>
+<text x="500" y="1322" text-anchor="middle" class="t">ルートは引けたか？入口手前まで10km以内か？</text>
+<text x="500" y="1343" text-anchor="middle" class="s">高速進入が確認できない／Uターンありも除外</text>
 <text x="730" y="1322" class="r">引けない → 除外</text>
 <text x="730" y="1343" class="r">10km超 → 除外</text>
 <path class="l" d="M500,1364 V1392"/>
 
 <rect class="q" x="300" y="1392" width="400" height="56" rx="8"/>
-<text x="500" y="1416" text-anchor="middle" class="t">基準ルートより、+20分以内か？</text>
-<text x="500" y="1436" text-anchor="middle" class="s">基準＝ICを使わない通常ルートの所要時間</text>
-<text x="730" y="1426" class="r">+20分超 → 除外</text>
+<text x="500" y="1416" text-anchor="middle" class="t">同じ高速道路のICも候補に残す</text>
+<text x="500" y="1436" text-anchor="middle" class="s">走行条件以外の所要時間差で除外しない</text>
 <path class="l" d="M500,1448 V1476"/>
 
 <rect class="g" x="300" y="1476" width="400" height="56" rx="8"/>
-<text x="500" y="1500" text-anchor="middle" class="t">候補に採用（最大2件を画面に表示）</text>
-<text x="500" y="1520" text-anchor="middle" class="s">どれも残らないと「10km圏内に利用候補がありません」</text>
+<text x="500" y="1500" text-anchor="middle" class="t">候補を表示（近い順・最大2件）</text>
+<text x="500" y="1520" text-anchor="middle" class="s">選ぶとIC手前の一般道地点を経由地に登録する</text>
 </svg>

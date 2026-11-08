@@ -10,72 +10,71 @@
 .l{stroke:#345;stroke-width:2;fill:none;marker-end:url(#a)}
 .r{font-size:13px;fill:#a33;font-weight:bold}
 </style>
-<text x="500" y="30" text-anchor="middle" font-size="20" font-weight="bold" fill="#123">近場IC候補が出るまでの判定フロー（今のプログラムの内容）</text>
-<text x="500" y="52" text-anchor="middle" class="s">赤い文字＝そこで外れる（候補から消える）条件</text>
+<text x="500" y="30" text-anchor="middle" font-size="20" font-weight="bold" fill="#123">出発地から最寄りの入口ランプを1か所取得する流れ</text>
+<text x="500" y="52" text-anchor="middle" class="s">データ取得エラーと、入口が見つからない場合を分けて表示</text>
 
 <rect class="b" x="300" y="70" width="400" height="56" rx="8"/>
-<text x="500" y="95" text-anchor="middle" class="t">①ICの取得</text>
-<text x="500" y="114" text-anchor="middle" class="s">高速優先(A/B)で、出発地から7.5km以内を検索</text>
+<text x="500" y="95" text-anchor="middle" class="t">①道路データを一度に取得</text>
+<text x="500" y="114" text-anchor="middle" class="s">高速優先(A/B)で、出発地から5km以内を検索</text>
 <path class="l" d="M500,126 V150"/>
 
 <rect class="q" x="300" y="150" width="400" height="66" rx="8"/>
-<text x="500" y="174" text-anchor="middle" class="t">名前なし／事業中／建設中は？</text>
-<text x="500" y="195" text-anchor="middle" class="s">ジャンクション(JCT)も除く</text>
-<text x="730" y="188" class="r">→ 除外</text>
+<text x="500" y="174" text-anchor="middle" class="t">道路データを取得できたか？</text>
+<text x="500" y="195" text-anchor="middle" class="s">取得失敗は「該当なし」と分けて表示</text>
+<text x="730" y="188" class="r">失敗 → エラー表示</text>
 <path class="l" d="M500,216 V244"/>
 
 <rect class="b" x="300" y="244" width="400" height="56" rx="8"/>
-<text x="500" y="268" text-anchor="middle" class="t">②近い順に並べる</text>
-<text x="500" y="288" text-anchor="middle" class="s">同じ名前、または300m以内は、1つにまとめる</text>
+<text x="500" y="268" text-anchor="middle" class="t">②一般道と入口ランプの共通点を探す</text>
+<text x="500" y="288" text-anchor="middle" class="s">ランプは highway=motorway_link、oneway=yes</text>
 <path class="l" d="M500,300 V328"/>
 
 <rect class="b" x="300" y="328" width="400" height="56" rx="8"/>
-<text x="500" y="352" text-anchor="middle" class="t">③道路データの取得（出発地から7.5km圏）</text>
-<text x="500" y="372" text-anchor="middle" class="s">高速本線 ＋ ランプ（出入口の道）をすべて取る</text>
+<text x="500" y="352" text-anchor="middle" class="t">③ランプの入口側の点を特定</text>
+<text x="500" y="372" text-anchor="middle" class="s">一般道と共有するノードの座標を使う</text>
 <path class="l" d="M500,384 V412"/>
 
 <rect class="b" x="300" y="412" width="400" height="56" rx="8"/>
-<text x="500" y="436" text-anchor="middle" class="t">④ランプを「かたまり」にする</text>
-<text x="500" y="456" text-anchor="middle" class="s">つながっているランプを1組（1つのIC）として扱う</text>
+<text x="500" y="436" text-anchor="middle" class="t">④一方通行の進行方向を確認</text>
+<text x="500" y="456" text-anchor="middle" class="s">入口の点からランプへ進む向きに絞る</text>
 <path class="l" d="M500,468 V496"/>
 
 <rect class="q" x="300" y="496" width="400" height="66" rx="8"/>
-<text x="500" y="520" text-anchor="middle" class="t">そのかたまりは、高速本線に</text>
-<text x="500" y="541" text-anchor="middle" class="t">つながっているか？</text>
-<text x="730" y="534" class="r">つながっていない → 除外</text>
+<text x="500" y="520" text-anchor="middle" class="t">ランプは高速本線につながっているか？</text>
+<text x="500" y="541" text-anchor="middle" class="s">ランプの先に高速本線がないものは使わない</text>
+<text x="730" y="534" class="r">未接続 → 除外</text>
 <path class="l" d="M500,562 V590"/>
 
 <rect class="b" x="300" y="590" width="400" height="66" rx="8"/>
-<text x="500" y="614" text-anchor="middle" class="t">⑤高速道路名を決める</text>
-<text x="500" y="635" text-anchor="middle" class="s">つながっている本線のうち、いちばん多い名前</text>
+<text x="500" y="614" text-anchor="middle" class="t">⑤高速道路名を取得</text>
+<text x="500" y="635" text-anchor="middle" class="s">経路確認で対象道路を照合する</text>
 <path class="l" d="M500,656 V684"/>
 
 <rect class="q" x="300" y="684" width="400" height="76" rx="8"/>
-<text x="500" y="708" text-anchor="middle" class="t">⑥ICの印（①で集めたもの）と結びつける</text>
-<text x="500" y="729" text-anchor="middle" class="t">ランプの本線側の端から、いちばん近いIC</text>
-<text x="500" y="749" text-anchor="middle" class="s">その距離は1.5km以内か？</text>
-<text x="730" y="722" class="r">1.5km超 → 除外</text>
-<text x="730" y="742" class="s">（IC名・道路名の結びつきは、ここで決まる）</text>
+<text x="500" y="708" text-anchor="middle" class="t">⑥出発地から最も近い入口を選ぶ</text>
+<text x="500" y="729" text-anchor="middle" class="t">直線距離が5km以内か？</text>
+<text x="500" y="749" text-anchor="middle" class="s">座標は一般道とランプの共有ノード</text>
+<text x="730" y="722" class="r">5km超 → 対象外</text>
 <path class="l" d="M500,760 V788"/>
 
 <rect class="q" x="230" y="788" width="540" height="136" rx="8"/>
-<text x="500" y="812" text-anchor="middle" class="t">⑦ランプの中から「入口」だけを選ぶ</text>
-<text x="500" y="834" text-anchor="middle" class="s">ランプの向き（一方通行の向き）をそろえて、次をすべて満たすもの</text>
-<text x="250" y="860" class="t">・始まりの点が、本線ではない（一般道側）</text>
-<text x="250" y="882" class="t">・始まりの点は、かたまりの中で他のランプとつながっていない</text>
-<text x="250" y="904" class="t">・終わりの点が高速本線に合流し、始まりは出発地から7.5km以内</text>
-<text x="790" y="860" class="r">1つでも外れる</text>
-<text x="790" y="880" class="r">→ 除外</text>
+<text x="500" y="812" text-anchor="middle" class="t">⑦入口座標は1か所だけ表示</text>
+<text x="500" y="834" text-anchor="middle" class="s">複数候補の一覧や選び直しは行わない</text>
+<text x="250" y="860" class="t">・入口ランプ上の緯度・経度を表示</text>
+<text x="250" y="882" class="t">・画面上の経由地も入口座標にする</text>
+<text x="250" y="904" class="t">・検索エラーは「該当なし」と区別</text>
+<text x="790" y="860" class="r">該当点なし</text>
+<text x="790" y="880" class="r">→ 5km以内なし</text>
 <path class="l" d="M500,924 V952"/>
 
 <rect class="b" x="300" y="952" width="400" height="56" rx="8"/>
-<text x="500" y="976" text-anchor="middle" class="t">⑧入口を、いちばん近いICに割り当てる</text>
-<text x="500" y="996" text-anchor="middle" class="s">入口とICを結びつけ、IC名・高速道路名を付ける</text>
+<text x="500" y="976" text-anchor="middle" class="t">⑧最寄りの入口へ向かう道を確認</text>
+<text x="500" y="996" text-anchor="middle" class="s">出発地から共有ノードまで道路がつながるか確認</text>
 <path class="l" d="M500,1008 V1036"/>
 
 <rect class="q" x="300" y="1036" width="400" height="56" rx="8"/>
-<text x="500" y="1060" text-anchor="middle" class="t">入口ランプ手前の一般道の地点を決める</text>
-<text x="500" y="1080" text-anchor="middle" class="s">ランプへつなぐための補助地点（画面には登録しない）</text>
+<text x="500" y="1060" text-anchor="middle" class="t">ランプ直前の一般道の補助地点を決める</text>
+<text x="500" y="1080" text-anchor="middle" class="s">経路を正しくつなぐための内部地点</text>
 <text x="730" y="1070" class="r">特定できない → 除外</text>
 <path class="l" d="M500,1092 V1120"/>
 
@@ -99,11 +98,11 @@
 <path class="l" d="M500,1364 V1392"/>
 
 <rect class="q" x="300" y="1392" width="400" height="56" rx="8"/>
-<text x="500" y="1416" text-anchor="middle" class="t">同じ高速道路のICも候補に残す</text>
-<text x="500" y="1436" text-anchor="middle" class="s">走行条件以外の所要時間差で除外しない</text>
+<text x="500" y="1416" text-anchor="middle" class="t">条件を満たした入口を1か所だけ表示</text>
+<text x="500" y="1436" text-anchor="middle" class="s">走行条件、対象高速、Uターンなしを確認</text>
 <path class="l" d="M500,1448 V1476"/>
 
 <rect class="g" x="300" y="1476" width="400" height="56" rx="8"/>
-<text x="500" y="1500" text-anchor="middle" class="t">候補を表示（近い順・最大2件）</text>
-<text x="500" y="1520" text-anchor="middle" class="s">選ぶと入口ランプの座標を経由地に登録する</text>
+<text x="500" y="1500" text-anchor="middle" class="t">最寄り入口を経由地に登録</text>
+<text x="500" y="1520" text-anchor="middle" class="s">登録地点と地図の印は入口ランプ座標</text>
 </svg>

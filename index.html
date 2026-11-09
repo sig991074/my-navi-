@@ -2314,20 +2314,29 @@ function nearIcDistance(a,b,c,d){let R=6371000,p1=a*Math.PI/180,p2=c*Math.PI/180
 function nearIcCode(ref){return String(ref||'不明').split(';')[0].trim()||'不明'}
 function nearIcClear(){nearIcMarkers.forEach(m=>map.removeLayer(m));nearIcMarkers=[];nearIcRouteLayers.forEach(l=>{if(map.hasLayer(l))map.removeLayer(l)});nearIcRouteLayers=[]}
 async function nearIcFetch(start){
- const radius=5000,q=`[out:json][timeout:25];way(around:${radius},${start.lat},${start.lon})["highway"="motorway_link"]["oneway"="yes"]->.way1;way(around:${radius},${start.lat},${start.lon})["highway"~"^(primary|secondary|tertiary|unclassified|residential)$"]->.way2;node(w.way1)(w.way2)->.entries;way(bn.way1)["highway"="motorway_link"]->.connectedRamps;way(bn.connectedRamps)["highway"="motorway"]->.mains;node(around:${radius},${start.lat},${start.lon})["highway"="motorway_junction"]->.junctions;.entries out body;.junctions out body;.way1 out geom;.connectedRamps out geom;.mains out body;`;
- const endpoints=['https://overpass.private.coffee/api/interpreter','https://lz4.overpass-api.de/api/interpreter','https://z.overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass-api.de/api/interpreter'],errors=[],deadline=Date.now()+120000;
- for(const endpoint of endpoints){
-   const remaining=deadline-Date.now();if(remaining<=0)break;
-   const started=performance.now(),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),Math.min(30000,remaining));
-   try{
-     const response=await fetch(endpoint+'?data='+encodeURIComponent(q),{headers:{'Accept':'application/json'},signal:controller.signal});
-     if(!response.ok)throw Error('HTTP '+response.status);
-     const data=await response.json();if(!Array.isArray(data?.elements))throw Error('応答形式エラー');
-     return{elements:data.elements,endpoint,seconds:((performance.now()-started)/1000).toFixed(2)}
-   }catch(error){errors.push(endpoint+' : '+(error?.name==='AbortError'?'30秒タイムアウト':error?.message||error))}
-   finally{clearTimeout(timer)}
- }
- throw Error(errors.join('\n')||'120秒以内にOpenStreetMapから道路データを取得できませんでした')
+ const radius=5000,endpoints=['https://overpass-api.de/api/interpreter','https://lz4.overpass-api.de/api/interpreter','https://z.overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'],started=performance.now(),deadline=Date.now()+300000,used=[];
+ const query=async(q)=>{
+   const errors=[];
+   for(const endpoint of endpoints){
+     const remaining=deadline-Date.now();if(remaining<=0)break;
+     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),remaining);
+     try{
+       const response=await fetch(endpoint+'?data='+encodeURIComponent(q),{signal:controller.signal});
+       if(!response.ok)throw Error('HTTP '+response.status);
+       const data=await response.json();
+       if(!Array.isArray(data?.elements)||data.remark)throw Error(data.remark||'応答形式エラー');
+       used.push(endpoint);return data.elements
+     }catch(error){errors.push(endpoint+' : '+(error?.name==='AbortError'?'時間切れ':error?.message||error))}
+     finally{clearTimeout(timer)}
+   }
+   throw Error(errors.join('\n')||'道路データの取得が5分以内に完了しませんでした')
+ };
+ const ramps=await query(`[out:json][timeout:300];(way(around:${radius},${start.lat},${start.lon})["highway"="motorway_link"]["oneway"="yes"];);out body geom;`);
+ if(!ramps.length)return{elements:[],endpoint:used.join(' / '),seconds:((performance.now()-started)/1000).toFixed(2)};
+ const ids=ramps.map(way=>way.nodes?.[0]);
+ if(ids.some(id=>!Number.isSafeInteger(id)||id<=0))throw Error('ランプの道路データが正しくありません');
+ const related=await query(`[out:json][timeout:300];node(id:${[...new Set(ids)].join(',')})->.starts;way(bn.starts)["highway"~"^(trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|service|road)$"]->.roads;node.starts(w.roads)->.entries;way(around:${radius},${start.lat},${start.lon})["highway"="motorway"]->.mains;node(around:${radius},${start.lat},${start.lon})["highway"="motorway_junction"]->.junctions;.entries out body;.junctions out body;.mains out body;`);
+ return{elements:[...ramps,...related],endpoint:used.join(' / '),seconds:((performance.now()-started)/1000).toFixed(2)}
 }
 function nearIcFindEntrance(elements,start){
  const isWay=element=>element?.type==='way'&&Array.isArray(element.nodes),validNodes=elements.filter(element=>element?.type==='node'&&Number.isFinite(+element.lat)&&Number.isFinite(+element.lon)),entries=new Map(validNodes.filter(node=>node.tags?.highway!=='motorway_junction').map(node=>[String(node.id),node])),junctions=validNodes.filter(node=>node.tags?.highway==='motorway_junction'),links=elements.filter(element=>isWay(element)&&element.tags?.highway==='motorway_link'&&element.tags?.oneway==='yes'&&Array.isArray(element.geometry)&&element.nodes.length===element.geometry.length),mains=elements.filter(element=>isWay(element)&&element.tags?.highway==='motorway');
@@ -2365,8 +2374,7 @@ async function getNearIcRoute(points,timeout=6000){
   return{...r,steps,motorway};
 }
 function nearIcApproachPoint(route){
-  const steps=route.steps||[],motorwayIndex=steps.findIndex(step=>['高速道路','無料高速'].includes(roadInfo(step).type));
-  const approachSteps=steps.slice(0,motorwayIndex<0?steps.length:motorwayIndex).filter(step=>step.distance>0&&step.geometry?.coordinates?.length>1);
+  const approachSteps=(route.steps||[]).filter(step=>!['高速道路','無料高速'].includes(roadInfo(step).type)&&step.distance>0&&step.geometry?.coordinates?.length>1);
   for(let stepIndex=approachSteps.length-1;stepIndex>=0;stepIndex--){
     const coordinates=approachSteps[stepIndex].geometry.coordinates;let remaining=30;
     for(let i=coordinates.length-1;i>0;i--){
@@ -2428,7 +2436,7 @@ function nearIcShowError(message){nearIcShow([]);$('nearIcState').textContent=me
 async function nearIcBeforeRoute(){
   const plan=routePlans[selectedRoute],dbg=$('nearIcDebug'),out=$('nearIcDebugText'),log=t=>{if(dbg&&out){dbg.classList.add('show');out.textContent+=(out.textContent?'\n':'')+t}};if(out)out.textContent='';
   if(!nearIcEnabled()||!plan?.start||!plan?.destination){await calculateRoutes(selectedRoute);return}
-  $('status').textContent='出発地から5km以内の入口ランプを検索しています…';log('開始: 出発地から5km以内を1回検索');
+  $('status').textContent='出発地から5km以内の入口ランプを検索しています…';log('開始: 出発地から5km以内のランプと接続道路を検索');
   let probe,entrance;
   try{probe=await nearIcFetch(plan.start);entrance=nearIcFindEntrance(probe.elements,plan.start);log('道路データ: '+probe.elements.length+'件 / '+probe.seconds+'秒 / '+probe.endpoint);log('一方通行入口ランプ: '+(entrance?'1件':'該当なし'))}
   catch(error){log('入口検索エラー:\n'+(error?.message||error));nearIcShowError('入口情報を取得できませんでした。時間をおいて再試行してください。');return}

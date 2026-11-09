@@ -2314,13 +2314,13 @@ function nearIcDistance(a,b,c,d){let R=6371000,p1=a*Math.PI/180,p2=c*Math.PI/180
 function nearIcCode(ref){return String(ref||'不明').split(';')[0].trim()||'不明'}
 function nearIcClear(){nearIcMarkers.forEach(m=>map.removeLayer(m));nearIcMarkers=[];nearIcRouteLayers.forEach(l=>{if(map.hasLayer(l))map.removeLayer(l)});nearIcRouteLayers=[]}
 async function nearIcFetch(start){
- const radius=5000,q=`[out:json][timeout:30];way(around:${radius},${start.lat},${start.lon})["highway"="motorway_link"]["oneway"="yes"]->.ramps;way(bn.ramps)["highway"~"^(primary|secondary|tertiary|unclassified|residential)$"]->.roads;node(w.ramps)(w.roads)->.entries;way(bn.ramps)["highway"="motorway_link"]->.connectedRamps;way(bn.connectedRamps)["highway"="motorway"]->.mains;node(around:${radius},${start.lat},${start.lon})["highway"="motorway_junction"]->.junctions;(.entries;.ramps;.roads;.connectedRamps;.mains;.junctions;);out body geom;`;
+ const radius=5000,q=`[out:json][timeout:25];way(around:${radius},${start.lat},${start.lon})["highway"="motorway_link"]["oneway"="yes"]->.way1;way(around:${radius},${start.lat},${start.lon})["highway"~"^(primary|secondary|tertiary|unclassified|residential)$"]->.way2;node(w.way1)(w.way2)->.entries;way(bn.way1)["highway"="motorway_link"]->.connectedRamps;way(bn.connectedRamps)["highway"="motorway"]->.mains;node(around:${radius},${start.lat},${start.lon})["highway"="motorway_junction"]->.junctions;.entries out body;.junctions out body;.way1 out geom;.connectedRamps out geom;.mains out body;`;
  const endpoints=['https://overpass.private.coffee/api/interpreter','https://lz4.overpass-api.de/api/interpreter','https://z.overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass-api.de/api/interpreter'],errors=[],deadline=Date.now()+120000;
  for(const endpoint of endpoints){
    const remaining=deadline-Date.now();if(remaining<=0)break;
    const started=performance.now(),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),Math.min(30000,remaining));
    try{
-     const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'},body:'data='+encodeURIComponent(q),signal:controller.signal});
+     const response=await fetch(endpoint+'?data='+encodeURIComponent(q),{headers:{'Accept':'application/json'},signal:controller.signal});
      if(!response.ok)throw Error('HTTP '+response.status);
      const data=await response.json();if(!Array.isArray(data?.elements))throw Error('応答形式エラー');
      return{elements:data.elements,endpoint,seconds:((performance.now()-started)/1000).toFixed(2)}
@@ -2330,24 +2330,22 @@ async function nearIcFetch(start){
  throw Error(errors.join('\n')||'120秒以内にOpenStreetMapから道路データを取得できませんでした')
 }
 function nearIcFindEntrance(elements,start){
- const isWay=element=>element?.type==='way'&&Array.isArray(element.nodes)&&Array.isArray(element.geometry)&&element.nodes.length===element.geometry.length;
- const links=elements.filter(element=>isWay(element)&&element.tags?.highway==='motorway_link'&&element.tags?.oneway==='yes'),roads=elements.filter(element=>isWay(element)&&/^(primary|secondary|tertiary|unclassified|residential)$/.test(element.tags?.highway||'')),mains=elements.filter(element=>isWay(element)&&element.tags?.highway==='motorway'),junctions=elements.filter(element=>element?.type==='node'&&Number.isFinite(+element.lat)&&Number.isFinite(+element.lon)&&element.tags?.highway==='motorway_junction');
- const roadNodes=new Map(),mainNodes=new Map(),linksFrom=new Map();
+ const isWay=element=>element?.type==='way'&&Array.isArray(element.nodes),validNodes=elements.filter(element=>element?.type==='node'&&Number.isFinite(+element.lat)&&Number.isFinite(+element.lon)),entries=new Map(validNodes.filter(node=>node.tags?.highway!=='motorway_junction').map(node=>[String(node.id),node])),junctions=validNodes.filter(node=>node.tags?.highway==='motorway_junction'),links=elements.filter(element=>isWay(element)&&element.tags?.highway==='motorway_link'&&element.tags?.oneway==='yes'&&Array.isArray(element.geometry)&&element.nodes.length===element.geometry.length),mains=elements.filter(element=>isWay(element)&&element.tags?.highway==='motorway');
+ const mainNodes=new Map(),linksFrom=new Map();
  const addNodeWay=(index,node,way)=>{const key=String(node);if(!index.has(key))index.set(key,[]);index.get(key).push(way)};
- for(const way of roads)for(const node of way.nodes)addNodeWay(roadNodes,node,way);
  for(const way of mains)for(const node of way.nodes)addNodeWay(mainNodes,node,way);
  const directedLinks=links.map(way=>({way,nodes:way.nodes.map(String),geometry:way.geometry}));
  for(const link of directedLinks)addNodeWay(linksFrom,link.nodes[0],link);
  const candidates=[];
  for(const link of directedLinks){
-   const entryId=link.nodes[0],entry=link.geometry[0],next=link.geometry[1];
-   if(!roadNodes.has(entryId)||mainNodes.has(entryId)||!entry||!next)continue;
-   const queue=[link],visited=new Set();let motorway=null,joinPoint=null;
+   const entryId=link.nodes[0],entry=entries.get(entryId),next=link.geometry[1];
+   if(!entry||mainNodes.has(entryId)||!next)continue;
+   const queue=[link],visited=new Set();let motorway=null;
    while(queue.length&&!motorway){
      const current=queue.shift(),key=String(current.way.id);if(visited.has(key))continue;visited.add(key);
      for(let i=1;i<current.nodes.length;i++){
        const connected=(mainNodes.get(current.nodes[i])||[])[0];
-       if(connected){motorway=connected;joinPoint=current.geometry[i];break}
+       if(connected){motorway=connected;break}
      }
      if(motorway)break;
      const endId=current.nodes.at(-1);
@@ -2355,9 +2353,8 @@ function nearIcFindEntrance(elements,start){
    }
    if(!motorway)continue;
    const distance=nearIcDistance(start.lat,start.lon,+entry.lat,+entry.lon);if(distance>5000)continue;
-   const motorwayTags=motorway.tags||{},roadName=String(motorwayTags['name:ja']||motorwayTags.name||motorwayTags.ref||'高速道路').trim(),junction=junctions.map(node=>({...node,distance:nearIcDistance(+joinPoint.lat,+joinPoint.lon,+node.lat,+node.lon)})).filter(node=>node.distance<=1500).sort((a,b)=>a.distance-b.distance)[0],name=String(junction?.tags?.['name:ja']||junction?.tags?.name||roadName+'入口').trim();
-   const ref=junction?.tags?.ref||motorwayTags.ref||link.way.tags?.ref||'';
-   candidates.push({lat:+entry.lat,lon:+entry.lon,name,icName:name,ref,road:roadName,roadName,code:nearIcCode(ref),approachRoadName:roadNodes.get(entryId)?.[0]?.tags?.name||roadNodes.get(entryId)?.[0]?.tags?.ref||'入口手前の道路',wayId:link.way.id,heading:bearing({lat:+entry.lat,lon:+entry.lon},{lat:+next.lat,lon:+next.lon}),distance})
+   const motorwayTags=motorway.tags||{},roadName=String(motorwayTags['name:ja']||motorwayTags.name||motorwayTags.ref||'高速道路').trim(),junction=junctions.map(node=>({...node,distance:nearIcDistance(+entry.lat,+entry.lon,+node.lat,+node.lon)})).filter(node=>node.distance<=1500).sort((a,b)=>a.distance-b.distance)[0],name=String(junction?.tags?.['name:ja']||junction?.tags?.name||entry.tags?.['name:ja']||entry.tags?.name||roadName+'入口').trim(),ref=junction?.tags?.ref||motorwayTags.ref||link.way.tags?.ref||entry.tags?.ref||'';
+   candidates.push({lat:+entry.lat,lon:+entry.lon,name,icName:name,ref,road:roadName,roadName,code:nearIcCode(ref),approachRoadName:'入口手前の道路',wayId:link.way.id,heading:bearing({lat:+entry.lat,lon:+entry.lon},{lat:+next.lat,lon:+next.lon}),distance})
  }
  return candidates.sort((a,b)=>a.distance-b.distance)[0]||null
 }

@@ -15,7 +15,7 @@
 
 <rect class="b" x="300" y="70" width="400" height="56" rx="8"/>
 <text x="500" y="95" text-anchor="middle" class="t">①道路データを一度に取得</text>
-<text x="500" y="114" text-anchor="middle" class="s">高速優先(A/B)で、出発地から5km以内を検索</text>
+<text x="500" y="114" text-anchor="middle" class="s">高速優先(A/B)で5km以内を検索。一般道全体の形状取得は省略</text>
 <path class="l" d="M500,126 V150"/>
 
 <rect class="q" x="300" y="150" width="400" height="66" rx="8"/>

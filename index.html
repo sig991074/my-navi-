@@ -2435,7 +2435,7 @@ async function nearIcBeforeRoute(){
   const started=performance.now(),run=++nearIcElapsedRun,updateElapsed=()=>{if(run!==nearIcElapsedRun)return;const text='検索の経過時間：'+((performance.now()-started)/1000).toFixed(1)+'秒';$('nearIcDebugElapsed').textContent=text;$('nearIcElapsed').textContent=text};
   clearInterval(nearIcElapsedTimer);updateElapsed();nearIcElapsedTimer=setInterval(updateElapsed,100);
   try{
-  $('status').textContent='出発地から5km以内の入口ランプを検索しています…';log('開始: 出発地から5km以内のランプと接続道路を検索');
+  $('status').textContent='出発地から5km以内の入口ランプを検索しています…';log('開始: 出発地から5km以内のランプと接続道路を検索(1分程度)');
   let probe,entrance;
   try{probe=await nearIcFetch(plan.start);entrance=nearIcFindEntrance(probe.elements,plan.start);log('道路データ: '+probe.elements.length+'件 / '+probe.seconds+'秒 / '+probe.endpoint);log('一方通行入口ランプ: '+(entrance?'1件':'該当なし'))}
   catch(error){log('入口検索エラー:\n'+(error?.message||error));nearIcShowError('入口情報を取得できませんでした。時間をおいて再試行してください。');return}

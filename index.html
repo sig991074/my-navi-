@@ -2304,11 +2304,11 @@ addEventListener('DOMContentLoaded',()=>{
  };
 });
 </script>
-<style id="nearIcDebugStyle">#nearIcDebug{position:fixed;left:10px;bottom:38px;z-index:7100;width:min(520px,calc(100vw - 20px));max-height:34vh;overflow:auto;background:#fff;border:2px solid #b00020;border-radius:7px;box-shadow:0 3px 12px #0005;padding:7px 9px;font:12px/1.45 Meiryo,sans-serif;color:#111;display:none}#nearIcDebug.show{display:block}#nearIcDebug b{color:#b00020}#nearIcDebug pre{white-space:pre-wrap;margin:4px 0 0}</style><div id="nearIcDebug"><b>近場IC 調査表示</b><pre id="nearIcDebugText"></pre></div>
-<div id="nearIcModal" aria-hidden="true"><div id="nearIcBox"><button id="nearIcClose" class="nearIcClose" type="button" style="float:right">閉じる</button><h3>近場のIC入口</h3><div id="nearIcState" class="nearIcMeta">検索中です…</div><div id="nearIcList"></div><button id="nearIcNone" class="nearIcClose nearIcNone" type="button">ICを設定しないでルート検索</button></div></div>
+<style id="nearIcDebugStyle">#nearIcDebug{position:fixed;left:10px;bottom:38px;z-index:7100;width:min(520px,calc(100vw - 20px));max-height:34vh;overflow:auto;background:#fff;border:2px solid #b00020;border-radius:7px;box-shadow:0 3px 12px #0005;padding:7px 9px;font:12px/1.45 Meiryo,sans-serif;color:#111;display:none}#nearIcDebug.show{display:block}#nearIcDebug b{color:#b00020}#nearIcDebug pre{white-space:pre-wrap;margin:4px 0 0}</style><div id="nearIcDebug"><b>近場IC 調査表示</b><div id="nearIcDebugElapsed"></div><pre id="nearIcDebugText"></pre></div>
+<div id="nearIcModal" aria-hidden="true"><div id="nearIcBox"><button id="nearIcClose" class="nearIcClose" type="button" style="float:right">閉じる</button><h3>近場のIC入口</h3><div id="nearIcState" class="nearIcMeta">検索中です…</div><div id="nearIcElapsed" class="nearIcMeta"></div><div id="nearIcList"></div><button id="nearIcNone" class="nearIcClose nearIcNone" type="button">ICを設定しないでルート検索</button></div></div>
 
 <script id="nearIcLogic">
-let nearIcMarkers=[],nearIcRouteLayers=[];
+let nearIcMarkers=[],nearIcRouteLayers=[],nearIcElapsedTimer=null,nearIcElapsedRun=0;
 function nearIcEnabled(){const order=priorities[selectedRoute]||[];return order.includes('A')||order.includes('B')}
 function nearIcDistance(a,b,c,d){let R=6371000,p1=a*Math.PI/180,p2=c*Math.PI/180,dp=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180,x=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
 function nearIcCode(ref){return String(ref||'不明').split(';')[0].trim()||'不明'}
@@ -2436,6 +2436,9 @@ function nearIcShowError(message){nearIcShow([]);$('nearIcState').textContent=me
 async function nearIcBeforeRoute(){
   const plan=routePlans[selectedRoute],dbg=$('nearIcDebug'),out=$('nearIcDebugText'),log=t=>{if(dbg&&out){dbg.classList.add('show');out.textContent+=(out.textContent?'\n':'')+t}};if(out)out.textContent='';
   if(!nearIcEnabled()||!plan?.start||!plan?.destination){await calculateRoutes(selectedRoute);return}
+  const started=performance.now(),run=++nearIcElapsedRun,updateElapsed=()=>{if(run!==nearIcElapsedRun)return;const text='検索の経過時間：'+((performance.now()-started)/1000).toFixed(1)+'秒';$('nearIcDebugElapsed').textContent=text;$('nearIcElapsed').textContent=text};
+  clearInterval(nearIcElapsedTimer);updateElapsed();nearIcElapsedTimer=setInterval(updateElapsed,100);
+  try{
   $('status').textContent='出発地から5km以内の入口ランプを検索しています…';log('開始: 出発地から5km以内のランプと接続道路を検索');
   let probe,entrance;
   try{probe=await nearIcFetch(plan.start);entrance=nearIcFindEntrance(probe.elements,plan.start);log('道路データ: '+probe.elements.length+'件 / '+probe.seconds+'秒 / '+probe.endpoint);log('一方通行入口ランプ: '+(entrance?'1件':'該当なし'))}
@@ -2460,6 +2463,7 @@ async function nearIcBeforeRoute(){
   const delta=Math.round((route.duration-baseDuration)/60),accepted=[{...entrance,approachLat:approach.lat,approachLon:approach.lon,approachRoadName:approach.roadName,totalDistance:route.distance,totalDuration:route.duration,deltaMinutes:delta,_candidateRoute:route}];
   log('入口経由ルート: '+(route.distance/1000).toFixed(1)+'km / '+formatDuration(route.duration)+' / '+(delta>=0?'+':'')+delta+'分 / Uターンなし');
   nearIcShow(accepted);$('status').textContent='最寄りの入口ランプを確認しました。表示地点を経由地に設定できます';await nearIcDrawCandidateRoutes(accepted)
+  }finally{if(run===nearIcElapsedRun){clearInterval(nearIcElapsedTimer);nearIcElapsedTimer=null;updateElapsed()}}
 }
 
 addEventListener('DOMContentLoaded',()=>{$('nearIcClose').onclick=()=>{$('nearIcModal').classList.remove('show');nearIcClear()};$('nearIcNone').onclick=async()=>{$('nearIcModal').classList.remove('show');nearIcClear();await calculateRoutes(selectedRoute)};let modal=$('nearIcModal'),handle=$('nearIcBox').querySelector('h3'),drag=null;handle.addEventListener('pointerdown',e=>{if(e.button!==0)return;let r=modal.getBoundingClientRect();drag={dx:e.clientX-r.left,dy:e.clientY-r.top};modal.style.right='auto';modal.style.bottom='auto';handle.setPointerCapture(e.pointerId);e.preventDefault()});handle.addEventListener('pointermove',e=>{if(!drag)return;let x=Math.max(0,Math.min(innerWidth-modal.offsetWidth,e.clientX-drag.dx)),y=Math.max(0,Math.min(innerHeight-modal.offsetHeight,e.clientY-drag.dy));modal.style.left=x+'px';modal.style.top=y+'px'});handle.addEventListener('pointerup',e=>{drag=null;try{handle.releasePointerCapture(e.pointerId)}catch(_){}})});

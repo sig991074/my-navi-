@@ -2331,12 +2331,8 @@ async function nearIcFetch(start){
    }
    throw Error(errors.join('\n')||'道路データの取得が5分以内に完了しませんでした')
  };
- const ramps=await query(`[out:json][timeout:300];(way(around:${radius},${start.lat},${start.lon})["highway"="motorway_link"]["oneway"="yes"];);out body geom;`);
- if(!ramps.length)return{elements:[],endpoint:used.join(' / '),seconds:((performance.now()-started)/1000).toFixed(2)};
- const ids=ramps.map(way=>way.nodes?.[0]);
- if(ids.some(id=>!Number.isSafeInteger(id)||id<=0))throw Error('ランプの道路データが正しくありません');
- const related=await query(`[out:json][timeout:300];node(id:${[...new Set(ids)].join(',')})->.starts;way(bn.starts)["highway"~"^(trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|service|road)$"]->.roads;node.starts(w.roads)->.entries;way(around:${radius},${start.lat},${start.lon})["highway"="motorway"]->.mains;node(around:${radius},${start.lat},${start.lon})["highway"="motorway_junction"]->.junctions;.entries out body;.junctions out body;.mains out body;`);
- return{elements:[...ramps,...related],endpoint:used.join(' / '),seconds:((performance.now()-started)/1000).toFixed(2)}
+ const elements=await query(`[out:json][timeout:300];way(around:${radius},${start.lat},${start.lon})["highway"="motorway_link"]["oneway"="yes"]->.ramps;node(w.ramps)->.rampNodes;way(bn.rampNodes)["highway"~"^(trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|service|road)$"]->.roads;node(w.ramps)(w.roads)->.entries;way(around:${radius},${start.lat},${start.lon})["highway"="motorway"]->.mains;node(around:${radius},${start.lat},${start.lon})["highway"="motorway_junction"]->.junctions;.entries out body;.junctions out body;.ramps out body geom;.mains out body;`);
+ return{elements,endpoint:used.join(' / '),seconds:((performance.now()-started)/1000).toFixed(2)}
 }
 function nearIcFindEntrance(elements,start){
  const isWay=element=>element?.type==='way'&&Array.isArray(element.nodes),validNodes=elements.filter(element=>element?.type==='node'&&Number.isFinite(+element.lat)&&Number.isFinite(+element.lon)),entries=new Map(validNodes.filter(node=>node.tags?.highway!=='motorway_junction').map(node=>[String(node.id),node])),junctions=validNodes.filter(node=>node.tags?.highway==='motorway_junction'),links=elements.filter(element=>isWay(element)&&element.tags?.highway==='motorway_link'&&element.tags?.oneway==='yes'&&Array.isArray(element.geometry)&&element.nodes.length===element.geometry.length),mains=elements.filter(element=>isWay(element)&&element.tags?.highway==='motorway');

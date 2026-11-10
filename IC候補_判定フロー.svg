@@ -14,7 +14,7 @@
 <text x="500" y="52" text-anchor="middle" class="s">データ取得エラーと、入口が見つからない場合を分けて表示</text>
 
 <rect class="b" x="300" y="70" width="400" height="56" rx="8"/>
-<text x="500" y="95" text-anchor="middle" class="t">①ランプと接続する道路の情報を取得</text>
+<text x="500" y="95" text-anchor="middle" class="t">①ランプと接続する道路の情報を一度に取得</text>
 <text x="500" y="114" text-anchor="middle" class="s">高速優先(A/B)で5km以内を検索。取得は全体で最大5分</text>
 <path class="l" d="M500,126 V150"/>
 

@@ -913,16 +913,37 @@ function orderedViaName(name,index){
 function renumberVias(plan){plan.vias.forEach((point,index)=>{point.name=orderedViaName(point.name,index)})}
 function routeViaInsertionIndex(routeNo,point){
   const plan=routePlans[routeNo],item=routeLayers.find(x=>x.routeNo===routeNo&&(x.route._displayOption??0)===0);
-  if(!item||!routeLayerMatchesPlan(item))return plan.vias.length;
-  const target=map.latLngToContainerPoint([point.lat,point.lon]);let best=13,index=plan.vias.length;
+  if(!item)return plan.vias.length;
+  const segments=[];
   for(const step of item.route.steps||[]){
     const coordinates=step.geometry?.coordinates||[];
     for(let i=1;i<coordinates.length;i++){
-      const a=map.latLngToContainerPoint([coordinates[i-1][1],coordinates[i-1][0]]),b=map.latLngToContainerPoint([coordinates[i][1],coordinates[i][0]]),distance=pointSegmentPixelDistance(target,a,b);
-      if(distance<best&&Number.isInteger(step._routeLegIndex)&&step._routeLegIndex>=0&&step._routeLegIndex<=plan.vias.length){best=distance;index=step._routeLegIndex}
+      const a=map.latLngToContainerPoint([coordinates[i-1][1],coordinates[i-1][0]]),b=map.latLngToContainerPoint([coordinates[i][1],coordinates[i][0]]);
+      segments.push({a,b,leg:step._routeLegIndex});
     }
   }
-  return index
+  const project=place=>{
+    const target=map.latLngToContainerPoint([place.lat,place.lon]);let best=null;
+    segments.forEach((segment,index)=>{
+      const {a,b}=segment,distance=pointSegmentPixelDistance(target,a,b);
+      if(distance<13&&(!best||distance<best.distance)){
+        const dx=b.x-a.x,dy=b.y-a.y,length=dx*dx+dy*dy||1,fraction=Math.max(0,Math.min(1,((target.x-a.x)*dx+(target.y-a.y)*dy)/length));
+        best={distance,position:index+fraction,leg:segment.leg}
+      }
+    });
+    return best
+  };
+  const target=project(point);
+  if(!target)return plan.vias.length;
+  if(routeLayerMatchesPlan(item)&&Number.isInteger(target.leg)&&target.leg>=0&&target.leg<=plan.vias.length)return target.leg;
+  const previousVias=JSON.parse(item.planSnapshot).vias||[];
+  const index=plan.vias.findIndex(via=>{
+    const previousIndex=previousVias.findIndex(previous=>previous.lat===via.lat&&previous.lon===via.lon);
+    const nextSegment=previousIndex<0?-1:segments.findIndex(segment=>segment.leg===previousIndex+1);
+    const position=nextSegment>=0?nextSegment:project(via)?.position;
+    return position!=null&&position>target.position
+  });
+  return index<0?plan.vias.length:index
 }
 function setPlace(x){let plan=routePlans[selectedRoute],p={type:kind,name:x.name,address:x.address,lat:+x.lat,lon:+x.lon};if(kind==='出発地')plan.start=p;else if(kind==='目的地')plan.destination=p;else{plan.vias.splice(routeViaInsertionIndex(selectedRoute,p),0,p);renumberVias(plan)}clearMarkedRouteSections(selectedRoute);clearCandidates();drawMarkers();persistRouteWorkspace();renderPlaces();map.setView([p.lat,p.lon],16);$('status').textContent='地点を設定しました。'+(routeLayers.some(item=>item.routeNo===selectedRoute)?'表示中の線は変更前です。':'')+'ルート選定で更新してください'}
 function rad(x){return x*Math.PI/180}function dist(a,b){let R=6371,dLat=rad(b.lat-a.lat),dLon=rad(b.lon-a.lon),v=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(v))}function bearing(a,b){let y=Math.sin(rad(b.lon-a.lon))*Math.cos(rad(b.lat)),x=Math.cos(rad(a.lat))*Math.sin(rad(b.lat))-Math.sin(rad(a.lat))*Math.cos(rad(b.lat))*Math.cos(rad(b.lon-a.lon));return(Math.atan2(y,x)*180/Math.PI+360)%360}function angleDiff(a,b){let d=Math.abs(a-b)%360;return d>180?360-d:d}

@@ -958,7 +958,7 @@ function routeViaInsertionIndex(routeNo,point,zoom=map.getZoom()){
   });
   return index<0?plan.vias.length:index
 }
-function setPlace(x,selectionZoom=map.getZoom()){let plan=routePlans[selectedRoute],p={type:kind,name:x.name,address:x.address,lat:+x.lat,lon:+x.lon},isVia=kind!=='出発地'&&kind!=='目的地';if(kind==='出発地')plan.start=p;else if(kind==='目的地')plan.destination=p;else{plan.vias.splice(routeViaInsertionIndex(selectedRoute,p,selectionZoom),0,p);renumberVias(plan)}clearMarkedRouteSections(selectedRoute);clearCandidates();drawMarkers();persistRouteWorkspace();renderPlaces();map.setView([p.lat,p.lon],16);$('status').textContent='地点を設定しました。'+(routeLayers.some(item=>item.routeNo===selectedRoute)?'表示中の線は変更前です。':'');if(isVia)showViaAddedMessage()}
+function setPlace(x,selectionZoom=map.getZoom()){let plan=routePlans[selectedRoute],p={type:kind,name:x.name,address:x.address,lat:+x.lat,lon:+x.lon},isVia=kind!=='出発地'&&kind!=='目的地';if(kind==='出発地')plan.start=p;else if(kind==='目的地')plan.destination=p;else{plan.vias.splice(routeViaInsertionIndex(selectedRoute,p,selectionZoom),0,p);renumberVias(plan)}clearMarkedRouteSections(selectedRoute);clearCandidates();drawMarkers();persistRouteWorkspace();renderPlaces();map.setView([p.lat,p.lon],16);$('status').textContent='地点を設定しました。'+(routeLayers.some(item=>item.routeNo===selectedRoute)?'表示中の線は変更前です。':'');if(isVia&&plan.vias.length>1)showViaAddedMessage()}
 function rad(x){return x*Math.PI/180}function dist(a,b){let R=6371,dLat=rad(b.lat-a.lat),dLon=rad(b.lon-a.lon),v=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(v))}function bearing(a,b){let y=Math.sin(rad(b.lon-a.lon))*Math.cos(rad(b.lat)),x=Math.cos(rad(a.lat))*Math.sin(rad(b.lat))-Math.sin(rad(a.lat))*Math.cos(rad(b.lat))*Math.cos(rad(b.lon-a.lon));return(Math.atan2(y,x)*180/Math.PI+360)%360}function angleDiff(a,b){let d=Math.abs(a-b)%360;return d>180?360-d:d}
 function pointToWayDistanceKm(point,way){
   let best=Infinity;
@@ -1087,18 +1087,6 @@ function osrmPointConstraints(points){
   return '&radiuses='+radiuses+(bearings.replaceAll(';','')?'&bearings='+bearings:'');
 }
 async function getRoute(points){let coords=points.map(p=>p.lon+','+p.lat).join(';'),u='https://router.project-osrm.org/route/v1/driving/'+coords+'?alternatives=false&overview=full&geometries=geojson&steps=true'+osrmPointConstraints(points);let j=await(await fetch(u)).json();if(j.code!=='Ok'||!j.routes?.length)throw Error('NoRoute');let r=j.routes[0],steps=r.legs.flatMap((leg,legIndex)=>(leg.steps||[]).map(step=>({...step,_routeLegIndex:legIndex}))),motorway=steps.filter(s=>roadInfo(s).type==='高速道路'||roadInfo(s).type==='無料高速').reduce((n,s)=>n+s.distance,0),route27=steps.filter(s=>{let t=((s.name||'')+' '+(s.ref||'')).toLowerCase();return /(^|[^0-9])27([^0-9]|$)|国道27号/.test(t)}).reduce((n,s)=>n+s.distance,0);return{...r,steps,motorway,route27}}
-function showJoyoIcComparison(normalRoutes,joyoRoute,preference,joyoError='',excludedUturnRoutes=0){
-  let box=$('osrmCandidatesBox');
-  if(!box){box=document.createElement('div');box.id='osrmCandidatesBox';box.style.cssText='position:absolute;z-index:4500;left:10px;bottom:48px;max-width:460px;padding:8px 10px;background:#fff;border:2px solid #7b1fa2;border-radius:7px;box-shadow:0 2px 8px #0005;color:#222;font:12px Meiryo,sans-serif';$('mapbox').appendChild(box)}
-  const normal=normalRoutes[0];
-  box.innerHTML='<b>城陽ICルート確認（Valhalla）</b><br>'+
-    '通常（Uターン除外）：'+(normal?(normal.distance/1000).toFixed(1)+'km / '+formatDuration(normal.duration):'なし')+
-    (excludedUturnRoutes?'／Uターン経路 '+excludedUturnRoutes+'件を除外':'')+'<br>'+
-    '城陽IC経由（'+esc(preference.label)+'）：'+(joyoRoute?(joyoRoute.distance/1000).toFixed(1)+'km / '+formatDuration(joyoRoute.duration):'経路なし')+'<br>'+
-    '城陽ICの先：'+(joyoRoute?.joyoEntryConfirmed?'京奈和自動車道(E24)に進入を確認':joyoRoute?'京奈和自動車道(E24)への進入を確認できません':'未確認')+
-    (joyoRoute?.uturnCount?'／Uターン '+joyoRoute.uturnCount+'か所を検出・不採用':joyoRoute?'／Uターンなし':'')+
-    (joyoError?'<br>検索失敗：'+esc(joyoError):'');
-}
 function showNearbyIcRouteResult(entranceName,route,preference,error=''){
   let box=$('osrmCandidatesBox');
   if(!box){box=document.createElement('div');box.id='osrmCandidatesBox';box.style.cssText='position:absolute;z-index:4500;left:10px;bottom:48px;max-width:460px;padding:8px 10px;background:#fff;border:2px solid #176fa7;border-radius:7px;box-shadow:0 2px 8px #0005;color:#222;font:12px Meiryo,sans-serif';$('mapbox').appendChild(box)}
@@ -1190,21 +1178,10 @@ async function getRoutes(points){
     showNearbyIcRouteResult(nearbyIcVia.name,route,preference);
     return[route].map(r=>{let motorway=r.steps.filter(s=>['高速道路','無料高速'].includes(roadInfo(s).type)).reduce((n,s)=>n+(s.distance||0),0),route27=r.steps.filter(s=>{let t=((s.name||'')+' '+(s.ref||'')).toLowerCase();return /(^|[^0-9])27([^0-9]|$)|国道27号/.test(t)}).reduce((n,s)=>n+(s.distance||0),0);return{...r,motorway,route27}})
   }
-  let normalRoutes=[],joyoRoute=null,joyoError='';
-  const preference=valhallaRoutePreference(selectedRoute);
-  const joyoEntrance={type:'経由地.その他',name:'城陽IC入口（国道24号側・比較用）',address:'京奈和自動車道 城陽IC入口（国道24号側）',lat:34.8565414,lon:135.7622174,_joyoIcTest:true};
-  const results=await Promise.allSettled([
-    fetchOsrmRouteForPoints(points,'3'),
-    fetchValhallaRouteForPoints([points[0],joyoEntrance,...points.slice(1)],preference)
-  ]);
-  if(results[0].status==='fulfilled')normalRoutes=results[0].value;
-  else if(results[0].reason?.name==='AbortError')throw Error('OSRM検索が25秒以内に応答しませんでした');
-  else throw results[0].reason;
-  if(results[1].status==='fulfilled')joyoRoute=results[1].value;
-  else joyoError=results[1].reason?.message||'経路を取得できませんでした';
-  const requestedRouteCount=normalRoutes.length;
+  let normalRoutes;
+  try{normalRoutes=await fetchOsrmRouteForPoints(points,'3')}
+  catch(error){if(error?.name==='AbortError')throw Error('OSRM検索が25秒以内に応答しませんでした');throw error}
   normalRoutes=normalRoutes.filter(route=>!routeHasUturn(route));
-  showJoyoIcComparison(normalRoutes,joyoRoute,preference,joyoError,requestedRouteCount-normalRoutes.length);
   const routes=normalRoutes;
   if(!routes.length)throw Error('NoRoute');
   return routes.map(r=>{let motorway=r.steps.filter(s=>{let type=roadInfo(s).type;return type==='高速道路'||type==='無料高速'}).reduce((n,s)=>n+(s.distance||0),0),route27=r.steps.filter(s=>{let t=((s.name||'')+' '+(s.ref||'')).toLowerCase();return /(^|[^0-9])27([^0-9]|$)|国道27号/.test(t)}).reduce((n,s)=>n+(s.distance||0),0);return{...r,motorway,route27}})

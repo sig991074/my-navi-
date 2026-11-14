@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>走行ナビ</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Yu Gothic UI", "Meiryo", sans-serif;
+      color: #172b3a;
+      background: #eaf0f4;
+    }
+
+    * { box-sizing: border-box; }
+
+    body { margin: 0; min-width: 320px; height: 100dvh; overflow: hidden; }
+
+    button {
+      min-height: 42px;
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 14px;
+      background: #174e72;
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: .55; cursor: default; }
+
+    .nav-shell { display: grid; grid-template-rows: 58px minmax(0, 1fr); height: 100%; }
+
+    .nav-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 7px 14px;
+      background: #123b58;
+      color: #fff;
+    }
+
+    .nav-header h1 { margin: 0; font-size: 20px; }
+    .nav-header .gps-state { margin-left: auto; font-size: 14px; }
+    .nav-header button { background: #f0f5f8; color: #123b58; }
+
+    .nav-main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; min-height: 0; }
+    .map-area { position: relative; min-width: 0; min-height: 0; }
+    #map { width: 100%; height: 100%; background: #dce5eb; }
+
+    .next-card {
+      position: absolute;
+      z-index: 500;
+      top: 14px;
+      left: 14px;
+      width: min(390px, calc(100% - 28px));
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.96);
+      box-shadow: 0 2px 12px #16354a35;
+    }
+
+    .next-label { color: #516a7b; font-size: 13px; font-weight: 700; }
+    .next-instruction { margin-top: 4px; font-size: 23px; font-weight: 800; }
+    .next-distance { margin-top: 3px; color: #174e72; font-size: 16px; font-weight: 700; }
+
+    .direction-badge {
+      position: absolute;
+      z-index: 500;
+      left: 14px;
+      bottom: 18px;
+      display: grid;
+      justify-items: center;
+      gap: 2px;
+      min-width: 70px;
+      padding: 9px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.96);
+      box-shadow: 0 2px 12px #16354a35;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .direction-arrow { color: #d33b2f; font-size: 34px; line-height: 1; transform-origin: center; }
+
+    .route-panel {
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      min-width: 0;
+      min-height: 0;
+      border-left: 1px solid #c5d1d9;
+      background: #fff;
+    }
+
+    .route-summary { padding: 14px 16px 10px; border-bottom: 1px solid #dce4e9; }
+    .route-summary h2 { margin: 0 0 8px; font-size: 18px; }
+    .summary-values { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; }
+    .summary-values b { color: #174e72; }
+
+    .nav-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 12px; }
+    .nav-controls button { padding: 7px 9px; font-size: 14px; }
+    #stopGuidance { background: #697b87; }
+    #locateMe { background: #176f56; }
+
+    .steps-wrap { min-height: 0; overflow: auto; padding: 0 12px 14px; }
+    .steps-title { margin: 2px 4px 8px; color: #516a7b; font-size: 13px; font-weight: 700; }
+    #routeSteps { display: grid; gap: 7px; }
+
+    .route-step {
+      display: grid;
+      grid-template-columns: 32px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      padding: 9px;
+      border: 1px solid #dce4e9;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .route-step.is-next { border-color: #e39432; background: #fff5e6; }
+    .step-arrow { color: #174e72; font-size: 22px; font-weight: 800; text-align: center; }
+    .step-name { overflow-wrap: anywhere; font-weight: 700; }
+    .step-distance { white-space: nowrap; color: #516a7b; }
+    .empty-message { padding: 12px; border-radius: 8px; background: #f2f6f8; color: #516a7b; font-size: 14px; }
+
+    .car-marker {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border: 3px solid #fff;
+      border-radius: 50%;
+      background: #d33b2f;
+      box-shadow: 0 1px 7px #0008;
+      color: #fff;
+      font-size: 23px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .leaflet-control-zoom a { font-family: inherit; }
+
+    @media (max-width: 760px) {
+      .nav-shell { grid-template-rows: 54px minmax(0, 1fr); }
+      .nav-header { gap: 9px; padding: 6px 8px; }
+      .nav-header h1 { font-size: 17px; }
+      .nav-header .gps-state { font-size: 12px; }
+      .nav-header button { min-height: 38px; padding: 6px 9px; font-size: 13px; }
+      .nav-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(200px, 55%) minmax(0, 45%); }
+      .route-panel { grid-template-rows: auto auto minmax(0, 1fr); border-top: 1px solid #c5d1d9; border-left: 0; }
+      .route-summary { padding: 8px 12px 6px; }
+      .route-summary h2 { margin-bottom: 4px; font-size: 16px; }
+      .summary-values { gap: 5px 14px; font-size: 12px; }
+      .nav-controls { padding: 6px 9px; }
+      .nav-controls button { min-height: 38px; font-size: 12px; }
+      .steps-wrap { padding: 0 9px 9px; }
+      .route-step { padding: 6px; font-size: 12px; }
+      .next-card { top: 8px; left: 8px; padding: 10px 12px; }
+      .next-instruction { font-size: 19px; }
+      .direction-badge { left: 8px; bottom: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="nav-shell">
+    <header class="nav-header">
+      <button id="backToMenu" type="button">メニューへ戻る</button>
+      <h1>走行ナビ</h1>
+      <div id="gpsState" class="gps-state" role="status">案内開始前</div>
+    </header>
+    <main class="nav-main">
+      <section class="map-area" aria-label="走行地図">
+        <div id="map"></div>
+        <div class="next-card" aria-live="polite">
+          <div class="next-label">次の案内</div>
+          <div id="nextInstruction" class="next-instruction">ルートを確認しています</div>
+          <div id="nextDistance" class="next-distance"></div>
+        </div>
+        <div class="direction-badge" aria-label="自車の進行方向">
+          <div id="directionArrow" class="direction-arrow">↑</div>
+          <div id="directionText">方向未取得</div>
+        </div>
+      </section>
+      <aside class="route-panel" aria-label="ルート区間情報">
+        <section class="route-summary">
+          <h2 id="routeTitle">選択ルート</h2>
+          <div class="summary-values">
+            <span>距離 <b id="routeDistance">—</b></span>
+            <span>時間 <b id="routeDuration">—</b></span>
+          </div>
+        </section>
+        <div class="nav-controls">
+          <button id="startGuidance" type="button">案内を開始</button>
+          <button id="locateMe" type="button">現在地へ移動</button>
+          <button id="voiceToggle" type="button" aria-pressed="false">音声案内：停止</button>
+          <button id="stopGuidance" type="button" disabled>案内を停止</button>
+        </div>
+        <section class="steps-wrap">
+          <div class="steps-title">区間情報</div>
+          <div id="routeSteps"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    (() => {
+      const STORAGE_KEY = 'carNaviConfirmedRoute';
+      const $ = (id) => document.getElementById(id);
+      let savedRoute = null;
+      let routeStorageError = false;
+      let routeParseError = false;
+      let routeData = null;
+      let watchId = null;
+      let carMarker = null;
+      let routeLine = null;
+      let currentPosition = null;
+      let previousPosition = null;
+      let heading = null;
+      let nextStepIndex = -1;
+      let voiceEnabled = false;
+      const spokenAlerts = new Set();
+      const coordinates = [];
+      const stepPoints = [];
+
+      try {
+        savedRoute = sessionStorage.getItem(STORAGE_KEY);
+      } catch (error) {
+        routeStorageError = true;
+        console.error('保存したルートを確認できませんでした', error);
+      }
+
+      if (savedRoute) {
+        try {
+          routeData = JSON.parse(savedRoute);
+        } catch (error) {
+          routeParseError = true;
+          $('nextInstruction').textContent = '保存したルートを読み込めません';
+          $('gpsState').textContent = 'ルート情報に問題があります';
+          console.error('ルート情報を読み込めませんでした', error);
+        }
+      }
+
+      if (!routeData || !Array.isArray(routeData.geometry?.coordinates) || routeData.geometry.coordinates.length < 2) {
+        $('nextInstruction').textContent = '先にルートを決定してください';
+        $('nextDistance').textContent = 'メニューに戻ってルートを選びます';
+        $('gpsState').textContent = routeStorageError || routeParseError ? '保存したルートを読み込めません' : 'ルート未選択';
+        if (routeParseError || routeStorageError) {
+          $('nextInstruction').textContent = '保存したルートを読み込めません';
+          $('nextDistance').textContent = 'もう一度ルートを決定してください';
+        }
+        $('startGuidance').disabled = true;
+      } else {
+        $('routeTitle').textContent = 'ルート' + (routeData.routeNo || 1);
+        $('routeDistance').textContent = Number.isFinite(routeData.distance) ? (routeData.distance / 1000).toFixed(1) + ' km' : '未設定';
+        $('routeDuration').textContent = Number.isFinite(routeData.duration) ? formatDuration(routeData.duration) : '未設定';
+        coordinates.push(...routeData.geometry.coordinates);
+        routeData.steps = Array.isArray(routeData.steps) ? routeData.steps : [];
+        $('gpsState').textContent = '案内開始前';
+        renderSteps();
+        $('nextInstruction').textContent = routeData.steps.length ? '案内を開始してください' : '区間情報がありません';
+        $('nextDistance').textContent = routeData.steps.length ? '現在地を取得すると進行方向を表示します' : '';
+      }
+
+      const map = L.map('map', { zoomControl: false }).setView([34.85, 135.78], 10);
+      L.control.zoom({ position: 'topright', zoomInTitle: '拡大', zoomOutTitle: '縮小' }).addTo(map);
+      const roadMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+      const standardMap = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>'
+      });
+      L.control.layers({ '道路地図': roadMap, '地理院地図': standardMap }, {}, { position: 'topright' }).addTo(map);
+      const layerButton = map.getContainer().querySelector('.leaflet-control-layers-toggle');
+      if (layerButton) {
+        layerButton.title = '地図の種類';
+        layerButton.setAttribute('aria-label', '地図の種類');
+      }
+
+      if (coordinates.length > 1) {
+        routeLine = L.polyline(coordinates.map(([lon, lat]) => [lat, lon]), {
+          color: '#1769aa',
+          weight: 7,
+          opacity: .9
+        }).addTo(map);
+        map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+        buildStepPoints();
+      }
+
+      $('backToMenu').addEventListener('click', () => {
+        stopTracking();
+        window.location.href = './index.html?navReturn=1';
+      });
+      $('startGuidance').addEventListener('click', startTracking);
+      $('locateMe').addEventListener('click', () => {
+        if (currentPosition) map.setView(currentPosition, Math.max(map.getZoom(), 16));
+        else $('gpsState').textContent = '案内開始を押して現在地を取得してください';
+      });
+      $('stopGuidance').addEventListener('click', stopTracking);
+      $('voiceToggle').addEventListener('click', () => {
+        voiceEnabled = !voiceEnabled;
+        $('voiceToggle').textContent = '音声案内：' + (voiceEnabled ? '利用' : '停止');
+        $('voiceToggle').setAttribute('aria-pressed', String(voiceEnabled));
+        if (voiceEnabled && nextStepIndex >= 0) speak(nextInstructionText(routeData.steps[nextStepIndex]));
+      });
+      window.addEventListener('pagehide', stopTracking);
+
+      function formatDuration(seconds) {
+        const totalMinutes = Math.round(seconds / 60);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        return hours ? hours + '時間' + minutes + '分' : minutes + '分';
+      }
+
+      function distanceBetween(a, b) {
+        const rad = Math.PI / 180;
+        const dLat = (b.lat - a.lat) * rad;
+        const dLon = (b.lon - a.lon) * rad;
+        const lat1 = a.lat * rad;
+        const lat2 = b.lat * rad;
+        const value = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+        return 6371000 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+      }
+
+      function buildStepPoints() {
+        stepPoints.length = 0;
+        routeData.steps.forEach((step, index) => {
+          const maneuver = step.maneuver || inferManeuver(index);
+          const point = maneuver.location || step.geometry?.coordinates?.[0];
+          if (!Array.isArray(point) || point.length < 2) return;
+          let closestIndex = 0;
+          let closestDistance = Infinity;
+          coordinates.forEach((coordinate, coordinateIndex) => {
+            const distance = Math.hypot(coordinate[0] - point[0], coordinate[1] - point[1]);
+            if (distance < closestDistance) {
+              closestDistance = distance;
+              closestIndex = coordinateIndex;
+            }
+          });
+          stepPoints.push({ index, coordinateIndex: closestIndex, location: { lon: point[0], lat: point[1] } });
+        });
+      }
+
+      function inferManeuver(index) {
+        const step = routeData.steps[index];
+        const coordinates = step?.geometry?.coordinates;
+        const firstPoint = coordinates?.[0];
+        if (!Array.isArray(firstPoint) || firstPoint.length < 2) return { type: 'continue', modifier: 'straight' };
+        if (index === 0) return { type: 'depart', modifier: 'straight', location: firstPoint };
+
+        const previousCoordinates = routeData.steps[index - 1]?.geometry?.coordinates;
+        if (!Array.isArray(previousCoordinates) || previousCoordinates.length < 2 || coordinates.length < 2) {
+          return { type: 'continue', modifier: 'straight', location: firstPoint };
+        }
+
+        const incoming = bearingBetween(
+          { lon: previousCoordinates[previousCoordinates.length - 2][0], lat: previousCoordinates[previousCoordinates.length - 2][1] },
+          { lon: previousCoordinates[previousCoordinates.length - 1][0], lat: previousCoordinates[previousCoordinates.length - 1][1] }
+        );
+        const outgoing = bearingBetween(
+          { lon: coordinates[0][0], lat: coordinates[0][1] },
+          { lon: coordinates[1][0], lat: coordinates[1][1] }
+        );
+        const change = (outgoing - incoming + 540) % 360 - 180;
+        if (Math.abs(change) < 45) return { type: 'continue', modifier: 'straight', location: firstPoint };
+        if (Math.abs(change) >= 150) return { type: 'turn', modifier: 'uturn', location: firstPoint };
+        return { type: 'turn', modifier: change > 0 ? 'right' : 'left', location: firstPoint };
+      }
+
+      function formatManeuver(step, index) {
+        const maneuver = step?.maneuver || inferManeuver(index ?? routeData.steps.indexOf(step));
+        const modifier = maneuver.modifier || '';
+        if (maneuver.type === 'arrive') return '目的地に到着';
+        if (maneuver.type === 'depart') return '出発';
+        if (modifier.includes('uturn')) return 'Uターン';
+        if (modifier.includes('left')) return modifier.includes('slight') ? '左方向へ進む' : '左折';
+        if (modifier.includes('right')) return modifier.includes('slight') ? '右方向へ進む' : '右折';
+        if (modifier === 'straight' || maneuver.type === 'continue') return '直進';
+        if (maneuver.type === 'roundabout' || maneuver.type === 'rotary') return '円形交差点を進む';
+        return '道なりに進む';
+      }
+
+      function nextInstructionText(step, index) {
+        if (!step) return 'ルートを進んでください';
+        return formatManeuver(step, index);
+      }
+
+      function renderSteps() {
+        const container = $('routeSteps');
+        container.replaceChildren();
+        if (!routeData?.steps?.length) {
+          const message = document.createElement('div');
+          message.className = 'empty-message';
+          message.textContent = 'このルートの区間情報はありません。地図のルート線を確認してください。';
+          container.appendChild(message);
+          return;
+        }
+        routeData.steps.forEach((step, index) => {
+          const row = document.createElement('div');
+          row.className = 'route-step';
+          row.dataset.stepIndex = String(index);
+          const arrow = document.createElement('div');
+          arrow.className = 'step-arrow';
+          arrow.textContent = stepArrow(step, index);
+          const name = document.createElement('div');
+          name.className = 'step-name';
+          const roadName = (step.name || step.ref || '').replace(/;/g, '・');
+          name.textContent = roadName + (roadName ? '・' : '') + formatManeuver(step, index);
+          const distance = document.createElement('div');
+          distance.className = 'step-distance';
+          distance.textContent = Number.isFinite(step.distance) ? formatMeters(step.distance) : '';
+          row.append(arrow, name, distance);
+          container.appendChild(row);
+        });
+      }
+
+      function stepArrow(step, index) {
+        const instruction = formatManeuver(step, index);
+        if (instruction.includes('左')) return '←';
+        if (instruction.includes('右')) return '→';
+        if (instruction.includes('Uターン')) return '↶';
+        if (instruction.includes('到着')) return '◎';
+        return '↑';
+      }
+
+      function formatMeters(meters) {
+        return meters >= 1000 ? (meters / 1000).toFixed(1) + ' km' : Math.round(meters) + ' m';
+      }
+
+      function bearingBetween(a, b) {
+        const rad = Math.PI / 180;
+        const y = Math.sin((b.lon - a.lon) * rad) * Math.cos(b.lat * rad);
+        const x = Math.cos(a.lat * rad) * Math.sin(b.lat * rad) -
+          Math.sin(a.lat * rad) * Math.cos(b.lat * rad) * Math.cos((b.lon - a.lon) * rad);
+        return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+      }
+
+      function directionName(degrees) {
+        if (!Number.isFinite(degrees)) return '方向未取得';
+        return ['北','北東','東','南東','南','南西','西','北西'][Math.round(degrees / 45) % 8];
+      }
+
+      function routeDistanceTo(targetIndex, position) {
+        let distance = 0;
+        let nearestIndex = 0;
+        let nearestDistance = Infinity;
+        coordinates.forEach((coordinate, index) => {
+          const currentDistance = distanceBetween(position, { lon: coordinate[0], lat: coordinate[1] });
+          if (currentDistance < nearestDistance) {
+            nearestDistance = currentDistance;
+            nearestIndex = index;
+          }
+        });
+        for (let index = nearestIndex; index < targetIndex; index++) {
+          distance += distanceBetween(
+            { lon: coordinates[index][0], lat: coordinates[index][1] },
+            { lon: coordinates[index + 1][0], lat: coordinates[index + 1][1] }
+          );
+        }
+        return { distance: Math.max(0, distance), nearestIndex };
+      }
+
+      function updateGuidance(position) {
+        if (!coordinates.length || !stepPoints.length) return;
+        const current = { lon: position.lng, lat: position.lat };
+        const nearest = routeDistanceTo(0, current).nearestIndex;
+        const next = stepPoints.find(point => point.coordinateIndex > nearest);
+        if (!next) {
+          $('nextInstruction').textContent = '目的地に到着しました';
+          $('nextDistance').textContent = '';
+          nextStepIndex = -1;
+          document.querySelectorAll('.route-step').forEach(row => row.classList.remove('is-next'));
+          return;
+        }
+        const routeDistance = routeDistanceTo(next.coordinateIndex, current).distance;
+        $('nextInstruction').textContent = nextInstructionText(routeData.steps[next.index], next.index);
+        $('nextDistance').textContent = '約 ' + formatMeters(routeDistance) + ' 先';
+        if (nextStepIndex !== next.index) {
+          nextStepIndex = next.index;
+          document.querySelectorAll('.route-step').forEach(row => {
+            row.classList.toggle('is-next', Number(row.dataset.stepIndex) === nextStepIndex);
+          });
+        }
+        if (voiceEnabled) {
+          const phrase = nextInstructionText(routeData.steps[next.index], next.index);
+          const threshold = routeDistance <= 100 ? 100 : 500;
+          const alertKey = next.index + ':' + threshold;
+          if (routeDistance <= threshold && !spokenAlerts.has(alertKey)) {
+            spokenAlerts.add(alertKey);
+            speak(threshold === 100 ? 'まもなく' + phrase + 'です' : 'この先、' + Math.round(routeDistance / 100) * 100 + 'メートルで' + phrase + 'です');
+          }
+        }
+      }
+
+      function updatePosition(position) {
+        const coords = position.coords;
+        const current = { lat: coords.latitude, lon: coords.longitude };
+        const firstFix = currentPosition === null;
+        currentPosition = L.latLng(current.lat, current.lon);
+        if (Number.isFinite(coords.heading)) heading = coords.heading;
+        else if (previousPosition && distanceBetween(previousPosition, current) > 4) heading = bearingBetween(previousPosition, current);
+        previousPosition = current;
+
+        if (!carMarker) {
+          carMarker = L.marker(currentPosition, {
+            icon: L.divIcon({
+              className: '',
+              html: '<div class="car-marker" aria-label="自車位置">▲</div>',
+              iconSize: [38, 38],
+              iconAnchor: [19, 19]
+            }),
+            zIndexOffset: 1000
+          }).addTo(map);
+        } else {
+          carMarker.setLatLng(currentPosition);
+        }
+        if (Number.isFinite(heading)) {
+          const arrow = $('directionArrow');
+          arrow.style.transform = 'rotate(' + heading + 'deg)';
+          $('directionText').textContent = directionName(heading);
+        }
+        $('gpsState').textContent = '現在地を案内中';
+        if (firstFix) map.setView(currentPosition, Math.max(map.getZoom(), 16), { animate: true });
+        else map.panTo(currentPosition, { animate: true, duration: .4 });
+        updateGuidance(currentPosition);
+      }
+
+      function startTracking() {
+        if (!navigator.geolocation) {
+          $('gpsState').textContent = 'この端末では位置情報を利用できません';
+          return;
+        }
+        if (watchId !== null) return;
+        voiceEnabled = true;
+        $('voiceToggle').textContent = '音声案内：利用';
+        $('voiceToggle').setAttribute('aria-pressed', 'true');
+        $('gpsState').textContent = '現在地を取得しています';
+        $('startGuidance').disabled = true;
+        $('stopGuidance').disabled = false;
+        watchId = navigator.geolocation.watchPosition(updatePosition, (error) => {
+          if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+          $('startGuidance').disabled = false;
+          $('stopGuidance').disabled = true;
+          if (error.code === error.PERMISSION_DENIED) $('gpsState').textContent = '位置情報が許可されていません';
+          else if (error.code === error.POSITION_UNAVAILABLE) $('gpsState').textContent = '現在地を取得できません';
+          else if (error.code === error.TIMEOUT) $('gpsState').textContent = '現在地の取得が時間切れになりました';
+          else $('gpsState').textContent = '位置情報の取得に失敗しました';
+        }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 });
+      }
+
+      function stopTracking() {
+        if (watchId !== null && navigator.geolocation) navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        $('startGuidance').disabled = !routeData;
+        $('stopGuidance').disabled = true;
+        if (routeData) $('gpsState').textContent = '案内停止中';
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      }
+
+      function speak(text) {
+        if (!('speechSynthesis' in window)) {
+          $('gpsState').textContent = 'この端末では音声案内を利用できません';
+          voiceEnabled = false;
+          $('voiceToggle').textContent = '音声案内：停止';
+          $('voiceToggle').setAttribute('aria-pressed', 'false');
+          return;
+        }
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ja-JP';
+        utterance.rate = 1;
+        window.speechSynthesis.speak(utterance);
+      }
+    })();
+  </script>
+</body>
+</html>

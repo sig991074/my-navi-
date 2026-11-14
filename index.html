@@ -2733,4 +2733,126 @@ addEventListener('DOMContentLoaded',()=>{$('nearIcClose').onclick=()=>{$('nearIc
 function confirmMlitSkip(){return new Promise(resolve=>{const box=document.getElementById('mlitSkipDialog'),yes=document.getElementById('mlitSkipYes'),no=document.getElementById('mlitSkipNo');if(!box){resolve(window.confirm('国交省データがありません。スルーしますか？'));return}const done=value=>{box.classList.remove('show');yes.onclick=null;no.onclick=null;resolve(value)};yes.onclick=()=>done(true);no.onclick=()=>done(false);box.classList.add('show')})}
 </script>
 
+<script>
+(() => {
+  const navigationStorageKey = 'carNaviConfirmedRoute';
+
+  function startNavigation() {
+    const routeNo = selectedRoute;
+    const candidate = routeLayers.find((entry) =>
+      entry.routeNo === routeNo &&
+      entry.route &&
+      (entry.route._displayOption ?? 0) === 0
+    ) || routeLayers.find((entry) => entry.routeNo === routeNo && entry.route);
+    const route = candidate?.route;
+
+    if (!route || !Array.isArray(route.geometry?.coordinates) || route.geometry.coordinates.length < 2) {
+      alert('選択したルート情報を読み込めません。ルートを再計算してください。');
+      return;
+    }
+
+    const navigationData = {
+      routeNo,
+      geometry: route.geometry,
+      distance: Number.isFinite(route.distance) ? route.distance : candidate.distance,
+      duration: Number.isFinite(route.duration) ? route.duration : candidate.duration,
+      steps: Array.isArray(route.steps) ? route.steps.map((step) => ({
+        distance: step.distance,
+        duration: step.duration,
+        name: step.name,
+        ref: step.ref,
+        maneuver: step.maneuver,
+        geometry: step.geometry
+      })) : []
+    };
+
+    try {
+      sessionStorage.setItem(navigationStorageKey, JSON.stringify(navigationData));
+    } catch (error) {
+      console.error('ナビ用のルート情報を保存できませんでした', error);
+      alert('ナビ用のルート情報を保存できません。ブラウザーの保存設定を確認してください。');
+      return;
+    }
+
+    window.location.href = './navigation.html';
+  }
+
+  document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target.closest('#routeProcessDecide') : null;
+    if (!target) return;
+    setTimeout(startNavigation, 0);
+  });
+
+  document.addEventListener('click', (event) => {
+    const button = event.target instanceof Element
+      ? event.target.closest('[data-go="wip"][data-title="走行ナビ"]')
+      : null;
+    if (!button) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    let savedRoute;
+    try {
+      savedRoute = sessionStorage.getItem(navigationStorageKey);
+    } catch (error) {
+      console.error('保存したルートを確認できませんでした', error);
+      alert('保存したルートを確認できません。ブラウザーの保存設定を確認してください。');
+      return;
+    }
+
+    if (!savedRoute) {
+      alert('先にルート1またはルート2の「ルート決定」を押してください。');
+      return;
+    }
+
+    window.location.href = './navigation.html';
+  }, true);
+
+  function localizeMapControls() {
+    const zoomIn = document.querySelector('.leaflet-control-zoom-in');
+    const zoomOut = document.querySelector('.leaflet-control-zoom-out');
+    const layerControl = document.querySelector('.leaflet-control-layers-toggle');
+    if (!zoomIn || !zoomOut || !layerControl) return false;
+
+    if (zoomIn) {
+      zoomIn.title = '拡大';
+      zoomIn.setAttribute('aria-label', '拡大');
+    }
+    if (zoomOut) {
+      zoomOut.title = '縮小';
+      zoomOut.setAttribute('aria-label', '縮小');
+    }
+
+    layerControl.title = '地図の種類';
+    layerControl.setAttribute('aria-label', '地図の種類');
+
+    document.querySelectorAll('.leaflet-control-layers-base label span').forEach((label) => {
+      const name = label.textContent.trim();
+      if (name === 'GSI Standard Map') label.textContent = '地理院標準地図';
+      if (name === 'OpenStreetMap') label.textContent = '道路地図';
+    });
+    return true;
+  }
+
+  if (!localizeMapControls()) {
+    const controlObserver = new MutationObserver(() => {
+      if (localizeMapControls()) controlObserver.disconnect();
+    });
+    controlObserver.observe(document.body, { childList: true, subtree: true });
+  }
+
+  if (new URLSearchParams(window.location.search).get('navReturn') === '1') {
+    const returnToMenu = () => {
+      const backMenu = document.getElementById('backMenu');
+      if (backMenu?.classList.contains('show')) backMenu.click();
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', returnToMenu, { once: true });
+    } else {
+      returnToMenu();
+    }
+  }
+})();
+</script>
 </body></html>

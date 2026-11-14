@@ -1185,10 +1185,16 @@ function showNearbyIcRouteResult(entranceName,route,preference,error=''){
     (route?.uturnCount?'／Uターン '+route.uturnCount+'か所':route?'／Uターンなし':'')+
     (error?'<br>検索失敗：'+esc(error):'')
 }
+function isUserSpecifiedRouteVia(point){
+  return!!point&&!point._nearbyMotorwayEntrance&&!point._nearbyIcRampVia&&!point._nearbyIcApproach
+}
 function routeHasUturn(route){
   return(route.steps||[]).some(step=>{
     const maneuver=step.maneuver||{},type=String(maneuver.type||'').toLowerCase(),modifier=String(maneuver.modifier||'').toLowerCase(),instruction=String(maneuver.instruction||'');
-    return type==='uturn'||type==='12'||modifier.includes('uturn')||/u[\s-]?turn|turn\s+around|uターン|転回/i.test(instruction)
+    const isUturn=type==='uturn'||type==='12'||modifier.includes('uturn')||/u[\s-]?turn|turn\s+around|uターン|転回/i.test(instruction);
+    if(!isUturn)return false;
+    const location=maneuver.location,viaLocations=route._uturnViaLocations||[];
+    return!Array.isArray(location)||!viaLocations.some(via=>dist({lon:location[0],lat:location[1]},via)<=0.01)
   })
 }
 async function fetchOsrmRouteForPoints(points,alternatives='false'){
@@ -1196,7 +1202,8 @@ async function fetchOsrmRouteForPoints(points,alternatives='false'){
   const u='https://router.project-osrm.org/route/v1/driving/'+coords+'?alternatives='+alternatives+'&overview=full&geometries=geojson&steps=true';
   const j=await fetchJsonTimeout(u,25000);
   if(j.code!=='Ok'||!j.routes?.length)return[];
-  return j.routes.map(r=>{let steps=r.legs.flatMap((leg,legIndex)=>(leg.steps||[]).map(step=>({...step,_routeLegIndex:legIndex})));return{...r,steps}})
+  const uturnViaLocations=points.map((point,index)=>({point,index,location:j.waypoints?.[index]?.location})).filter(item=>item.index>0&&item.index<points.length-1&&isUserSpecifiedRouteVia(item.point)).map(item=>Array.isArray(item.location)?{lon:item.location[0],lat:item.location[1]}:{lon:item.point.lon,lat:item.point.lat});
+  return j.routes.map(r=>{let steps=r.legs.flatMap((leg,legIndex)=>(leg.steps||[]).map(step=>({...step,_routeLegIndex:legIndex})));return{...r,steps,_uturnViaLocations:uturnViaLocations}})
 }
 function valhallaRoutePreference(routeNo=selectedRoute){
   const order=priorities[routeNo]||[];
@@ -1236,6 +1243,7 @@ async function fetchValhallaRouteForPoints(points,preference){
     throw error
   }finally{clearTimeout(timer)}
   if(!response.trip?.legs?.length)throw Error(response.error||'経路が見つかりませんでした');
+  const uturnViaLocations=routedPoints.map((point,index)=>({point,index,planPoint:points[point._planPointIndex],location:response.trip.locations?.[index]})).filter(item=>item.point._planPointIndex>0&&item.point._planPointIndex<points.length-1&&isUserSpecifiedRouteVia(item.planPoint)).map(item=>Number.isFinite(item.location?.lat)&&Number.isFinite(item.location?.lon)?{lat:item.location.lat,lon:item.location.lon}:{lat:item.point.lat,lon:item.point.lon});
   const steps=[],coordinates=[];
   for(const[legIndex,leg]of response.trip.legs.entries()){
     const shape=decodePolyline6(leg.shape||'');
@@ -1247,11 +1255,11 @@ async function fetchValhallaRouteForPoints(points,preference){
     coordinates.push(...(coordinates.length?shape.slice(1):shape));
   }
   if(coordinates.length<2)throw Error('経路の形状を取得できませんでした');
-  const uturnCount=steps.filter(step=>routeHasUturn({steps:[step]})).length;
+  const uturnCount=steps.filter(step=>routeHasUturn({steps:[step],_uturnViaLocations})).length;
   const e24Steps=steps.filter(step=>step._routeLegIndex===1&&(/\bE24\b/i.test(step.ref||'')||/京奈和自動車道|京奈道路/.test(step.name||'')));
   const route=response.trip.legs.reduce((sum,leg)=>sum+(leg.summary?.length||0)*1000,0);
   const duration=response.trip.legs.reduce((sum,leg)=>sum+(leg.summary?.time||0),0);
-  return{distance:route,duration,geometry:{type:'LineString',coordinates},legs:response.trip.legs,steps,joyoEntryConfirmed:e24Steps.some(step=>step.distance>0),uturnCount,routeProvider:'Valhalla'};
+  return{distance:route,duration,geometry:{type:'LineString',coordinates},legs:response.trip.legs,steps,joyoEntryConfirmed:e24Steps.some(step=>step.distance>0),uturnCount,routeProvider:'Valhalla',_uturnViaLocations};
 }
 async function getRoutes(points,routeNo=selectedRoute){
   const nearbyIcVia=points.find(point=>point?._nearbyIcRampVia||point?._nearbyIcApproach);

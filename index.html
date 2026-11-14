@@ -2368,8 +2368,8 @@ function drawRouteNarrow(r,routeNo=1,showCallout=true){let group=L.featureGroup(
 const icNames=new Map(),icPend=new Set(),HWY_TYPES=['高速道路','無料高速'],pkey=p=>p[0].toFixed(3)+','+p[1].toFixed(3),
   COND_OF={'高速道路':'A','無料高速':'B','バイパス':'C','国道':'D','その他':'E','狭路注意':'F'},COND_NAME={A:'高速道路優先',B:'無料高速',C:'バイパス優先',D:'一般国道優先',E:'一般2車線優先',F:'狭隘道路'},
   IC_MIRRORS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter','https://lz4.overpass-api.de/api/interpreter'];
-function legRuns(items){let runs=[],identity=x=>({name:(x.nm||'').split(';')[0].trim(),ref:(x.label||'').trim()}),compatible=(a,b)=>{if(a.roadName&&b.roadName)return a.roadName===b.roadName;if(a.roadRef&&b.roadRef)return a.roadRef===b.roadRef;return true},add=(x,r)=>{r.distance+=x.distance;r.duration+=x.duration;r.p1=x.p1||r.p1;r.geo=(r.geo||[]).concat(x.geo||[]);r.roadName=r.roadName||x.roadName||'';r.roadRef=r.roadRef||x.roadRef||'';(x.names||[x.label,(x.nm||'').split(';')[0]]).forEach(l=>{if(l&&l!=='道路名なし')r.names.add(l)})};
-  items.forEach(x=>{let l=runs.at(-1),lg=x.leg||0,id=identity(x),section={...x,roadName:id.name,roadRef:id.ref};if(l&&l.type===x.type&&l.color===x.color&&l.leg===lg&&compatible(l,section))add(section,l);else{let r={type:x.type,color:x.color,leg:lg,distance:0,duration:0,p0:x.p0,p1:x.p1,geo:[],names:new Set()};add(section,r);runs.push(r)}});
+function legRuns(items){let runs=[],identity=x=>({name:(x.nm||'').split(';')[0].trim(),ref:(x.label||'').trim()}),add=(x,r)=>{r.distance+=x.distance;r.duration+=x.duration;r.p1=x.p1||r.p1;r.geo=(r.geo||[]).concat(x.geo||[]);r.roadName=r.roadName||x.roadName||'';r.roadRef=r.roadRef||x.roadRef||'';[(x.nm||'').split(';')[0],x.label].forEach(l=>{if(l&&l!=='道路名なし')r.names.add(l)})};
+  items.forEach(x=>{let l=runs.at(-1),lg=x.leg||0,id=identity(x),section={...x,roadName:id.name,roadRef:id.ref};if(l&&l.type===x.type&&l.color===x.color&&l.leg===lg)add(section,l);else{let r={type:x.type,color:x.color,leg:lg,distance:0,duration:0,p0:x.p0,p1:x.p1,geo:[],names:new Set()};add(section,r);runs.push(r)}});
   return runs}
 async function loadIcNames(points){let need=[...new Map(points.filter(p=>p&&!icNames.has(pkey(p))&&!icPend.has(pkey(p))).map(p=>[pkey(p),p])).values()];if(!need.length)return;need.forEach(p=>icPend.add(pkey(p)));
   let q='[out:json][timeout:20];('+need.map(p=>'node(around:8000,'+p[0]+','+p[1]+')["highway"="motorway_junction"];').join('')+');out body;',done=false;
@@ -2399,7 +2399,7 @@ function legListHtml(items,plan,no){let runs=legRuns(items),pts=[],vias=plan.via
       from=i===0?(japaneseSectionName(plan.start?.name)||'出発地'):viaFrom?viaName(r.leg):pointName(r.p0,runs[i-1],r),
       to=last?(japaneseSectionName(plan.destination?.name)||'目的地'):viaTo?viaName(runs[i+1].leg):pointName(runs[i+1].p0,r,runs[i+1]),
       key=no+'-'+i,off=legOff.has(key),priorityOrder=pri.filter(Boolean).concat('その他').join(' ≧ '),
-      names=[...new Set([...r.names].map(japaneseSectionName).filter(Boolean))],nm=names.slice(0,2).join('・')+(names.length>2?'他':''),
+      names=[...new Set([...r.names].map(japaneseSectionName).filter(Boolean))],namedRoads=names.filter(name=>/[ぁ-ゖァ-ヺ一-鿿]/.test(name)),nm=(namedRoads.length?namedRoads:names).join('・'),
       mark='<span class="legMark" data-key="'+key+'" title="この区間の道路を使わない(○→●)">'+(off?'●':'○')+'</span>';
     return'<div class="legRow'+(off?' legOff':'')+'" data-leg-key="'+key+'">'+mark+'<div class="legBody"><div class="legName">'+esc(from)+(from===to?'':'→'+esc(to))+(nm?'('+esc(nm)+')':'')+'</div><div class="legInfo"><i class="roadDot" style="background:'+r.color+'"></i>'+esc(r.type)+' '+(r.distance<50?Math.round(r.distance)+'m':(r.distance/1000).toFixed(1)+'km')+' '+formatDuration(r.duration)+'<br>走行条件 '+esc(priorityOrder)+'</div></div></div>'}).join('')
     +([...legOff].some(k=>k.startsWith(no+'-'))?'<div class="legDel" data-no="'+no+'">●の区間の道路を使わずに、計算し直す</div>':'')}

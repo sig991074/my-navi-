@@ -697,7 +697,11 @@ body.hide-narrow #source+.icInfo,body.hide-narrow #source .condition-card[data-c
 <style id="nearIcStyle">#nearIcModal{position:fixed;right:12px;bottom:40px;z-index:6000;background:transparent;display:none;padding:0;pointer-events:none}#nearIcModal.show{display:block}#nearIcBox{width:min(340px,calc(100vw - 24px));max-height:46vh;overflow:hidden;background:#fff;border:2px solid #176fa7;border-radius:8px;padding:8px;font:12px/1.35 Meiryo,sans-serif;box-shadow:0 3px 12px #0005;pointer-events:auto;display:flex;flex-direction:column}#nearIcBox h3{margin:0 0 4px;font-size:15px;cursor:move;user-select:none}#nearIcBox.compact #nearIcList{overflow:visible}#nearIcBox.compact{height:auto;max-height:none}#nearIcList{overflow-y:auto;min-height:0;flex:1}.nearIcRow{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;border-top:1px solid #ccd7df;padding:6px 0;font-size:12px}.nearIcRow b{font-size:12px}.nearIcRow button,.nearIcClose{border:0;border-radius:5px;background:#176fa7;color:#fff;padding:6px 8px;font-size:11px}.nearIcNone{background:#777!important;width:100%;margin-top:6px;flex:0 0 auto}.nearIcMeta{font-size:10px;color:#405563}.nearIcNo{display:inline-flex;width:24px;height:24px;border-radius:50%;background:#176fa7;color:#fff;border:2px solid #fff;box-shadow:0 1px 4px #0006;align-items:center;justify-content:center;font:bold 12px Meiryo,sans-serif;vertical-align:middle;margin-right:5px}</style>
 </head><body><div id="app"><section id="mapbox"><div id="map"></div><div id="routeInfoMini"></div><div id="top"><div id="title">CARナビ　ルートプランナー</div><input id="q" list="searchHistory" autocomplete="off" placeholder="地名・住所・施設名を入力"><datalist id="searchHistory"></datalist><button id="search">検索</button><button id="historyBtn">履歴</button><button id="mapPick">地図上から</button><button id="gps">◎</button></div><div id="candidates" class="candidates"></div><div id="menus"><div class="menu"><div class="head">車両<small id="vs">EV車</small></div><div class="pop"><button data-v="EV車">EV車</button><button data-v="一般車">一般車</button></div></div><div class="menu"><div class="head">目的地、寄り道<small id="ks">出発地</small></div><div class="pop"><button data-k="出発地">出発地</button><button data-k="目的地">目的地</button><button data-k="経由地.休憩">経由地.休憩</button><button data-k="経由地.観光">経由地.観光</button><button data-k="経由地.充電">経由地.充電</button><button data-k="経由地.宿泊">経由地.宿泊</button><button data-k="経由地.仕事">経由地.仕事</button><button data-k="経由地.その他">経由地.その他</button></div></div><div class="menu"><div class="head">走行条件<small id="cs">ルート1 B ≧ A ≧ C ≧ F ≧ D ≧ E</small></div><div class="pop condition-pop"><div class="condition-grid"><div class="condition-source"><h4>走行条件一覧</h4><div id="source"><div class="condition-card" draggable="true" data-code="A">A:高速道路優先</div><div class="condition-card" draggable="true" data-code="B">B:無料高速</div><div class="condition-card" draggable="true" data-code="C">C:バイパス優先</div><div class="condition-card" draggable="true" data-code="D">D:一般国道優先</div><div class="condition-card" draggable="true" data-code="E">E:一般2車線優先</div><div class="condition-card" draggable="true" data-code="F">F:狭隘道路チェック<input id="narrowWidth" type="hidden" value="4.1"></div></div><div class="drag-note">↓　ドラッグする。</div></div><div><div class="route-box"><h4>ルート1（共通初期条件）</h4><div class="priority-row" id="route1"></div><div class="route-summary" id="summary1"></div><button class="tiny" data-clear="1">初期化</button></div><div class="route-box"><h4>ルート2（共通初期条件）</h4><div class="priority-row" id="route2"></div><div class="route-summary" id="summary2"></div><button class="tiny" data-clear="2">初期化</button></div></div></div></div></div><div class="menu"><div class="head">ルート<small id="rs">ルート1</small></div><div class="pop"><button data-r="1">ルート1</button><button data-r="2">ルート2</button></div></div><button id="routeCalc">ルート選定</button><div class="route-legend"><span><i style="background:#d32f2f"></i>高速</span><span><i style="background:#1976d2"></i>無料高速</span><span><i style="background:#2e9d50"></i>バイパス</span><span><i style="background:#f28c28"></i>国道</span><span><i style="background:#6f7780"></i>その他</span><span><i style="background:#ffd400"></i>狭路注意・幅員表示</span></div><div id="status">出発地と目的地を設定してください</div></section><aside id="right"><div id="rh"><span>ルート/区間情報</span><button id="viaDeleteGuideBtn" type="button">中継地削除</button><div id="viaDeleteHelp">中継地削除は、区間左の○をクリック</div></div><div id="sum"><div class="s">距離<b id="sumDistance">未計算</b></div><div class="s">時間<b id="sumTime">未計算</b></div><div class="s">料金<b>未設定</b></div><div class="s">電費<b>未計算</b></div><div class="s">残量<b>未計算</b></div></div><div id="list">登録地点はありません</div></aside></div>
 <div id="routeActionOverlay"><div id="routeActionText"></div></div><button id="backMenu" type="button">≡ メニューへ戻る</button>
-<style id="planMobileStyle">@media(max-width:560px){.scrTight .topRow{grid-template-columns:1fr}.scrTight input{font-size:16px}.planPick button{min-height:44px}.planPanel div:not(.none){box-sizing:border-box;min-height:44px;display:flex;flex-direction:column;justify-content:center}}</style>
+<style id="planPanelStyle">
+#planPanel .savedPlan{position:relative;padding-right:68px}
+#planPanel .planDelete{position:absolute;right:8px;top:50%;transform:translateY(-50%);min-width:52px;min-height:36px;padding:4px 8px;border:1px solid #b76;border-radius:5px;background:#fff0ee;color:#8a2720;font-size:12px;font-weight:bold}
+@media(max-width:560px){.scrTight .topRow{grid-template-columns:1fr}.scrTight input{font-size:16px}.planPick button{min-height:44px}.planPanel div:not(.none){box-sizing:border-box;min-height:44px;display:flex;flex-direction:column;justify-content:center}#planPanel .planDelete{min-height:44px}}
+</style>
 <div id="scrMenu" class="scr"><div class="scrBox scrSetupBox"><h1>基礎データ入力</h1><p class="sub">プラン名と出発日時を入力します。「プラン名をEnter」他で入力内容は自動保存されます。</p>
 <div class="scrCard scrTight"><div class="topRow"><div style="position:relative"><label for="planName">プラン名</label><div class="planPick"><input id="planName" type="text" placeholder="例：和歌山・熊野温泉めぐり車中泊の旅"><button id="planList" type="button" title="保存済みプランの一覧">▽</button></div><div id="planPanel" class="planPanel"></div></div><div><label for="saveUrl">Web検索URL</label><input id="saveUrl" type="url" placeholder="https://"></div></div>
 <div class="depRow"><div><label for="dpv1">1日目 出発日時</label><div class="dpick"><input id="dpv1" type="text" readonly placeholder="押して選ぶ"><input id="dep1" type="datetime-local" tabindex="-1"></div></div><div><label for="dpv2">2日目 出発日時</label><div class="dpick"><input id="dpv2" type="text" readonly placeholder="押して選ぶ"><input id="dep2" type="datetime-local" tabindex="-1"></div></div><div><label for="dpv3">3日目 出発日時</label><div class="dpick"><input id="dpv3" type="text" readonly placeholder="押して選ぶ"><input id="dep3" type="datetime-local" tabindex="-1"></div></div></div><div id="saveMark"></div></div></div>
@@ -717,13 +721,13 @@ let dirty=false,driveList=null;
 function save(){let d={};F.forEach(id=>d[id]=$(id).value);try{localStorage.setItem(KEY,JSON.stringify(d));dirty=true;$('saveMark').textContent=''}catch(e){$('saveMark').textContent='保存できませんでした'}}
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyS_P1fAlJ3CZK_hni6PXUTxQE31nUjesYZWj7okjmgw2B0C-dBy09FgSRP1GKoe3Y6/exec";
 function postDrive(list,keep){return fetch(GAS_API_URL,{method:'POST',keepalive:!!keep,body:JSON.stringify({action:'save',content:JSON.stringify({plans:list})})})}
-async function syncDrive(){const name=$('planName').value.trim();if(!name)return;
+async function syncDrive(){const name=$('planName').value.trim();if(!name)return false;
   try{msg('Googleドライブへ更新中…');const res=await fetch(GAS_API_URL+'?action=get');if(!res.ok)throw new Error(res.status);const list=planEntries(await res.json()).filter(p=>p.planName!==name);
     list.push(collect());driveList=list;
-    const r=await(await postDrive(list)).json();
-    if(r.success)dirty=false;
-    msg(r.success?'更新完了(Googleドライブ)':'Googleドライブへの保存に失敗しました')}
-  catch(e){msg('Googleドライブへ接続できませんでした')}}
+    const saved=await postDrive(list);if(!saved.ok)throw new Error(saved.status);const result=await saved.json();
+    if(!result.success){msg('Googleドライブへの保存に失敗しました');return false}
+    dirty=false;msg('更新完了(Googleドライブ)');return true}
+  catch(error){console.error('Googleドライブへの保存に失敗しました',error);msg('Googleドライブへ接続できませんでした');return false}}
 function closeSync(){const name=$('planName').value.trim();if(!dirty||!name||!driveList)return;
   const list=driveList.filter(p=>p.planName!==name);list.push(collect());driveList=list;dirty=false;try{postDrive(list,true)}catch(e){}}
 window.addEventListener('DOMContentLoaded',()=>{fetch(GAS_API_URL+'?action=get').then(r=>r.json()).then(d=>{driveList=planEntries(d)}).catch(()=>{})});
@@ -748,6 +752,27 @@ function createBlankPlan(){
   try{localStorage.setItem('ev_route_workspace',JSON.stringify(workspace));localStorage.removeItem(KEY);location.reload()}
   catch(error){console.error('白票を作成できませんでした',error);msg('白票を作成できませんでした')}
 }
+async function deleteSavedPlan(plan,row,button){
+  const name=String(plan.planName||'');
+  const isCurrent=$('planName').value.trim()===name;
+  if(!confirm('「'+name+'」を保存一覧から削除します。'+(isCurrent?'\n入力中の内容も白票に戻ります。':'')+'\n削除したプランは元に戻せません。よろしいですか？'))return;
+  button.disabled=true;
+  if(isCurrent&&dirty&&!await syncDrive()){button.disabled=false;return}
+  try{
+    msg('保存済みプランを削除しています…');
+    const response=await fetch(GAS_API_URL+'?action=get');if(!response.ok)throw new Error(response.status);
+    const plans=planEntries(await response.json()),remaining=plans.filter(item=>item.planName!==name);
+    if(remaining.length!==plans.length){
+      const saved=await postDrive(remaining);if(!saved.ok)throw new Error(saved.status);
+      const result=await saved.json();if(!result.success)throw new Error('保存に失敗しました');
+      driveList=remaining;
+    }else driveList=plans;
+    planPanel.querySelectorAll('.savedPlan').forEach(item=>{if(item.dataset.planName===name)item.remove()});
+    if(!planPanel.querySelector('.savedPlan')){const none=document.createElement('div');none.className='none';none.textContent='保存済みのプランはありません';planPanel.appendChild(none)}
+    msg('保存済みプランを削除しました');
+    if(isCurrent)createBlankPlan()
+  }catch(error){console.error('保存済みプランを削除できませんでした',error);msg('プランを削除できませんでした。通信を確認してください');button.disabled=false}
+}
 function applyPlan(p){CLOUD_KEYS.forEach(k=>{try{if(p.storage[k]!==undefined)localStorage.setItem(k,p.storage[k]);else localStorage.removeItem(k)}catch(e){}});
   msg('プランを読み込んでいます…');location.reload()}
 $('planList').addEventListener('click',async e=>{e.stopPropagation();
@@ -758,8 +783,10 @@ $('planList').addEventListener('click',async e=>{e.stopPropagation();
     planPanel.innerHTML='';
     appendBlankPlanOption();
     if(!list.length){const none=document.createElement('div');none.className='none';none.textContent='保存済みのプランはありません';planPanel.appendChild(none)}
-    list.forEach(p=>{const row=document.createElement('div');row.textContent=p.planName;
+    list.forEach(p=>{const row=document.createElement('div');row.className='savedPlan';row.dataset.planName=String(p.planName);
+      const name=document.createElement('span');name.textContent=p.planName;row.appendChild(name);
       if(p.updatedAt){const s=document.createElement('small');s.textContent=new Date(p.updatedAt).toLocaleString('ja-JP');row.appendChild(s)}
+      const remove=document.createElement('button');remove.type='button';remove.className='planDelete';remove.textContent='削除';remove.setAttribute('aria-label',String(p.planName)+'を削除');remove.addEventListener('click',e=>{e.stopPropagation();deleteSavedPlan(p,row,remove)});row.appendChild(remove);
       row.addEventListener('click',()=>{planPanel.classList.remove('show');applyPlan(p)});planPanel.appendChild(row)})
   }catch(err){planPanel.innerHTML='';appendBlankPlanOption();const d=document.createElement('div');d.className='none';d.textContent='一覧を読み込めませんでした(原因: '+(err&&err.message?err.message:err)+')';planPanel.appendChild(d)}});
 document.addEventListener('click',e=>{if(!planPanel.contains(e.target))planPanel.classList.remove('show')});

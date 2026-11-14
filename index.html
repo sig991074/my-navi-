@@ -702,6 +702,29 @@ body.hide-narrow #source+.icInfo,body.hide-narrow #source .condition-card[data-c
 #planPanel .planDelete{position:absolute;right:8px;top:50%;transform:translateY(-50%);min-width:52px;min-height:36px;padding:4px 8px;border:1px solid #b76;border-radius:5px;background:#fff0ee;color:#8a2720;font-size:12px;font-weight:bold}
 @media(max-width:560px){.scrTight .topRow{grid-template-columns:1fr}.scrTight input{font-size:16px}.planPick button{min-height:44px}.planPanel div:not(.none){box-sizing:border-box;min-height:44px;display:flex;flex-direction:column;justify-content:center}#planPanel .planDelete{min-height:44px}}
 </style>
+<style id="horizontalScrollLayoutStyle">
+html,body{overflow:auto}
+#app{min-width:840px;min-height:560px;height:100vh;height:100dvh;grid-template-columns:minmax(0,1fr) 12px minmax(280px,var(--right-panel-width,25%))}
+#right{border-left:0}
+#layoutDivider{position:relative;z-index:1200;cursor:col-resize;touch-action:none;background:#dce5eb;border-left:1px solid #aebcc4;border-right:1px solid #aebcc4;user-select:none}
+#layoutDivider:before{content:"";position:absolute;top:0;bottom:0;left:4px;width:2px;background:#8195a1}
+#layoutDivider:hover:before,#layoutDivider:focus-visible:before{background:#176fa7}
+#layoutDivider:focus-visible{outline:2px solid #176fa7;outline-offset:-2px}
+#list{overflow:auto}
+body.layout-resizing{cursor:col-resize;user-select:none;-webkit-user-select:none}
+body.guidance-active #layoutDivider{pointer-events:none;opacity:.45;cursor:default}
+@media(max-width:980px){
+  #top{left:52px;right:8px;top:10px;grid-template-columns:minmax(120px,1fr) 56px 56px 74px 40px;gap:4px}
+  #title{display:none}
+  #q{min-width:120px;font-size:16px}
+}
+@media(max-width:560px){
+  .scr{-webkit-overflow-scrolling:touch}
+  .scrBox{min-width:720px;margin:0}
+  .scrTight .topRow{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .depRow{grid-template-columns:repeat(3,minmax(140px,1fr))}
+}
+</style>
 <div id="scrMenu" class="scr"><div class="scrBox scrSetupBox"><h1>基礎データ入力</h1><p class="sub">プラン名と出発日時を入力します。「プラン名をEnter」他で入力内容は自動保存されます。</p>
 <div class="scrCard scrTight"><div class="topRow"><div style="position:relative"><label for="planName">プラン名</label><div class="planPick"><input id="planName" type="text" placeholder="例：和歌山・熊野温泉めぐり車中泊の旅"><button id="planList" type="button" title="保存済みプランの一覧">▽</button></div><div id="planPanel" class="planPanel"></div></div><div><label for="saveUrl">Web検索URL</label><input id="saveUrl" type="url" placeholder="https://"></div></div>
 <div class="depRow"><div><label for="dpv1">1日目 出発日時</label><div class="dpick"><input id="dpv1" type="text" readonly placeholder="押して選ぶ"><input id="dep1" type="datetime-local" tabindex="-1"></div></div><div><label for="dpv2">2日目 出発日時</label><div class="dpick"><input id="dpv2" type="text" readonly placeholder="押して選ぶ"><input id="dep2" type="datetime-local" tabindex="-1"></div></div><div><label for="dpv3">3日目 出発日時</label><div class="dpick"><input id="dpv3" type="text" readonly placeholder="押して選ぶ"><input id="dep3" type="datetime-local" tabindex="-1"></div></div></div><div id="saveMark"></div></div></div>
@@ -2777,12 +2800,13 @@ function confirmMlitSkip(){return new Promise(resolve=>{const box=document.getEl
     const candidate = routeLayers.find((entry) =>
       entry.routeNo === routeNo &&
       entry.route &&
-      (entry.route._displayOption ?? 0) === 0
-    ) || routeLayers.find((entry) => entry.routeNo === routeNo && entry.route);
+      (entry.route._displayOption ?? 0) === 0 &&
+      routeLayerMatchesPlan(entry)
+    );
     const route = candidate?.route;
 
     if (!route || !Array.isArray(route.geometry?.coordinates) || route.geometry.coordinates.length < 2) {
-      alert('選択したルート情報を読み込めません。ルートを再計算してください。');
+      alert('選択したルートがありません。ルート選定をしてください。');
       return;
     }
 
@@ -2836,8 +2860,19 @@ function confirmMlitSkip(){return new Promise(resolve=>{const box=document.getEl
       return;
     }
 
+    const hasCurrentRoute = routeLayers.some((entry) =>
+      entry.routeNo === selectedRoute &&
+      entry.route &&
+      (entry.route._displayOption ?? 0) === 0 &&
+      routeLayerMatchesPlan(entry)
+    );
+    if (hasCurrentRoute) {
+      startNavigation();
+      return;
+    }
+
     if (!savedRoute) {
-      alert('先にルート1またはルート2の「ルート決定」を押してください。');
+      alert('先にルート選定をしてください。');
       return;
     }
 
@@ -2888,6 +2923,10 @@ function confirmMlitSkip(){return new Promise(resolve=>{const box=document.getEl
       returnToMenu();
     }
   }
+  window.addEventListener('resize', () => {
+    requestAnimationFrame(() => window.evNarrowRoadBridge?.getMap()?.invalidateSize({ pan: false }));
+  });
 })();
 </script>
+<script src="./layout-divider.js"></script>
 </body></html>

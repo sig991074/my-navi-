@@ -4,6 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>走行ナビ</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#123b58">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="CARナビ">
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/app-180.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     :root {
@@ -15,7 +21,7 @@
 
     * { box-sizing: border-box; }
 
-    body { margin: 0; width: 100%; height: 100vh; height: 100dvh; overflow: hidden; }
+    body { margin: 0; width: 100%; height: 100vh; height: 100dvh; overflow: auto; -webkit-overflow-scrolling: touch; }
 
     button {
       min-height: 42px;
@@ -162,8 +168,10 @@
       .summary-values { gap: 3px 8px; font-size: 11px; }
       .nav-controls { gap: 5px; padding: 6px; }
       .nav-controls button { min-height: 34px; padding: 5px 4px; font-size: 11px; }
-      .steps-wrap { padding: 0 6px 6px; }
-      .route-step { grid-template-columns: 22px minmax(0, 1fr) auto; gap: 4px; padding: 5px; font-size: 11px; }
+      .steps-wrap { overflow: auto; padding: 0 6px 6px; -webkit-overflow-scrolling: touch; }
+      #routeSteps { width: max-content; min-width: 100%; }
+      .route-step { width: max-content; min-width: 100%; grid-template-columns: 22px max-content auto; gap: 4px; padding: 5px; font-size: 11px; }
+      .step-name { white-space: nowrap; overflow-wrap: normal; }
       .step-arrow { font-size: 18px; }
       .step-distance { font-size: 10px; }
       .next-card { top: 8px; left: 8px; width: min(320px, calc(100% - 16px)); padding: 8px 42px 8px 10px; border-radius: 9px; }
@@ -287,7 +295,12 @@
       }
 
       const map = L.map('map', { zoomControl: false }).setView([34.85, 135.78], 10);
-      window.addEventListener('resize', () => requestAnimationFrame(() => map.invalidateSize({ pan: false })));
+      function centerOnCurrentPosition() {
+        map.invalidateSize({ pan: false });
+        if (!currentPosition) return;
+        map.setView(currentPosition, Math.max(map.getZoom(), 15), { animate: false });
+      }
+      window.addEventListener('resize', () => requestAnimationFrame(centerOnCurrentPosition));
       L.control.zoom({ position: 'topright', zoomInTitle: '拡大', zoomOutTitle: '縮小' }).addTo(map);
       const roadMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
@@ -320,7 +333,7 @@
       });
       $('startGuidance').addEventListener('click', startTracking);
       $('locateMe').addEventListener('click', () => {
-        if (currentPosition) map.setView(currentPosition, Math.max(map.getZoom(), 15));
+        if (currentPosition) centerOnCurrentPosition();
         else $('gpsState').textContent = '案内開始を押して現在地を取得してください';
       });
       $('stopGuidance').addEventListener('click', stopTracking);
@@ -549,7 +562,7 @@
           $('directionText').textContent = directionName(heading);
         }
         $('gpsState').textContent = '現在地を案内中';
-        if (firstFix) map.setView(currentPosition, Math.max(map.getZoom(), 15), { animate: true });
+        if (firstFix) centerOnCurrentPosition();
         else map.panTo(currentPosition, { animate: true, duration: .4 });
         updateGuidance(currentPosition);
       }

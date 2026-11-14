@@ -17,16 +17,16 @@
   layout.insertBefore(divider, panel);
 
   const storageKey = 'carNaviLayoutPanelWidth';
-  const minimumWidth = 280;
+  const minimumWidth = () => Math.min(280, Math.round(layout.clientWidth * (layout.clientWidth <= 760 ? 0.35 : 1)));
   let desiredWidth = panel.getBoundingClientRect().width;
   let hasSavedWidth = false;
   let pointerId = null;
 
-  const clampWidth = width => Math.max(minimumWidth, Math.min(layout.clientWidth * 0.5, width));
+  const clampWidth = width => Math.max(minimumWidth(), Math.min(layout.clientWidth * 0.5, width));
   const render = () => {
     const width = hasSavedWidth ? clampWidth(desiredWidth) : panel.getBoundingClientRect().width;
     if (hasSavedWidth) layout.style.setProperty('--right-panel-width', width + 'px');
-    divider.setAttribute('aria-valuemin', String(minimumWidth));
+    divider.setAttribute('aria-valuemin', String(minimumWidth()));
     divider.setAttribute('aria-valuemax', String(Math.round(layout.clientWidth * 0.5)));
     divider.setAttribute('aria-valuenow', String(Math.round(width)));
   };
@@ -92,7 +92,7 @@
     if (document.body.classList.contains('guidance-active')) return;
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
     event.preventDefault();
-    if (event.key === 'Home') desiredWidth = minimumWidth;
+    if (event.key === 'Home') desiredWidth = minimumWidth();
     else if (event.key === 'End') desiredWidth = layout.clientWidth * 0.5;
     else desiredWidth += event.key === 'ArrowLeft' ? 20 : -20;
     hasSavedWidth = true;

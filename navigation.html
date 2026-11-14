@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>走行ナビ</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
@@ -15,7 +15,7 @@
 
     * { box-sizing: border-box; }
 
-    body { margin: 0; height: 100vh; height: 100dvh; overflow: auto; }
+    body { margin: 0; width: 100%; height: 100vh; height: 100dvh; overflow: hidden; }
 
     button {
       min-height: 42px;
@@ -31,7 +31,7 @@
 
     button:disabled { opacity: .55; cursor: default; }
 
-    .nav-shell { display: grid; grid-template-rows: 58px minmax(0, 1fr); min-width: 840px; min-height: 560px; height: 100%; }
+    .nav-shell { display: grid; grid-template-rows: 58px minmax(0, 1fr); width: 100%; min-width: 0; min-height: 0; height: 100%; }
 
     .nav-header {
       display: flex;
@@ -58,7 +58,7 @@
 
     .next-card {
       position: absolute;
-      z-index: 500;
+      z-index: 1100;
       top: 14px;
       left: 14px;
       width: min(390px, calc(100% - 28px));
@@ -149,23 +149,34 @@
     .leaflet-control-zoom a { font-family: inherit; }
 
     @media (max-width: 760px) {
-      .nav-shell { grid-template-rows: 54px minmax(0, 1fr); }
+      .nav-shell { grid-template-rows: 48px minmax(0, 1fr); }
       .nav-header { gap: 9px; padding: 6px 8px; }
-      .nav-header h1 { font-size: 17px; }
-      .nav-header .gps-state { font-size: 12px; }
-      .nav-header button { min-height: 38px; padding: 6px 9px; font-size: 13px; }
-      .nav-main { grid-template-columns: minmax(0, 1fr) 12px minmax(280px, var(--right-panel-width, 25%)); }
+      .nav-header h1 { font-size: 15px; }
+      .nav-header .gps-state { font-size: 11px; }
+      .nav-header button { min-height: 36px; padding: 5px 7px; font-size: 12px; }
+      .nav-main { grid-template-columns: minmax(0, 1fr) 18px minmax(min(126px, 35vw), var(--right-panel-width, 38%)); }
+      #layoutDivider::before { left: 7px; width: 3px; }
       .route-panel { grid-template-rows: auto auto minmax(0, 1fr); border-top: 0; border-left: 0; }
       .route-summary { padding: 8px 12px 6px; }
       .route-summary h2 { margin-bottom: 4px; font-size: 16px; }
-      .summary-values { gap: 5px 14px; font-size: 12px; }
-      .nav-controls { padding: 6px 9px; }
-      .nav-controls button { min-height: 38px; font-size: 12px; }
-      .steps-wrap { padding: 0 9px 9px; }
-      .route-step { padding: 6px; font-size: 12px; }
-      .next-card { top: 8px; left: 8px; padding: 10px 12px; }
-      .next-instruction { font-size: 19px; }
+      .summary-values { gap: 3px 8px; font-size: 11px; }
+      .nav-controls { gap: 5px; padding: 6px; }
+      .nav-controls button { min-height: 34px; padding: 5px 4px; font-size: 11px; }
+      .steps-wrap { padding: 0 6px 6px; }
+      .route-step { grid-template-columns: 22px minmax(0, 1fr) auto; gap: 4px; padding: 5px; font-size: 11px; }
+      .step-arrow { font-size: 18px; }
+      .step-distance { font-size: 10px; }
+      .next-card { top: 8px; left: 8px; width: min(320px, calc(100% - 16px)); padding: 8px 42px 8px 10px; border-radius: 9px; }
+      .next-label { font-size: 11px; }
+      .next-instruction { margin-top: 2px; font-size: 16px; }
+      .next-distance { font-size: 12px; }
       .direction-badge { left: 8px; bottom: 8px; }
+    }
+    .next-card.is-hidden { display: none; }
+    .next-card-dismiss { position: absolute; top: 6px; right: 6px; min-height: 28px; padding: 4px 7px; border-radius: 6px; font-size: 11px; }
+    @media (max-height: 500px) {
+      .nav-shell { grid-template-rows: 42px minmax(0, 1fr); }
+      .nav-header { padding-top: 3px; padding-bottom: 3px; }
     }
   </style>
 </head>
@@ -179,7 +190,8 @@
     <main class="nav-main">
       <section class="map-area" aria-label="走行地図">
         <div id="map"></div>
-        <div class="next-card" aria-live="polite">
+        <div id="nextCard" class="next-card" aria-live="polite">
+          <button id="dismissNextCard" class="next-card-dismiss" type="button" aria-label="案内表示を閉じる">閉じる</button>
           <div class="next-label">次の案内</div>
           <div id="nextInstruction" class="next-instruction">ルートを確認しています</div>
           <div id="nextDistance" class="next-distance"></div>
@@ -231,6 +243,9 @@
       const spokenAlerts = new Set();
       const coordinates = [];
       const stepPoints = [];
+
+      $('dismissNextCard').addEventListener('click', () => $('nextCard').classList.add('is-hidden'));
+      const showNextCard = () => $('nextCard').classList.remove('is-hidden');
 
       try {
         savedRoute = sessionStorage.getItem(STORAGE_KEY);
@@ -478,6 +493,7 @@
         const nearest = routeDistanceTo(0, current).nearestIndex;
         const next = stepPoints.find(point => point.coordinateIndex > nearest);
         if (!next) {
+          showNextCard();
           $('nextInstruction').textContent = '目的地に到着しました';
           $('nextDistance').textContent = '';
           nextStepIndex = -1;
@@ -488,6 +504,7 @@
         $('nextInstruction').textContent = nextInstructionText(routeData.steps[next.index], next.index);
         $('nextDistance').textContent = '約 ' + formatMeters(routeDistance) + ' 先';
         if (nextStepIndex !== next.index) {
+          showNextCard();
           nextStepIndex = next.index;
           document.querySelectorAll('.route-step').forEach(row => {
             row.classList.toggle('is-next', Number(row.dataset.stepIndex) === nextStepIndex);

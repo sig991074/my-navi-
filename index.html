@@ -703,8 +703,9 @@ body.hide-narrow #source+.icInfo,body.hide-narrow #source .condition-card[data-c
 @media(max-width:560px){.scrTight .topRow{grid-template-columns:1fr}.scrTight input{font-size:16px}.planPick button{min-height:44px}.planPanel div:not(.none){box-sizing:border-box;min-height:44px;display:flex;flex-direction:column;justify-content:center}#planPanel .planDelete{min-height:44px}}
 </style>
 <style id="horizontalScrollLayoutStyle">
-html,body{overflow:auto}
-#app{min-width:840px;min-height:560px;height:100vh;height:100dvh;grid-template-columns:minmax(0,1fr) 12px minmax(280px,var(--right-panel-width,25%))}
+html,body{overflow:hidden}
+#app{width:100%;min-width:0;min-height:0;height:100vh;height:100dvh;grid-template-columns:minmax(0,1fr) 24px minmax(min(280px,38vw),var(--right-panel-width,25%))}
+#scrMenu .dpick input[type=datetime-local]{display:block;position:static;width:100%;height:auto;min-height:42px;opacity:1;pointer-events:auto}
 #right{border-left:0}
 #layoutDivider{position:relative;z-index:1200;cursor:col-resize;touch-action:none;background:#dce5eb;border-left:1px solid #aebcc4;border-right:1px solid #aebcc4;user-select:none}
 #layoutDivider:before{content:"";position:absolute;top:0;bottom:0;left:4px;width:2px;background:#8195a1}
@@ -720,14 +721,14 @@ body.guidance-active #layoutDivider{pointer-events:none;opacity:.45;cursor:defau
 }
 @media(max-width:560px){
   .scr{-webkit-overflow-scrolling:touch}
-  .scrBox{min-width:720px;margin:0}
-  .scrTight .topRow{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .depRow{grid-template-columns:repeat(3,minmax(140px,1fr))}
+  .scr .scrBox{width:auto;min-width:0;max-width:100%;margin:8px}
+  .scrTight .topRow{grid-template-columns:1fr}
+  .depRow{grid-template-columns:1fr}
 }
 </style>
 <div id="scrMenu" class="scr"><div class="scrBox scrSetupBox"><h1>基礎データ入力</h1><p class="sub">プラン名と出発日時を入力します。「プラン名をEnter」他で入力内容は自動保存されます。</p>
-<div class="scrCard scrTight"><div class="topRow"><div style="position:relative"><label for="planName">プラン名</label><div class="planPick"><input id="planName" type="text" placeholder="例：和歌山・熊野温泉めぐり車中泊の旅"><button id="planList" type="button" title="保存済みプランの一覧">▽</button></div><div id="planPanel" class="planPanel"></div></div><div><label for="saveUrl">Web検索URL</label><input id="saveUrl" type="url" placeholder="https://"></div></div>
-<div class="depRow"><div><label for="dpv1">1日目 出発日時</label><div class="dpick"><input id="dpv1" type="text" readonly placeholder="押して選ぶ"><input id="dep1" type="datetime-local" tabindex="-1"></div></div><div><label for="dpv2">2日目 出発日時</label><div class="dpick"><input id="dpv2" type="text" readonly placeholder="押して選ぶ"><input id="dep2" type="datetime-local" tabindex="-1"></div></div><div><label for="dpv3">3日目 出発日時</label><div class="dpick"><input id="dpv3" type="text" readonly placeholder="押して選ぶ"><input id="dep3" type="datetime-local" tabindex="-1"></div></div></div><div id="saveMark"></div></div></div>
+<div class="scrCard scrTight"><div class="topRow"><div style="position:relative"><label for="planName">プラン名</label><div class="planPick"><input id="planName" type="text" placeholder="例：和歌山・熊野温泉めぐり車中泊の旅"><button id="planList" type="button" title="保存済みプランの一覧">▽</button></div><div id="planPanel" class="planPanel"></div></div><div><label for="saveUrl">保存先URL</label><input id="saveUrl" type="url" placeholder="https://"></div></div>
+<div class="depRow"><div><label for="dep1">1日目 出発日時</label><div class="dpick"><input id="dep1" type="datetime-local" aria-label="1日目 出発日時"></div></div><div><label for="dep2">2日目 出発日時</label><div class="dpick"><input id="dep2" type="datetime-local" aria-label="2日目 出発日時"></div></div><div><label for="dep3">3日目 出発日時</label><div class="dpick"><input id="dep3" type="datetime-local" aria-label="3日目 出発日時"></div></div></div><div id="saveMark"></div></div></div>
 <div class="frameArrow"><span>⇅</span><small>入力したプラン名・出発日時を引き継ぐ</small></div>
 <div class="scrBox"><h1>CARナビ ルートプランナー 総合メニュー</h1><p class="sub" id="menuPlan"></p>
 <div class="menuGrid"><button class="scrBtn" style="grid-area:1/1" data-go="planner" type="button">carナビ ルートプランナー<small>ルートの選定を行います。</small></button>
@@ -741,7 +742,7 @@ body.guidance-active #layoutDivider{pointer-events:none;opacity:.45;cursor:defau
 <script>(function(){const $=id=>document.getElementById(id),KEY='ev_plan',F=['planName','saveUrl','dep1','dep2','dep3'];
 function show(name){let mode=name;if(name==='narrow')name='planner';document.body.classList.toggle('hide-narrow',name==='planner'&&mode!=='narrow');window.syncNarrowPriorityMode?.(mode);let tt=mode==='narrow'?'狭隘道路安全チェック':'CARナビ　ルートプランナー';if(title)title.textContent=tt;document.title=tt;try{localStorage.setItem(KEY+'_mode',mode)}catch(e){}['scrMenu','scrWip'].forEach(id=>$(id).classList.remove('show'));$('backMenu').classList.toggle('show',name==='planner');if(name==='menu'){$('menuPlan').textContent=$('planName').value?'プラン名：'+$('planName').value:'';$('scrMenu').classList.add('show')}if(name==='wip')$('scrWip').classList.add('show');try{localStorage.setItem(KEY+'_screen',name==='wip'?'menu':name)}catch(e){}if(name==='planner')[50,300,800].forEach(t=>setTimeout(()=>{try{if(map&&map.invalidateSize){map.invalidateSize();if(t===300)window.showRouteWorkspace?.()}}catch(e){console.error('経路画面を表示できませんでした',e);$('status').textContent='経路画面を表示できませんでした'}},t))}
 let dirty=false,driveList=null;
-function save(){let d={};F.forEach(id=>d[id]=$(id).value);try{localStorage.setItem(KEY,JSON.stringify(d));dirty=true;$('saveMark').textContent=''}catch(e){$('saveMark').textContent='保存できませんでした'}}
+function save(){let d={};F.forEach(id=>d[id]=$(id).value);try{localStorage.setItem(KEY,JSON.stringify(d));dirty=true;$('saveMark').textContent='';return true}catch(e){console.error('入力内容を保存できませんでした',e);$('saveMark').textContent='保存できませんでした';return false}}
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyS_P1fAlJ3CZK_hni6PXUTxQE31nUjesYZWj7okjmgw2B0C-dBy09FgSRP1GKoe3Y6/exec";
 function postDrive(list,keep){return fetch(GAS_API_URL,{method:'POST',keepalive:!!keep,body:JSON.stringify({action:'save',content:JSON.stringify({plans:list})})})}
 async function syncDrive(){const name=$('planName').value.trim();if(!name)return false;
@@ -756,17 +757,35 @@ function closeSync(){const name=$('planName').value.trim();if(!dirty||!name||!dr
 window.addEventListener('DOMContentLoaded',()=>{fetch(GAS_API_URL+'?action=get').then(r=>r.json()).then(d=>{driveList=planEntries(d)}).catch(()=>{})});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')closeSync()});
 window.addEventListener('pagehide',closeSync);
-F.forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();$(id).blur();save();syncDrive()}}));
-document.querySelector('.scrSetupBox').addEventListener('dblclick',()=>{save();syncDrive()});
+F.forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();$(id).blur();if(id==='saveUrl'){downloadPlanToFolder();return}save();syncDrive()}}));
+const setupBox=document.querySelector('.scrSetupBox');let lastTouchTap=0,lastTouchSync=0;
+function saveAndSync(){save();syncDrive()}
+setupBox.addEventListener('pointerup',e=>{if(e.pointerType!=='touch')return;const now=Date.now();if(now-lastTouchTap<=450){lastTouchTap=0;lastTouchSync=now;saveAndSync()}else lastTouchTap=now});
+setupBox.addEventListener('pointercancel',()=>{lastTouchTap=0});
+setupBox.addEventListener('dblclick',()=>{if(Date.now()-lastTouchSync<700)return;saveAndSync()});
 try{let d=JSON.parse(localStorage.getItem(KEY)||'{}');F.forEach(id=>{if(d[id])$(id).value=d[id]})}catch(e){}
 F.forEach(id=>{$(id).addEventListener('input',save);$(id).addEventListener('change',save)});
-function weekdays(){[1,2,3].forEach(n=>{const v=$('dep'+n).value,m=v&&v.match(/^(\d{4})-(\d\d)-(\d\d)T(\d\d:\d\d)/);$('dpv'+n).value=m?m[1]+'/'+m[2]+'/'+m[3]+'('+'日月火水木金土'[new Date(v).getDay()]+') '+m[4]:''})}
-[1,2,3].forEach(n=>{const t=$('dpv'+n),h=$('dep'+n);t.addEventListener('click',()=>{try{h.showPicker()}catch(e){h.focus();h.click()}});
-  t.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();t.blur();save();syncDrive()}});
-  h.addEventListener('input',weekdays);h.addEventListener('change',weekdays)});weekdays();
 const CLOUD_KEYS=['ev_plan','ev_route_workspace','ev_narrowWidth','ev_trolleyWidth','ev_trolleyLength','ev_trolleyNarrowLimit','ev_trolleyFailLength'];
 const msg=t=>{$('saveMark').textContent=t};
 function collect(){const s={};CLOUD_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!==null)s[k]=v});return{app:'ev-navi',version:1,planName:$('planName').value.trim(),updatedAt:Date.now(),storage:s}}
+function downloadPlanToFolder(){
+  const rawUrl=$('saveUrl').value.trim(),planName=$('planName').value.trim();
+  if(!rawUrl){msg('保存先URLを入力してください');$('saveUrl').focus();return}
+  if(!planName){msg('先にプラン名を入力してください');$('planName').focus();return}
+  let folderUrl;
+  try{const parsed=new URL(rawUrl);if(parsed.protocol!=='https:')throw new Error('https以外のURLです');folderUrl=parsed.href}
+  catch(error){console.error('保存先URLを確認できません',error);msg('https://から始まる保存先URLを確認してください');return}
+  const fileBase=planName.replace(/[\\/:*?"<>|]/g,'_').trim();
+  if(!fileBase){msg('プラン名を確認してください');return}
+  if(!save())return;
+  let folderWindow;
+  try{folderWindow=window.open(folderUrl,'_blank');if(!folderWindow){msg('共有フォルダーを開けません。ポップアップ設定を確認してください');return}folderWindow.opener=null}
+  catch(error){console.error('共有フォルダーを開けません',error);msg('共有フォルダーを開けませんでした');return}
+  const blobUrl=URL.createObjectURL(new Blob([JSON.stringify(collect(),null,2)],{type:'application/json'}));
+  const download=document.createElement('a');download.href=blobUrl;download.download=fileBase+'.json';download.style.display='none';document.body.appendChild(download);download.click();download.remove();
+  window.setTimeout(()=>URL.revokeObjectURL(blobUrl),1000);
+  msg('同名のJSONをダウンロードしました。OneDriveで「置き換え」を選んでください');
+}
 const planPanel=$('planPanel');
 const planEntries=d=>d&&d.app==='ev-navi'&&d.storage?[d]:d&&Array.isArray(d.plans)?d.plans.filter(p=>p&&p.planName):[];
 function appendBlankPlanOption(){const row=document.createElement('div');row.textContent='＋ 白票（新規作成）';row.addEventListener('click',()=>{planPanel.classList.remove('show');createBlankPlan()});planPanel.appendChild(row)}

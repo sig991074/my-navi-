@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000" role="img" aria-labelledby="title desc">
+  <title id="title">旅行プランの公開と保存</title>
+  <desc id="desc">自宅のPCでナビを更新し、Firebaseで公開する。PCやスマートフォン、車載端末は公開画面を開く。プランの保存先は画面の公開先とは別。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0 0L12 6L0 12Z" fill="#31566d"/>
+    </marker>
+    <marker id="green" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0 0L12 6L0 12Z" fill="#25834a"/>
+    </marker>
+    <marker id="greenStart" markerWidth="12" markerHeight="12" refX="2" refY="6" orient="auto">
+      <path d="M12 0L0 6L12 12Z" fill="#25834a"/>
+    </marker>
+    <style>
+      text{font-family:Meiryo,"Yu Gothic",sans-serif;fill:#17384b}
+      .title{font-size:30px;font-weight:700}
+      .heading{font-size:21px;font-weight:700}
+      .label{font-size:18px}
+      .small{font-size:16px}
+      .tiny{font-size:14px}
+      .arrow{fill:none;stroke:#31566d;stroke-width:3;marker-end:url(#arrow)}
+      .data{fill:none;stroke:#25834a;stroke-width:3;marker-start:url(#greenStart);marker-end:url(#green)}
+    </style>
+  </defs>
+  <rect width="1440" height="1000" fill="#f1f3f4"/>
+  <text x="60" y="58" class="title">旅行プランの公開と保存</text>
+  <text x="60" y="88" class="small">画面の公開先と、旅行プランの保存先は別です</text>
+
+  <rect x="55" y="113" width="1330" height="220" rx="17" fill="#fff" stroke="#a8bac4" stroke-width="2"/>
+  <text x="80" y="150" class="heading">① ナビの画面を公開する</text>
+  <rect x="85" y="179" width="230" height="90" rx="12" fill="#e6f2fa" stroke="#7899ad" stroke-width="2"/>
+  <text x="200" y="215" text-anchor="middle" class="label" font-weight="700">自宅のPC</text>
+  <text x="200" y="243" text-anchor="middle" class="small">ナビのファイルを修正</text>
+  <path d="M320 224H370" class="arrow"/>
+  <rect x="380" y="179" width="245" height="90" rx="12" fill="#fff7df" stroke="#d4ad47" stroke-width="2"/>
+  <text x="502" y="215" text-anchor="middle" class="label" font-weight="700">公開用の道具</text>
+  <text x="502" y="243" text-anchor="middle" class="small">Node.js ＋ Firebaseの道具</text>
+  <path d="M630 224H680" class="arrow"/>
+  <rect x="690" y="179" width="255" height="90" rx="12" fill="#fff0d3" stroke="#d4ad47" stroke-width="2"/>
+  <text x="817" y="215" text-anchor="middle" class="label" font-weight="700">Firebase Hosting</text>
+  <text x="817" y="243" text-anchor="middle" class="small">Googleの画面の置き場</text>
+  <path d="M950 224H1000" class="arrow"/>
+  <rect x="1010" y="179" width="335" height="90" rx="12" fill="#e8f2df" stroke="#7ba36f" stroke-width="2"/>
+  <text x="1177" y="215" text-anchor="middle" class="label" font-weight="700">ナビの画面を公開</text>
+  <text x="1177" y="243" text-anchor="middle" class="small">my-navi-17e74.web.app</text>
+  <text x="85" y="303" class="small">GitHubにもファイルを保管・公開中。Firebaseへの反映は別の操作です。</text>
+
+  <rect x="55" y="355" width="1330" height="230" rx="17" fill="#fff" stroke="#a8bac4" stroke-width="2"/>
+  <text x="80" y="392" class="heading">② 公開した画面を使う</text>
+  <rect x="85" y="421" width="315" height="105" rx="12" fill="#e6f2fa" stroke="#7899ad" stroke-width="2"/>
+  <text x="242" y="462" text-anchor="middle" class="label" font-weight="700">自宅のPC</text>
+  <text x="242" y="492" text-anchor="middle" class="small">プラン・ルートを作る</text>
+  <path d="M405 473H480" class="arrow"/>
+  <rect x="490" y="412" width="460" height="124" rx="15" fill="#fff7df" stroke="#31566d" stroke-width="3"/>
+  <text x="720" y="456" text-anchor="middle" class="heading">CARナビの画面</text>
+  <text x="720" y="488" text-anchor="middle" class="small">ルートプランナー・走行ナビ</text>
+  <text x="720" y="515" text-anchor="middle" class="tiny">Googleのアドレスから開く</text>
+  <path d="M1034 473H960" class="arrow"/>
+  <rect x="1045" y="421" width="295" height="105" rx="12" fill="#e6f2fa" stroke="#7899ad" stroke-width="2"/>
+  <text x="1192" y="462" text-anchor="middle" class="label" font-weight="700">スマホ・車載端末</text>
+  <text x="1192" y="492" text-anchor="middle" class="small">同じアドレスで開く</text>
+  <text x="85" y="558" class="small">位置情報は、それぞれの端末から取得します。</text>
+
+  <rect x="55" y="607" width="1330" height="250" rx="17" fill="#fff" stroke="#a8bac4" stroke-width="2"/>
+  <text x="80" y="644" class="heading">③ 旅行プランを保存・呼び出しする</text>
+  <rect x="85" y="675" width="240" height="95" rx="12" fill="#fff7df" stroke="#31566d" stroke-width="2"/>
+  <text x="205" y="714" text-anchor="middle" class="label" font-weight="700">CARナビの画面</text>
+  <text x="205" y="742" text-anchor="middle" class="small">プランを入力</text>
+  <path d="M330 722H400" class="data"/>
+  <rect x="410" y="675" width="270" height="95" rx="12" fill="#e8f2df" stroke="#7ba36f" stroke-width="2"/>
+  <text x="545" y="714" text-anchor="middle" class="label" font-weight="700">Googleの連携</text>
+  <text x="545" y="742" text-anchor="middle" class="small">Apps Script</text>
+  <path d="M685 722H755" class="data"/>
+  <rect x="765" y="675" width="280" height="95" rx="12" fill="#dcecf7" stroke="#7899ad" stroke-width="2"/>
+  <text x="905" y="714" text-anchor="middle" class="label" font-weight="700">Googleドライブ</text>
+  <text x="905" y="742" text-anchor="middle" class="small">プランの保存先</text>
+  <text x="85" y="808" class="small">共有フォルダーを使う場合：フォルダーを開き、端末に保存したプランを手で入れます。</text>
+  <text x="85" y="836" class="small">共有フォルダーから画面への取り込みは、まだ準備中です。</text>
+
+  <rect x="55" y="879" width="1330" height="80" rx="14" fill="#fff5d9" stroke="#d4ad47" stroke-width="2"/>
+  <text x="80" y="912" class="label" font-weight="700">役割の違い</text>
+  <text x="80" y="940" class="small">Firebaseは画面の公開先。Googleドライブはプランの保存先。公開用の道具はPCで更新するときに使います。</text>
+</svg>
